@@ -1,6 +1,6 @@
 # Monopoly_Group7
 
-## Project Completion Plan (Weeks 1-15)
+## Project Completion Plan (Weeks 1-15)（该表格目前仅供测试使用，并不是实际结果）
 
 Phase-1 due Week 8 (2026-04-22). Phase-2 due Week 15 (2026-06-09). Demo on 2026-06-11/12.
 

@@ -26,10 +26,10 @@ Phase-1 due Week 8 (2026-04-22). Phase-2 due Week 15 (2026-06-09). Demo on 2026-
 
 | Name | Role | Primary Tasks | Contribution (%) |
 | --- | --- | --- | --- |
-| 雷雨润 (Member 1, Team Lead) | Architecture & Core Logic | Overall architecture, card dealing & turn loop core, UML class diagram, GitHub standards | 30% |
-| Member 2 (Core) | GUI & Card Effects | GUI development, card effect logic, applying design patterns | 25% |
-| Member 3 (Core) | Data & Calculations | Player data structures, asset computation logic, sequence diagrams | 20% |
-| Member 4 (Support) | Documentation & Prep | Phase-1 requirements collation, PPT prep, basic black-box testing | 13% |
-| Member 5 (Support) | Testing & Formatting | Phase-2 test case authoring, documentation formatting and checks | 12% |
+| 雷雨润 (Team Lead) | Architecture & Core Logic | Overall architecture, card dealing & turn loop core, UML class diagram, GitHub standards | 30% |
+| 核心组员A姓名 | GUI & Card Effects | GUI development, card effect logic, applying design patterns | 25% |
+| 核心组员B姓名 | Data & Calculations | Player data structures, asset computation logic, sequence diagrams | 20% |
+| 边缘组员C姓名 | Documentation & Prep | Phase-1 requirements collation, PPT prep, basic black-box testing | 13% |
+| 边缘组员D姓名 | Testing & Formatting | Phase-2 test case authoring, documentation formatting and checks | 12% |
 
-The contribution percentages differ because core code development (architecture, gameplay logic, GUI, design patterns) carries higher complexity and effort, while documentation and black-box testing require comparatively less specialized implementation work. Replace the neutral member identifiers with the actual member names before final submission to reflect accountability.
+The contribution percentages differ because core code development (architecture, gameplay logic, GUI, design patterns) carries higher complexity and effort, while documentation and black-box testing require comparatively less specialized implementation work.

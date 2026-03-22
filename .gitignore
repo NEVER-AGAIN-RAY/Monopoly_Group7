@@ -1,0 +1,33 @@
+# --- Java 相关 ---
+*.class
+*.jar
+*.war
+*.ear
+
+# --- Maven (如果你打算用它管理项目) ---
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.restoreBackup
+release.properties
+
+# --- Gradle (如果你用 Gradle) ---
+.gradle/
+build/
+
+# --- IDE (IntelliJ IDEA) ---
+.idea/
+*.iml
+out/
+gen/
+
+# --- IDE (Eclipse) ---
+.settings/
+.project
+.classpath
+bin/
+
+# --- 操作系统临时文件 ---
+.DS_Store
+Thumbs.db

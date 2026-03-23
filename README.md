@@ -26,7 +26,7 @@ Phase-1 due Week 8 (2026-04-22). Phase-2 due Week 15 (2026-06-09). Demo on 2026-
 
 | Name | Role | Primary Tasks | Contribution (%) |
 | --- | --- | --- | --- |
-| 雷雨润 (Team Lead) | Architecture & Core Logic | Overall architecture, card dealing & turn loop core, UML class diagram, GitHub standards | 30% |
+| (Team Lead) | Architecture & Core Logic | Overall architecture, card dealing & turn loop core, UML class diagram, GitHub standards | 30% |
 | 核心组员A姓名 | GUI & Card Effects | GUI development, card effect logic, applying design patterns | 25% |
 | 核心组员B姓名 | Data & Calculations | Player data structures, asset computation logic, sequence diagrams | 20% |
 | 边缘组员C姓名 | Documentation & Prep | Phase-1 requirements collation, PPT prep, basic black-box testing | 13% |

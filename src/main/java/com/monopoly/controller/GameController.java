@@ -6,7 +6,9 @@ import com.monopoly.model.Card;
 import com.monopoly.model.GameContext;
 import com.monopoly.model.HumanPlayer;
 import com.monopoly.model.Player;
+import com.monopoly.model.PaymentSettlement;
 import com.monopoly.model.PropertyCard;
+import com.monopoly.model.RentCalculator;
 import com.monopoly.model.dto.GameStateSnapshot;
 import com.monopoly.pattern.factory.CardFactory;
 import com.monopoly.pattern.factory.MonopolyDealCardFactory;
@@ -157,10 +159,29 @@ public class GameController {
         pushSnapshot(currentSessionId, normalizedActionType);
     }
 
-    /** 租金结算入口（内部将协调 Payable、银行、财产退回等） */
-    public void requestRentPayment(Player from, Player to, int amount, GameContext context) {
-        // 骨架
-        pushSnapshot(currentSessionId, "RENT");
+    /**
+     * 租金支付：{@code from} 向 {@code to} 支付 {@code amount}（M）。
+     * 仅使用银行 + 财产区；银行牌归收租方银行，房产牌进弃牌堆；找零不退。
+     *
+     * @return 结算结果，便于网络层展示原因
+     */
+    public PaymentSettlement.Result requestRentPayment(Player from, Player to, int amount, GameContext context) {
+        PaymentSettlement.Result result = PaymentSettlement.settle(from, to, amount, engine);
+        pushSnapshot(currentSessionId, result.isSuccess() ? "RENT_PAID" : "RENT_FAILED");
+        return result;
+    }
+
+    /**
+     * 按收租方财产区指定颜色计算应付租金（M），并尝试由 {@code tenant} 支付给 {@code landlord}。
+     */
+    public PaymentSettlement.Result collectRentForColor(Player landlord, Player tenant, String colorKey) {
+        int due = RentCalculator.computeRentForColor(landlord, colorKey);
+        return requestRentPayment(tenant, landlord, due, new GameContext());
+    }
+
+    /** 仅查询某颜色应收租金，不执行支付。 */
+    public int computeRentDueForColor(Player landlord, String colorKey) {
+        return RentCalculator.computeRentForColor(landlord, colorKey);
     }
 
     /** 结束回合：弃牌限制、轮转 */

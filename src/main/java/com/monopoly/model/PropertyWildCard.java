@@ -13,4 +13,9 @@ public class PropertyWildCard extends PropertyCard {
     public boolean isWildProperty() {
         return true;
     }
+
+    @Override
+    public int getPaymentValue() {
+        return 3;
+    }
 }

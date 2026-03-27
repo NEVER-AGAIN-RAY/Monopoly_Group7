@@ -6,6 +6,7 @@ package com.monopoly.model;
 public class PropertyCard extends Card implements Payable {
 
     private final String colorGroup;
+    private BuildingLevel buildingLevel = BuildingLevel.BASE;
 
     public PropertyCard(String id, String name, String colorGroup) {
         super(id, name);
@@ -14,6 +15,16 @@ public class PropertyCard extends Card implements Payable {
 
     public String getColorGroup() {
         return colorGroup;
+    }
+
+    public BuildingLevel getBuildingLevel() {
+        return buildingLevel;
+    }
+
+    public void setBuildingLevel(BuildingLevel buildingLevel) {
+        if (buildingLevel != null) {
+            this.buildingLevel = buildingLevel;
+        }
     }
 
     /** 是否为万能房产牌（可计入任意颜色套数，由 {@link PropertySetCalculator} 分配）。 */
@@ -27,9 +38,21 @@ public class PropertyCard extends Card implements Payable {
         return true;
     }
 
+    /**
+     * 抵押/支付价值：用于支付租金时从财产区退回弃牌堆的折算（M）。
+     */
     @Override
     public int getPaymentValue() {
-        // 骨架：后续按规则返回抵押/支付价值
-        return 0;
+        if (colorGroup == null || colorGroup.isBlank()) {
+            return 3;
+        }
+        String k = colorGroup.trim().toUpperCase();
+        return switch (k) {
+            case "BROWN", "DARK_BLUE" -> 2;
+            case "LIGHT_BLUE", "PINK", "ORANGE", "RED", "YELLOW", "GREEN" -> 3;
+            case "RAILROAD" -> 4;
+            case "UTILITY" -> 2;
+            default -> 3;
+        };
     }
 }

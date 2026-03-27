@@ -119,6 +119,38 @@ public abstract class Player {
         bankCards.add(card);
     }
 
+    public void addToBank(Card card) {
+        if (card != null) {
+            bankCards.add(card);
+        }
+    }
+
+    public boolean removeFromBank(Card card) {
+        return card != null && bankCards.remove(card);
+    }
+
+    public boolean removePropertyCard(PropertyCard card) {
+        return card != null && propertyCards.remove(card);
+    }
+
+    /** 银行堆中所有可支付牌的总面值（M）。 */
+    public int totalBankValueM() {
+        int s = 0;
+        for (Card c : bankCards) {
+            s += PayableCards.valueOf(c);
+        }
+        return s;
+    }
+
+    /** 财产区房产用于支付时的可抵押总值（M，不含手牌）。 */
+    public int totalPropertyPaymentValueM() {
+        int s = 0;
+        for (PropertyCard p : propertyCards) {
+            s += PayableCards.valueOf(p);
+        }
+        return s;
+    }
+
     /**
      * 部署房产：把手牌中的房产卡转移到财产区分区（骨架阶段：只做类型转移）。
      */

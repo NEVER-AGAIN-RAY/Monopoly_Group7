@@ -1,0 +1,31 @@
+package com.monopoly.model;
+
+/**
+ * 钱币卡：面值（M），可存入银行并用于支付租金。
+ */
+public class MoneyCard extends Card implements Payable {
+
+    private final int valueM;
+
+    public MoneyCard(String id, String name, int valueM) {
+        super(id, name);
+        if (valueM <= 0) {
+            throw new IllegalArgumentException("钱币面值必须为正数");
+        }
+        this.valueM = valueM;
+    }
+
+    public int getValueM() {
+        return valueM;
+    }
+
+    @Override
+    public boolean canPlay(Player actor, GameContext context) {
+        return true;
+    }
+
+    @Override
+    public int getPaymentValue() {
+        return valueM;
+    }
+}

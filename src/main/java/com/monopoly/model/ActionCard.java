@@ -24,7 +24,7 @@ public class ActionCard extends Card implements Payable {
 
     @Override
     public int getPaymentValue() {
-        // 骨架：存入银行后的钱币面值等
-        return 0;
+        // 存入银行后仅作钱币结算（与标准 M3 行动卡占位一致，后续可按 effectCode 区分）
+        return 3;
     }
 }

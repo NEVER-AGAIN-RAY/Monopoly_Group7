@@ -5,6 +5,7 @@ import com.monopoly.model.Card;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 【Singleton 单例模式】
@@ -16,6 +17,7 @@ public final class GameEngineSingleton {
     private static volatile GameEngineSingleton instance;
 
     private final List<Card> drawPile = new ArrayList<>();
+    private final List<Card> discardPile = new ArrayList<>();
 
     private GameEngineSingleton() {
     }
@@ -45,9 +47,74 @@ public final class GameEngineSingleton {
         return Collections.unmodifiableList(drawPile);
     }
 
+    public List<Card> getDiscardPileView() {
+        return Collections.unmodifiableList(discardPile);
+    }
+
     /** 初始化牌堆等逻辑由工厂与控制器协作完成，此处仅占位 */
     public void attachDrawPile(List<Card> pile) {
         drawPile.clear();
-        drawPile.addAll(pile);
+        discardPile.clear();
+        if (pile != null) {
+            drawPile.addAll(pile);
+        }
+    }
+
+    /**
+     * 从抽牌堆摸一张并移除。
+     * 若抽牌堆已空，则按规则将弃牌堆全部洗牌后转为新抽牌堆，再继续摸牌。
+     * 若抽牌堆与弃牌堆皆空，则返回 {@code null}。
+     */
+    public Card drawOne() {
+        replenishDrawPileFromDiscardIfEmpty();
+        if (drawPile.isEmpty()) {
+            return null;
+        }
+        return drawPile.remove(0);
+    }
+
+    /**
+     * requirements：摸牌时若公共抽牌堆无牌，将弃牌堆所有牌随机洗牌后作为新抽牌堆。
+     * 仅在抽牌堆为空时调用；弃牌堆也为空时不做任何事。
+     */
+    public void replenishDrawPileFromDiscardIfEmpty() {
+        if (!drawPile.isEmpty()) {
+            return;
+        }
+        if (discardPile.isEmpty()) {
+            return;
+        }
+        drawPile.addAll(discardPile);
+        discardPile.clear();
+        Collections.shuffle(drawPile, ThreadLocalRandom.current());
+    }
+
+    /**
+     * 最小闭环：将一张牌放入弃牌堆。
+     */
+    public void discard(Card card) {
+        if (card != null) {
+            discardPile.add(card);
+        }
+    }
+
+    /**
+     * @return 当前抽牌堆剩余数量
+     */
+    public int remainingCount() {
+        return drawPile.size();
+    }
+
+    public int discardCount() {
+        return discardPile.size();
+    }
+
+    public void discardMany(List<Card> cards) {
+        if (cards == null || cards.isEmpty()) {
+            return;
+        }
+        for (Card card : cards) {
+            discard(card);
+        }
     }
 }

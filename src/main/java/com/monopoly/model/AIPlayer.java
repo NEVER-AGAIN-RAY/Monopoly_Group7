@@ -25,6 +25,7 @@ public class AIPlayer extends Player {
     /**
      * 由回合控制器在 AI 回合调用，骨架阶段仅占位。
      */
+    @Override
     public void requestPlayDecision(GameContext context) {
         if (playStrategy != null) {
             playStrategy.decideNextAction(this, context);

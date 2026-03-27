@@ -27,9 +27,9 @@ Phase-1 due Week 8 (2026-04-22). Phase-2 due Week 15 (2026-06-09). Demo on 2026-
 | Name | Role | Primary Tasks | Contribution (%) |
 | --- | --- | --- | --- |
 | Liu Zongrun| Architecture & Core Logic | Overall architecture, card dealing & turn loop core, UML class diagram, GitHub standards | 0% |
-| 雷雨润 | GUI & Card Effects | GUI development, card effect logic, applying design patterns | 0% |
-| 汪庭洞 | Data & Calculations | Player data structures, asset computation logic, sequence diagrams | 0% |
-| 邱思齐 | Documentation & Prep | Phase-1 requirements collation, PPT prep, basic black-box testing | 0% |
-| 刘宇豪 | Testing & Formatting | Phase-2 test case authoring, documentation formatting and checks | 0% |
+| Lei Yurun| GUI & Card Effects | GUI development, card effect logic, applying design patterns | 0% |
+| Wang Tingdong | Data & Calculations | Player data structures, asset computation logic, sequence diagrams | 0% |
+| Qiu Siqi | Documentation & Prep | Phase-1 requirements collation, PPT prep, basic black-box testing | 0% |
+| Liu Yuhao | Testing & Formatting | Phase-2 test case authoring, documentation formatting and checks | 0% |
 
 The contribution percentages differ because core code development (architecture, gameplay logic, GUI, design patterns) carries higher complexity and effort, while documentation and black-box testing require comparatively less specialized implementation work.

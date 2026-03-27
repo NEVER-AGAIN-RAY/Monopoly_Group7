@@ -32,4 +32,33 @@ public class MessageDispatcher {
     public JsonObject parseObject(String json) {
         return gson.fromJson(json, JsonObject.class);
     }
+
+    public JsonObject extractPayload(JsonObject root) {
+        if (root == null || !root.has("payload") || !root.get("payload").isJsonObject()) {
+            return new JsonObject();
+        }
+        return root.getAsJsonObject("payload");
+    }
+
+    public int getInt(JsonObject obj, String key, int defaultValue) {
+        if (obj == null || key == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return defaultValue;
+        }
+        try {
+            return obj.get(key).getAsInt();
+        } catch (RuntimeException ex) {
+            return defaultValue;
+        }
+    }
+
+    public String getString(JsonObject obj, String key, String defaultValue) {
+        if (obj == null || key == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return defaultValue;
+        }
+        try {
+            return obj.get(key).getAsString();
+        } catch (RuntimeException ex) {
+            return defaultValue;
+        }
+    }
 }

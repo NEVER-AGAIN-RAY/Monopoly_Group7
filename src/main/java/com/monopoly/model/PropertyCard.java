@@ -16,6 +16,11 @@ public class PropertyCard extends Card implements Payable {
         return colorGroup;
     }
 
+    /** 是否为万能房产牌（可计入任意颜色套数，由 {@link PropertySetCalculator} 分配）。 */
+    public boolean isWildProperty() {
+        return false;
+    }
+
     @Override
     public boolean canPlay(Player actor, GameContext context) {
         // 骨架：后续补充“部署房产”合法性

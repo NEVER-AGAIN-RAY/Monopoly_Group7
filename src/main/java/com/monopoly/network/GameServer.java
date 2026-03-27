@@ -1,5 +1,6 @@
 package com.monopoly.network;
 
+import com.google.gson.JsonObject;
 import com.monopoly.controller.GameController;
 import com.monopoly.model.dto.GameStateSnapshot;
 import com.monopoly.pattern.observer.GameUpdateObserver;
@@ -35,9 +36,29 @@ public class GameServer implements GameUpdateObserver {
 
     /** 收到客户端 JSON 文本：转交控制器（骨架） */
     public void onMessage(ClientConnection from, String json) {
+        if (gameController == null) {
+            return;
+        }
         String type = dispatcher.extractMessageType(json);
-        if (gameController != null && "PING".equals(type)) {
-            // 占位
+        JsonObject root = dispatcher.parseObject(json);
+        JsonObject payload = dispatcher.extractPayload(root);
+        if ("DRAW".equals(type)) {
+            int count = dispatcher.getInt(payload, "count", 2);
+            gameController.handleDrawCommand(count);
+            return;
+        }
+        if ("PLAY".equals(type)) {
+            int handIndex = dispatcher.getInt(payload, "handIndex", -1);
+            String actionType = dispatcher.getString(payload, "actionType", "");
+            gameController.handlePlayCommand(handIndex, actionType);
+            return;
+        }
+        if ("END_TURN".equals(type)) {
+            gameController.handleEndTurnCommand();
+            return;
+        }
+        if ("PING".equals(type)) {
+            // 保留联通性探测占位
         }
     }
 

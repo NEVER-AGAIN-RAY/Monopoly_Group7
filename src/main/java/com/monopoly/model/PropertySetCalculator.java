@@ -1,6 +1,5 @@
 package com.monopoly.model;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -8,11 +7,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 计算玩家财产区中「完整地产集」数量（含万能房产牌分配）。
+ * 计算玩家财产区中「完整地产集」数量与某色是否具备收租资格。
  * <p>
- * 每种颜色有固定凑齐一套所需的张数（见 {@link #REQUIRED_BY_COLOR}）；非标准颜色名（如工厂占位
- * {@code UNKNOWN_COLOR}）按 3 张一套处理。
- * 万能牌每轮补到「距离凑齐还差张数最少」的颜色（贪心），以尽量多出完整集。
+ * 纯色牌张数 + 已挂载为指定颜色的万能牌张数 ≥ 该颜色凑套需求数时，视为该色至少有一套完整集（用于收租资格）；
+ * 完整集总套数按各色分别取 {@code floor(有效张数 / 需求张数)} 后求和。
  */
 public final class PropertySetCalculator {
 
@@ -34,71 +32,87 @@ public final class PropertySetCalculator {
     }
 
     /**
-     * @return 当前已完成的完整地产集套数（可 &gt; 1；胜利条件通常为 &gt;= 3）
+     * 指定颜色的「纯色 + 已声明为该色的万能牌」有效张数。
      */
-    public static int countCompletePropertySets(List<PropertyCard> propertyZone) {
-        if (propertyZone == null || propertyZone.isEmpty()) {
+    public static int effectiveCountForColor(List<PropertyCard> propertyZone, String colorKey) {
+        String key = normalizeColorKey(colorKey);
+        if (key == null || propertyZone == null) {
             return 0;
         }
-        int wilds = 0;
-        Map<String, Integer> fixed = new HashMap<>();
+        int solid = 0;
+        int wildAssigned = 0;
         for (PropertyCard card : propertyZone) {
             if (card == null) {
                 continue;
             }
             if (card.isWildProperty()) {
-                wilds++;
-                continue;
-            }
-            String key = normalizeColorKey(card.getColorGroup());
-            if (key == null) {
-                continue;
-            }
-            fixed.merge(key, 1, Integer::sum);
-        }
-
-        Set<String> allColors = new HashSet<>(REQUIRED_BY_COLOR.keySet());
-        allColors.addAll(fixed.keySet());
-
-        Map<String, Integer> effective = new HashMap<>(fixed);
-        for (String c : allColors) {
-            effective.putIfAbsent(c, 0);
-        }
-
-        for (int i = 0; i < wilds; i++) {
-            String best = null;
-            int bestGap = Integer.MAX_VALUE;
-            for (String color : allColors) {
-                int need = requiredForColor(color);
-                int eff = effective.getOrDefault(color, 0);
-                if (eff >= need) {
-                    continue;
+                if (card instanceof PropertyWildCard w && w.getAssignedColorKey() != null) {
+                    if (key.equals(w.getAssignedColorKey())) {
+                        wildAssigned++;
+                    }
                 }
-                int gap = need - eff;
-                if (gap < bestGap) {
-                    bestGap = gap;
-                    best = color;
+            } else {
+                String cg = normalizeColorKey(card.getColorGroup());
+                if (key.equals(cg)) {
+                    solid++;
                 }
             }
-            if (best == null) {
-                break;
+        }
+        return solid + wildAssigned;
+    }
+
+    /**
+     * 该颜色是否至少有一套完整地产集（可收该色租金）。
+     */
+    public static boolean hasCompleteSetForColor(List<PropertyCard> propertyZone, String colorKey) {
+        String key = normalizeColorKey(colorKey);
+        if (key == null) {
+            return false;
+        }
+        int need = requiredForColor(key);
+        if (need <= 0 || need == Integer.MAX_VALUE) {
+            return false;
+        }
+        return effectiveCountForColor(propertyZone, key) >= need;
+    }
+
+    /**
+     * @return 各色完整套数之和：对每种出现过的颜色取 {@code floor(有效张数 / 需求张数)} 后累加。
+     *         <p>本项目的<strong>胜利条件</strong>（与 Hasbro 常见规则一致）为：该值 {@code >= 3}（可跨颜色），
+     *         与需求文档中「同色」字面的歧义说明见 {@code docs/REQ_TRACE.md}。
+     */
+    public static int countCompletePropertySets(List<PropertyCard> propertyZone) {
+        if (propertyZone == null || propertyZone.isEmpty()) {
+            return 0;
+        }
+        Set<String> colors = new HashSet<>(REQUIRED_BY_COLOR.keySet());
+        for (PropertyCard card : propertyZone) {
+            if (card == null) {
+                continue;
             }
-            effective.merge(best, 1, Integer::sum);
+            if (!card.isWildProperty()) {
+                String cg = normalizeColorKey(card.getColorGroup());
+                if (cg != null) {
+                    colors.add(cg);
+                }
+            } else if (card instanceof PropertyWildCard w && w.getAssignedColorKey() != null) {
+                colors.add(w.getAssignedColorKey());
+            }
         }
 
-        int complete = 0;
-        for (String color : allColors) {
+        int total = 0;
+        for (String color : colors) {
             int need = requiredForColor(color);
             if (need <= 0 || need == Integer.MAX_VALUE) {
                 continue;
             }
-            int eff = effective.getOrDefault(color, 0);
-            complete += eff / need;
+            int eff = effectiveCountForColor(propertyZone, color);
+            total += eff / need;
         }
-        return complete;
+        return total;
     }
 
-    private static int requiredForColor(String colorKey) {
+    static int requiredForColor(String colorKey) {
         if (colorKey == null || colorKey.isEmpty()) {
             return Integer.MAX_VALUE;
         }

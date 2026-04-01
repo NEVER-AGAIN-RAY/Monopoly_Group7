@@ -1,5 +1,36 @@
 # Monopoly_Group7
 
+## 环境要求
+
+- JDK：17（与 `pom.xml` `maven.compiler.source/target` 一致）
+- Maven：3.9+
+- 可选联调工具：`wscat`（用于手工发 WebSocket 消息）
+
+## 快速开始
+
+- 后端单元测试：`mvn -q test`
+- 启动 WebSocket 服务：`mvn -q exec:java`
+- 默认地址：`ws://localhost:8025/ws`
+- 最小连通性验证（示例）：
+  - `wscat -c ws://localhost:8025/ws`
+  - 发送：`{"type":"PING","payload":{}}`
+  - 发送：`{"type":"START_SESSION","payload":{"sessionId":"demo","playerCount":2,"gameMode":"PVP","randomizeFirstPlayer":false}}`
+  - 预期收到：`STATE_UPDATE`
+
+## JVM 参数
+
+| 参数 | 默认值 | 说明 |
+| --- | --- | --- |
+| `-Dmonopoly.verifyDeck=true/false` | `false` | 开启后在关键流程校验全场牌数守恒（108），用于开发期排查。 |
+| `-Dmonopoly.autosave=true/false` | `false` | 开启后每 3 个整轮自动写入 `~/.monopoly-deal/autosave.json`。 |
+| `-Dmonopoly.saveKey=...` | 未设置 | 设置后存档使用 AES-GCM 加密；未设置时按明文 JSON 存储。 |
+| `-Dmonopoly.sessionLimitMs=...` | `GameConstants.DEFAULT_SESSION_LIMIT_MS` | 覆盖单局超时上限（毫秒）。 |
+
+## 规则与需求追溯
+
+- 胜利条件、与 `docs/requirements.md` 的差异说明见 **[docs/REQ_TRACE.md](docs/REQ_TRACE.md)**（当前实现：**任意颜色合计 3 套完整地产集**，与常见 Monopoly Deal 规则一致）。
+- **整轮计数与自动存档**（每 3 整轮可选写入 `~/.monopoly-deal/autosave.json`）：见 [docs/REQ_TRACE.md](docs/REQ_TRACE.md) §2.1.6，属性 `-Dmonopoly.autosave=true`；可选 `-Dmonopoly.saveKey=...` 对写盘内容 AES-GCM 加密（T3-6）。
+
 ## Project Completion Plan (Weeks 1-15)
 
 Phase-1 due Week 8 (2026-04-22). Phase-2 due Week 15 (2026-06-09). Demo on 2026-06-11/12.
@@ -33,3 +64,5 @@ Phase-1 due Week 8 (2026-04-22). Phase-2 due Week 15 (2026-06-09). Demo on 2026-
 | Liu Yuhao | Testing & Formatting | Phase-2 test case authoring, documentation formatting and checks | 0% |
 
 The contribution percentages differ because core code development (architecture, gameplay logic, GUI, design patterns) carries higher complexity and effort, while documentation and black-box testing require comparatively less specialized implementation work.
+
+性能测试说明：`PerformanceSmokeTest` 属于本地抽检（smoke），用于快速发现明显退化；阈值偏宽以降低 CI 抖动误报，不作为严格压测结论。

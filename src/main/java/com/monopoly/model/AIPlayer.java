@@ -27,8 +27,6 @@ public class AIPlayer extends Player {
      */
     @Override
     public void requestPlayDecision(GameContext context) {
-        if (playStrategy != null) {
-            playStrategy.decideNextAction(this, context);
-        }
+        // 实际出牌由 GameController.executeAiTurn 调用 AiPlayStrategy.tryPlayOneCard + AiGameBridge 驱动
     }
 }

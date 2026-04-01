@@ -1,5 +1,7 @@
 package com.monopoly.model;
 
+import com.monopoly.model.dto.ActionParamContext;
+
 /**
  * 所有卡牌抽象父类：封装标识与展示信息，具体玩法由子类实现。
  */
@@ -22,5 +24,5 @@ public abstract class Card implements Playable {
     }
 
     @Override
-    public abstract boolean canPlay(Player actor, GameContext context);
+    public abstract boolean canPlay(Player actor, ActionParamContext params, GameContext context);
 }

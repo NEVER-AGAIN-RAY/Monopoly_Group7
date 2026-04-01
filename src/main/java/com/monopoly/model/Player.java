@@ -1,5 +1,7 @@
 package com.monopoly.model;
 
+import com.monopoly.model.dto.ActionParamContext;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -58,13 +60,20 @@ public abstract class Player {
         return propertyCards.size();
     }
 
-    /** 财产区当前已完成的「完整地产集」套数（含万能牌分配，见 {@link PropertySetCalculator}）。 */
+    /**
+     * 财产区已完成的完整地产集<strong>总套数</strong>（各色分别计套后相加；胜利条件为 {@code >= 3}，见 {@code docs/REQ_TRACE.md}）。
+     */
     public int countCompletePropertySets() {
         return PropertySetCalculator.countCompletePropertySets(propertyCards);
     }
 
     public int getActionZoneCardCount() {
         return actionZoneCards.size();
+    }
+
+    /** 该玩家当前持有的全部牌张数：手牌 + 银行 + 财产区 + 行动区（用于全场牌数守恒校验）。 */
+    public int countOwnedCardsTotal() {
+        return handCards.size() + bankCards.size() + propertyCards.size() + actionZoneCards.size();
     }
 
     /** 摸牌/发牌时由控制器调用（把牌放入手牌区） */
@@ -119,6 +128,45 @@ public abstract class Player {
         bankCards.add(card);
     }
 
+    public void addToBank(Card card) {
+        if (card != null) {
+            bankCards.add(card);
+        }
+    }
+
+    public boolean removeFromBank(Card card) {
+        return card != null && bankCards.remove(card);
+    }
+
+    public boolean removePropertyCard(PropertyCard card) {
+        return card != null && propertyCards.remove(card);
+    }
+
+    /** 直接往财产区放一张房产（用于偷牌/交换到达己方时，不经过手牌区）。 */
+    public void addToPropertyZone(PropertyCard card) {
+        if (card != null) {
+            propertyCards.add(card);
+        }
+    }
+
+    /** 银行堆中所有可支付牌的总面值（M）。 */
+    public int totalBankValueM() {
+        int s = 0;
+        for (Card c : bankCards) {
+            s += PayableCards.valueOf(c);
+        }
+        return s;
+    }
+
+    /** 财产区房产用于支付时的可抵押总值（M，不含手牌）。 */
+    public int totalPropertyPaymentValueM() {
+        int s = 0;
+        for (PropertyCard p : propertyCards) {
+            s += PayableCards.valueOf(p);
+        }
+        return s;
+    }
+
     /**
      * 部署房产：把手牌中的房产卡转移到财产区分区（骨架阶段：只做类型转移）。
      */
@@ -143,17 +191,16 @@ public abstract class Player {
     }
 
     /**
-     * 简单可玩性校验入口：把“是否可出牌”的判断交给 Card 的 canPlay 实现。
-     * （具体规则/阶段校验在骨架阶段仍为空实现，由子类或控制器补全）
+     * 把“是否可出牌”的判断交给 Card 的 canPlay 实现；{@code params} 可为 null（非参数化出牌）。
      */
-    public boolean canPlay(Card card, GameContext context) {
+    public boolean canPlay(Card card, ActionParamContext params, GameContext context) {
         if (card == null) {
             return false;
         }
         if (context == null) {
             context = new GameContext();
         }
-        return card.canPlay(this, context);
+        return card.canPlay(this, params, context);
     }
 
     /**

@@ -112,8 +112,17 @@ public class GameServer implements GameUpdateObserver {
             return;
         }
         if ("PLAY".equals(type)) {
-            PlayActionRequest playReq = dispatcher.parsePlayActionRequest(payload);
-            gameController.handlePlayActionRequest(playReq);
+            String requestId = dispatcher.extractRequestId(root, payload);
+            try {
+                PlayActionRequest playReq = dispatcher.parsePlayActionRequest(payload);
+                gameController.handlePlayActionRequest(playReq);
+            } catch (GameController.ProtocolValidationException e) {
+                sendError(from, e.getCode(), e.getMessage(), requestId);
+            } catch (IllegalArgumentException e) {
+                sendError(from, "PLAY_BAD_REQUEST", e.getMessage(), requestId);
+            } catch (IllegalStateException e) {
+                sendError(from, "PLAY_STATE_VIOLATION", e.getMessage(), requestId);
+            }
             return;
         }
         if ("END_TURN".equals(type)) {
@@ -519,6 +528,13 @@ public class GameServer implements GameUpdateObserver {
                 clients.remove(client);
                 sessionRegistry.unregister(client);
             }
+        }
+    }
+
+    private void sendError(ClientConnection client, String code, String message, String requestId) {
+        try {
+            client.sendText(dispatcher.toErrorEnvelope(code, message, requestId));
+        } catch (IOException ignored) {
         }
     }
 

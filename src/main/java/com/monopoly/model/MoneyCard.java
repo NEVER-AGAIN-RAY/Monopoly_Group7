@@ -1,5 +1,7 @@
 package com.monopoly.model;
 
+import com.monopoly.model.dto.ActionParamContext;
+
 /**
  * 钱币卡：面值（M），可存入银行并用于支付租金。
  */
@@ -20,7 +22,7 @@ public class MoneyCard extends Card implements Payable {
     }
 
     @Override
-    public boolean canPlay(Player actor, GameContext context) {
+    public boolean canPlay(Player actor, ActionParamContext params, GameContext context) {
         return true;
     }
 

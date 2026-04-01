@@ -1,16 +1,19 @@
 package com.monopoly.pattern.strategy;
 
 import com.monopoly.model.AIPlayer;
+import com.monopoly.model.AiGameBridge;
 import com.monopoly.model.GameContext;
 
 /**
  * 【Strategy 策略模式】
- * 封装 AI 出牌/行动决策，可在运行时切换简单/普通/困难实现。
+ * AI 通过 {@link AiGameBridge#submitPlayAction} 模拟前端请求，与 Human 共用控制器入口。
  */
 public interface AiPlayStrategy {
 
     /**
-     * 根据当前上下文决定下一步动作（骨架：无具体博弈逻辑）。
+     * 尝试打出一张手牌（经统一入口）；无法决策或全部不合法时返回 false。
+     *
+     * @return 是否成功打出一张牌
      */
-    void decideNextAction(AIPlayer bot, GameContext context);
+    boolean tryPlayOneCard(AIPlayer bot, GameContext context, AiGameBridge bridge);
 }

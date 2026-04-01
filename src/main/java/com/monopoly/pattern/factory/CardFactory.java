@@ -1,12 +1,14 @@
 package com.monopoly.pattern.factory;
 
 import com.monopoly.model.Card;
+import com.monopoly.model.GameConstants;
 
 import java.util.List;
 
 /**
  * 【Factory Method 工厂方法模式】
- * 抽象创建者：声明用于生成单张/整套牌的工厂方法，由具体工厂子类决定 108 张标准牌的实例化细节。
+ * 抽象创建者：声明用于生成单张/整套牌的工厂方法，由具体工厂子类决定
+ * {@link GameConstants#STANDARD_DECK_SIZE} 张标准牌的实例化细节。
  */
 public abstract class CardFactory {
 

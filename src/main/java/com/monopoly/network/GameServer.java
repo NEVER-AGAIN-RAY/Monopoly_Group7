@@ -32,9 +32,7 @@ public class GameServer implements GameUpdateObserver {
     private final Set<ClientConnection> clients = ConcurrentHashMap.newKeySet();
     private final SessionRegistry sessionRegistry = new SessionRegistry();
     private final AtomicLong requestCounter = new AtomicLong(1);
-    private final Set<String> pendingLoadVotes = ConcurrentHashMap.newKeySet();
-    private final Set<String> pendingLoadEligibleVoters = ConcurrentHashMap.newKeySet();
-    private volatile String pendingLoadMementoJson;
+    private volatile PendingLoadVote pendingLoadVote;
     private volatile PendingSaveVote pendingSaveVote;
 
     private GameController gameController;
@@ -150,8 +148,17 @@ public class GameServer implements GameUpdateObserver {
             handleLoadGame(from, payload);
             return;
         }
+        if ("LOAD_GAME_ACK".equals(type)) {
+            handleLoadGameAck(from, payload);
+            return;
+        }
+        if ("LOAD_GAME_REJECT".equals(type)) {
+            handleLoadGameReject(from, payload);
+            return;
+        }
         if ("LOAD_VOTE".equals(type)) {
-            handleLoadVote(from, payload);
+            // 兼容旧客户端：映射到新协议 ACK
+            handleLoadGameAck(from, payload);
             return;
         }
         if ("PING".equals(type)) {
@@ -295,21 +302,23 @@ public class GameServer implements GameUpdateObserver {
                         dispatcher.operationResult(false, "mementoJson 不能为空")));
                 return;
             }
-            pendingLoadMementoJson = raw;
-            pendingLoadVotes.clear();
-            pendingLoadEligibleVoters.clear();
-            pendingLoadEligibleVoters.addAll(resolveEligibleLoadVoters());
-            if (pendingLoadEligibleVoters.isEmpty()) {
+            Set<String> eligibleVoters = resolveEligibleLoadVoters();
+            if (eligibleVoters.isEmpty()) {
                 // 兼容无人身份绑定场景（例如旧测试/脚本）
                 gameController.importSessionJson(raw);
-                pendingLoadMementoJson = null;
                 from.sendText(dispatcher.toJsonEnvelope("LOAD_GAME_RESULT", dispatcher.operationResult(true, null)));
                 return;
             }
-            JsonObject voteState = new JsonObject();
-            voteState.addProperty("requiredVotes", pendingLoadEligibleVoters.size());
-            voteState.addProperty("currentVotes", pendingLoadVotes.size());
-            broadcast(dispatcher.toJsonEnvelope("LOAD_VOTE_REQUIRED", voteState));
+            String requestId = dispatcher.getString(payload, "requestId", null);
+            if (requestId == null || requestId.isBlank()) {
+                requestId = "load-" + requestCounter.getAndIncrement();
+            }
+            PendingLoadVote vote = new PendingLoadVote(requestId, raw, eligibleVoters);
+            pendingLoadVote = vote;
+
+            JsonObject request = new JsonObject();
+            request.addProperty("requestId", vote.requestId);
+            broadcast(dispatcher.toJsonEnvelope("LOAD_GAME_REQUEST", request));
         } catch (Exception e) {
             try {
                 from.sendText(dispatcher.toJsonEnvelope(
@@ -320,35 +329,35 @@ public class GameServer implements GameUpdateObserver {
         }
     }
 
-    private void handleLoadVote(ClientConnection from, JsonObject payload) {
+    private void handleLoadGameAck(ClientConnection from, JsonObject payload) {
         try {
-            if (pendingLoadMementoJson == null || pendingLoadMementoJson.isBlank()) {
+            PendingLoadVote vote = pendingLoadVote;
+            if (vote == null) {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "LOAD_GAME_RESULT",
                         dispatcher.operationResult(false, "当前没有待确认的加载请求")));
                 return;
             }
+            String requestId = dispatcher.getString(payload, "requestId", null);
+            if (requestId != null && !requestId.isBlank() && !vote.requestId.equals(requestId)) {
+                from.sendText(dispatcher.toJsonEnvelope(
+                        "LOAD_GAME_RESULT",
+                        dispatcher.operationResult(false, "requestId 不匹配")));
+                return;
+            }
             String playerId = sessionRegistry.getPlayerId(from)
                     .orElse(dispatcher.getString(payload, "playerId", null));
-            if (playerId == null || playerId.isBlank() || !pendingLoadEligibleVoters.contains(playerId)) {
+            if (playerId == null || playerId.isBlank() || !vote.eligibleVoters.contains(playerId)) {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "LOAD_GAME_RESULT",
                         dispatcher.operationResult(false, "无效投票玩家")));
                 return;
             }
-            pendingLoadVotes.add(playerId);
-            if (pendingLoadVotes.size() < pendingLoadEligibleVoters.size()) {
-                JsonObject voteState = new JsonObject();
-                voteState.addProperty("requiredVotes", pendingLoadEligibleVoters.size());
-                voteState.addProperty("currentVotes", pendingLoadVotes.size());
-                broadcast(dispatcher.toJsonEnvelope("LOAD_VOTE_PROGRESS", voteState));
+            vote.acks.add(playerId);
+            if (vote.acks.size() < vote.eligibleVoters.size()) {
                 return;
             }
-            gameController.importSessionJson(pendingLoadMementoJson);
-            pendingLoadMementoJson = null;
-            pendingLoadVotes.clear();
-            pendingLoadEligibleVoters.clear();
-            broadcast(dispatcher.toJsonEnvelope("LOAD_GAME_RESULT", dispatcher.operationResult(true, null)));
+            commitLoadGame(vote);
         } catch (Exception e) {
             try {
                 from.sendText(dispatcher.toJsonEnvelope(
@@ -357,6 +366,50 @@ public class GameServer implements GameUpdateObserver {
             } catch (IOException ignored) {
             }
         }
+    }
+
+    private void handleLoadGameReject(ClientConnection from, JsonObject payload) {
+        try {
+            PendingLoadVote vote = pendingLoadVote;
+            if (vote == null) {
+                return;
+            }
+            String requestId = dispatcher.getString(payload, "requestId", null);
+            if (requestId != null && !requestId.isBlank() && !vote.requestId.equals(requestId)) {
+                return;
+            }
+            String playerId = sessionRegistry.getPlayerId(from)
+                    .orElse(dispatcher.getString(payload, "playerId", null));
+            if (playerId == null || playerId.isBlank() || !vote.eligibleVoters.contains(playerId)) {
+                return;
+            }
+            cancelLoadVote(vote, "有玩家拒绝加载");
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void commitLoadGame(PendingLoadVote vote) {
+        if (pendingLoadVote != vote) {
+            return;
+        }
+        try {
+            gameController.importSessionJson(vote.mementoJson);
+            pendingLoadVote = null;
+            broadcast(dispatcher.toJsonEnvelope("LOAD_GAME_RESULT", dispatcher.operationResult(true, null)));
+        } catch (Exception ex) {
+            pendingLoadVote = null;
+            broadcast(dispatcher.toJsonEnvelope(
+                    "LOAD_GAME_RESULT",
+                    dispatcher.operationResult(false, ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName())));
+        }
+    }
+
+    private void cancelLoadVote(PendingLoadVote vote, String reason) {
+        if (pendingLoadVote != vote) {
+            return;
+        }
+        pendingLoadVote = null;
+        broadcast(dispatcher.toJsonEnvelope("LOAD_GAME_RESULT", dispatcher.operationResult(false, reason)));
     }
 
     @Override
@@ -490,6 +543,20 @@ public class GameServer implements GameUpdateObserver {
             this.eligibleVoters.addAll(eligibleVoters);
             this.originalPayload = originalPayload;
             this.requester = requester;
+        }
+    }
+
+    private static final class PendingLoadVote {
+        private final String requestId;
+        private final String mementoJson;
+        private final Set<String> eligibleVoters;
+        private final Set<String> acks = ConcurrentHashMap.newKeySet();
+
+        private PendingLoadVote(String requestId, String mementoJson, Set<String> eligibleVoters) {
+            this.requestId = requestId;
+            this.mementoJson = mementoJson;
+            this.eligibleVoters = ConcurrentHashMap.newKeySet();
+            this.eligibleVoters.addAll(eligibleVoters);
         }
     }
 }

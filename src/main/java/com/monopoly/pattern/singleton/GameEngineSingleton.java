@@ -1,6 +1,8 @@
 package com.monopoly.pattern.singleton;
 
 import com.monopoly.model.Card;
+import com.monopoly.model.GameConstants;
+import com.monopoly.model.Player;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,8 +13,13 @@ import java.util.concurrent.ThreadLocalRandom;
  * 【Singleton 单例模式】
  * 全局唯一游戏引擎入口：集中持有牌堆引用与核心会话句柄，避免多处 new 导致状态分裂。
  * 骨架阶段仅保留结构与线程安全单例获取方式。
+ * <p>
+ * 标准牌堆规模见 {@link com.monopoly.model.GameConstants#STANDARD_DECK_SIZE}。
  */
 public final class GameEngineSingleton {
+
+    /** 标准牌组总张数，与 {@link GameConstants#STANDARD_DECK_SIZE} 一致。 */
+    public static final int STANDARD_DECK_SIZE = GameConstants.STANDARD_DECK_SIZE;
 
     private static volatile GameEngineSingleton instance;
 
@@ -107,6 +114,22 @@ public final class GameEngineSingleton {
 
     public int discardCount() {
         return discardPile.size();
+    }
+
+    /**
+     * 全场牌数：抽牌堆 + 弃牌堆 + 各玩家已占用分区（手牌/银行/财产/行动区）。
+     */
+    public int countAllCardsInPlay(List<Player> players) {
+        int n = remainingCount() + discardCount();
+        if (players == null) {
+            return n;
+        }
+        for (Player p : players) {
+            if (p != null) {
+                n += p.countOwnedCardsTotal();
+            }
+        }
+        return n;
     }
 
     public void discardMany(List<Card> cards) {

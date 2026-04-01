@@ -1,5 +1,7 @@
 package com.monopoly.model;
 
+import com.monopoly.model.dto.ActionParamContext;
+
 /**
  * 房产卡：可部署到财产区，参与收租计算（具体计算不在此实现）。
  */
@@ -33,8 +35,7 @@ public class PropertyCard extends Card implements Payable {
     }
 
     @Override
-    public boolean canPlay(Player actor, GameContext context) {
-        // 骨架：后续补充“部署房产”合法性
+    public boolean canPlay(Player actor, ActionParamContext params, GameContext context) {
         return true;
     }
 

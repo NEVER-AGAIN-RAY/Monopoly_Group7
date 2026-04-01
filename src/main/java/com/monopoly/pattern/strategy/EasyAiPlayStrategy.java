@@ -1,15 +1,16 @@
 package com.monopoly.pattern.strategy;
 
 import com.monopoly.model.AIPlayer;
+import com.monopoly.model.AiGameBridge;
 import com.monopoly.model.GameContext;
 
 /**
- * 简单 AI：启发式占位（后续可实现保守出牌、优先存钱等）。
+ * 简单 AI：随机化候选顺序与部分目标，启发式较弱；实现见 {@link AiHeuristics}。
  */
 public class EasyAiPlayStrategy implements AiPlayStrategy {
 
     @Override
-    public void decideNextAction(AIPlayer bot, GameContext context) {
-        // 骨架
+    public boolean tryPlayOneCard(AIPlayer bot, GameContext context, AiGameBridge bridge) {
+        return AiHeuristics.tryPlayOneCard(AiStrategyProfile.EASY, bot, context, bridge);
     }
 }

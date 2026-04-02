@@ -1,5 +1,8 @@
 package com.monopoly.model;
 
+import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.settlement.PropertySetCalculator;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

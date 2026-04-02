@@ -1,8 +1,8 @@
 package com.monopoly.pattern.singleton;
 
-import com.monopoly.model.Card;
-import com.monopoly.model.GameConstants;
-import com.monopoly.model.Player;
+import com.monopoly.model.card.Card;
+import com.monopoly.model.core.GameConstants;
+import com.monopoly.model.player.Player;
 
 import java.util.ArrayList;
 import java.util.Collections;

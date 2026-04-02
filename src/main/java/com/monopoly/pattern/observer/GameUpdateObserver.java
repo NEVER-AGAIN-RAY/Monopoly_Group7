@@ -1,6 +1,6 @@
 package com.monopoly.pattern.observer;
 
-import com.monopoly.model.dto.GameStateSnapshot;
+import com.monopoly.dto.GameStateSnapshot;
 
 /**
  * 【Observer 观察者模式】观察者端：接收模型变更通知。

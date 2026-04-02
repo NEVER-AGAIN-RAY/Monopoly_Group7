@@ -1,8 +1,9 @@
 package com.monopoly.network;
 
 import com.monopoly.controller.GameController;
-import com.monopoly.model.dto.StartSessionRequest;
-import com.monopoly.model.persistence.GameSessionMemento;
+import com.monopoly.network.connection.ClientConnection;
+import com.monopoly.dto.StartSessionRequest;
+import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

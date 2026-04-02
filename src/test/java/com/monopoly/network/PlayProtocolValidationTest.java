@@ -1,6 +1,7 @@
 package com.monopoly.network;
 
 import com.monopoly.controller.GameController;
+import com.monopoly.network.connection.ClientConnection;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 import org.junit.jupiter.api.Test;
 

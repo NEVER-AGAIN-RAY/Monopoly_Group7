@@ -1,9 +1,9 @@
 package com.monopoly.model.effects;
 
-import com.monopoly.model.PaymentSettlement;
-import com.monopoly.model.Player;
-import com.monopoly.model.PropertySetCalculator;
-import com.monopoly.model.RentCalculator;
+import com.monopoly.model.settlement.PaymentSettlement;
+import com.monopoly.model.player.Player;
+import com.monopoly.model.settlement.PropertySetCalculator;
+import com.monopoly.model.settlement.RentCalculator;
 
 /**
  * 双倍租金效果（Double The Rent）：配合下一张收租牌使用时租金翻倍。

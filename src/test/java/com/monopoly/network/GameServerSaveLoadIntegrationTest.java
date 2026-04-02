@@ -4,10 +4,11 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.monopoly.controller.GameController;
-import com.monopoly.model.Player;
-import com.monopoly.model.GameConstants;
-import com.monopoly.model.dto.StartSessionRequest;
-import com.monopoly.model.persistence.GameSessionMemento;
+import com.monopoly.network.connection.ClientConnection;
+import com.monopoly.model.player.Player;
+import com.monopoly.model.core.GameConstants;
+import com.monopoly.dto.StartSessionRequest;
+import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 
 import org.junit.jupiter.api.AfterEach;

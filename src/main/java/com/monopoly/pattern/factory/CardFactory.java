@@ -1,7 +1,7 @@
 package com.monopoly.pattern.factory;
 
-import com.monopoly.model.Card;
-import com.monopoly.model.GameConstants;
+import com.monopoly.model.card.Card;
+import com.monopoly.model.core.GameConstants;
 
 import java.util.List;
 

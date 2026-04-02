@@ -3,7 +3,8 @@ package com.monopoly.network;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.monopoly.controller.GameController;
-import com.monopoly.model.dto.StartSessionRequest;
+import com.monopoly.network.connection.ClientConnection;
+import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 import org.junit.jupiter.api.Test;
 

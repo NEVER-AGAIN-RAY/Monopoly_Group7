@@ -1,10 +1,10 @@
 package com.monopoly.model.effects;
 
-import com.monopoly.model.BuildingLevel;
-import com.monopoly.model.Player;
-import com.monopoly.model.PropertyCard;
-import com.monopoly.model.PropertySetCalculator;
-import com.monopoly.model.PropertyWildCard;
+import com.monopoly.model.card.BuildingLevel;
+import com.monopoly.model.player.Player;
+import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.settlement.PropertySetCalculator;
+import com.monopoly.model.card.PropertyWildCard;
 
 import java.util.Locale;
 

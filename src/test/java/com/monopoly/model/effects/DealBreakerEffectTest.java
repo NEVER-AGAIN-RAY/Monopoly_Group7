@@ -1,9 +1,9 @@
 package com.monopoly.model.effects;
 
-import com.monopoly.model.HumanPlayer;
-import com.monopoly.model.Player;
-import com.monopoly.model.PropertyCard;
-import com.monopoly.model.PropertyWildCard;
+import com.monopoly.model.player.HumanPlayer;
+import com.monopoly.model.player.Player;
+import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.card.PropertyWildCard;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 import org.junit.jupiter.api.Test;
 

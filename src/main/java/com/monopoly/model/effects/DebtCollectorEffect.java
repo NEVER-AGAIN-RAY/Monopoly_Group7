@@ -1,7 +1,7 @@
 package com.monopoly.model.effects;
 
-import com.monopoly.model.PaymentSettlement;
-import com.monopoly.model.Player;
+import com.monopoly.model.settlement.PaymentSettlement;
+import com.monopoly.model.player.Player;
 
 /**
  * 债务催缴效果（Debt Collector）：向目标玩家固定收取 5M。

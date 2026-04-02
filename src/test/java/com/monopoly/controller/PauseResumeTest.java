@@ -1,6 +1,6 @@
 package com.monopoly.controller;
 
-import com.monopoly.model.persistence.GameSessionMemento;
+import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 
 import org.junit.jupiter.api.AfterEach;
@@ -43,7 +43,7 @@ class PauseResumeTest {
         int n0 = c.getSessionPlayersView().size();
 
         c.pause();
-        com.monopoly.model.dto.StartSessionRequest req = new com.monopoly.model.dto.StartSessionRequest();
+        com.monopoly.dto.StartSessionRequest req = new com.monopoly.dto.StartSessionRequest();
         req.setSessionId("s2");
         req.setPlayerCount(3);
         req.setGameMode("PVP");

@@ -1,9 +1,9 @@
 package com.monopoly.model.effects;
 
-import com.monopoly.model.BuildingLevel;
-import com.monopoly.model.Player;
-import com.monopoly.model.PropertyCard;
-import com.monopoly.model.PropertySetCalculator;
+import com.monopoly.model.card.BuildingLevel;
+import com.monopoly.model.player.Player;
+import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.settlement.PropertySetCalculator;
 
 /**
  * Hotel：将已有房子的房产升级为酒店（{@link BuildingLevel#HOTEL}）。

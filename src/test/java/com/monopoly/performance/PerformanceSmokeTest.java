@@ -1,10 +1,10 @@
 package com.monopoly.performance;
 
-import com.monopoly.model.Card;
-import com.monopoly.model.HumanPlayer;
-import com.monopoly.model.PropertyCard;
-import com.monopoly.model.RentCalculator;
-import com.monopoly.model.persistence.GameSessionMemento;
+import com.monopoly.model.card.Card;
+import com.monopoly.model.player.HumanPlayer;
+import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.settlement.RentCalculator;
+import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.factory.MonopolyDealCardFactory;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 

@@ -1,8 +1,8 @@
 package com.monopoly.pattern.strategy;
 
-import com.monopoly.model.AIPlayer;
-import com.monopoly.model.AiGameBridge;
-import com.monopoly.model.GameContext;
+import com.monopoly.model.player.AIPlayer;
+import com.monopoly.model.core.AiGameBridge;
+import com.monopoly.model.core.GameContext;
 
 /**
  * 【Strategy 策略模式】

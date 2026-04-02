@@ -1,19 +1,19 @@
 package com.monopoly.pattern.strategy;
 
-import com.monopoly.model.ActionCard;
-import com.monopoly.model.AIPlayer;
-import com.monopoly.model.AiGameBridge;
-import com.monopoly.model.BuildingLevel;
-import com.monopoly.model.Card;
-import com.monopoly.model.GameContext;
-import com.monopoly.model.PayableCards;
-import com.monopoly.model.Player;
-import com.monopoly.model.PropertyCard;
-import com.monopoly.model.PropertySetCalculator;
-import com.monopoly.model.PropertyWildCard;
-import com.monopoly.model.RentCalculator;
-import com.monopoly.model.dto.ActionParamContext;
-import com.monopoly.model.dto.PlayActionRequest;
+import com.monopoly.model.card.ActionCard;
+import com.monopoly.model.player.AIPlayer;
+import com.monopoly.model.core.AiGameBridge;
+import com.monopoly.model.card.BuildingLevel;
+import com.monopoly.model.card.Card;
+import com.monopoly.model.core.GameContext;
+import com.monopoly.model.card.PayableCards;
+import com.monopoly.model.player.Player;
+import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.settlement.PropertySetCalculator;
+import com.monopoly.model.card.PropertyWildCard;
+import com.monopoly.model.settlement.RentCalculator;
+import com.monopoly.dto.ActionParamContext;
+import com.monopoly.dto.PlayActionRequest;
 
 import java.util.ArrayList;
 import java.util.Arrays;

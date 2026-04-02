@@ -2,13 +2,17 @@ package com.monopoly.network;
 
 import com.google.gson.JsonObject;
 import com.monopoly.controller.GameController;
-import com.monopoly.model.Card;
-import com.monopoly.model.HumanPlayer;
-import com.monopoly.model.Player;
-import com.monopoly.model.persistence.SaveEncryption;
-import com.monopoly.model.dto.GameStateSnapshot;
-import com.monopoly.model.dto.PlayActionRequest;
-import com.monopoly.model.dto.StartSessionRequest;
+import com.monopoly.controller.ProtocolErrors;
+import com.monopoly.model.card.Card;
+import com.monopoly.model.player.HumanPlayer;
+import com.monopoly.model.player.Player;
+import com.monopoly.persistence.SaveEncryption;
+import com.monopoly.dto.GameStateSnapshot;
+import com.monopoly.dto.PlayActionRequest;
+import com.monopoly.dto.StartSessionRequest;
+import com.monopoly.network.connection.ClientConnection;
+import com.monopoly.network.connection.SessionRegistry;
+import com.monopoly.network.protocol.MessageDispatcher;
 import com.monopoly.pattern.observer.GameUpdateObserver;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 
@@ -24,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * WebSocket 服务端骨架：维护已连接客户端抽象，在状态更新时向所有连接广播 JSON。
- * 具体容器（Tyrus / Jetty / Netty）在 @ServerEndpoint 中把原生 Session 适配为 {@link ClientConnection}。
+ * 具体容器（Tyrus / Jetty / Netty）在 @ServerEndpoint 中把原生 Session 适配为 {@link com.monopoly.network.connection.ClientConnection}。
  */
 public class GameServer implements GameUpdateObserver {
 
@@ -116,7 +120,7 @@ public class GameServer implements GameUpdateObserver {
             try {
                 PlayActionRequest playReq = dispatcher.parsePlayActionRequest(payload);
                 gameController.handlePlayActionRequest(playReq);
-            } catch (GameController.ProtocolValidationException e) {
+            } catch (ProtocolErrors.ProtocolValidationException e) {
                 sendError(from, e.getCode(), e.getMessage(), requestId);
             } catch (IllegalArgumentException e) {
                 sendError(from, "PLAY_BAD_REQUEST", e.getMessage(), requestId);

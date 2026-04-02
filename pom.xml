@@ -52,7 +52,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.5.0</version>
                 <configuration>
-                    <mainClass>com.monopoly.network.WsServerMain</mainClass>
+                    <mainClass>com.monopoly.network.endpoint.WsServerMain</mainClass>
                 </configuration>
             </plugin>
         </plugins>

@@ -1,6 +1,6 @@
 package com.monopoly.controller;
 
-import com.monopoly.model.Player;
+import com.monopoly.model.player.Player;
 
 import java.util.List;
 

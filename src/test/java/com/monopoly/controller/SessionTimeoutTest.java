@@ -1,7 +1,7 @@
 package com.monopoly.controller;
 
-import com.monopoly.model.dto.GameStateSnapshot;
-import com.monopoly.model.dto.StartSessionRequest;
+import com.monopoly.dto.GameStateSnapshot;
+import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.pattern.observer.GameUpdateObserver;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 

@@ -1,9 +1,9 @@
 package com.monopoly.model.effects;
 
-import com.monopoly.model.Card;
-import com.monopoly.model.Player;
-import com.monopoly.model.PropertyCard;
-import com.monopoly.model.StealTargetZone;
+import com.monopoly.model.card.Card;
+import com.monopoly.model.player.Player;
+import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.settlement.StealTargetZone;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 
 import java.util.List;

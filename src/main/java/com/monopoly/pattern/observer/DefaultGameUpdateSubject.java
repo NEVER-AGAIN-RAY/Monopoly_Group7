@@ -1,6 +1,6 @@
 package com.monopoly.pattern.observer;
 
-import com.monopoly.model.dto.GameStateSnapshot;
+import com.monopoly.dto.GameStateSnapshot;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;

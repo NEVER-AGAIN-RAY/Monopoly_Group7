@@ -1,12 +1,12 @@
 package com.monopoly.pattern.strategy;
 
-import com.monopoly.model.AIPlayer;
-import com.monopoly.model.ActionCard;
-import com.monopoly.model.AiGameBridge;
-import com.monopoly.model.GameContext;
-import com.monopoly.model.HumanPlayer;
-import com.monopoly.model.PropertyCard;
-import com.monopoly.model.dto.PlayActionRequest;
+import com.monopoly.model.player.AIPlayer;
+import com.monopoly.model.card.ActionCard;
+import com.monopoly.model.core.AiGameBridge;
+import com.monopoly.model.core.GameContext;
+import com.monopoly.model.player.HumanPlayer;
+import com.monopoly.model.card.PropertyCard;
+import com.monopoly.dto.PlayActionRequest;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

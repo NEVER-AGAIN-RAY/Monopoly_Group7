@@ -1,11 +1,11 @@
 package com.monopoly.pattern.factory;
 
-import com.monopoly.model.ActionCard;
-import com.monopoly.model.Card;
-import com.monopoly.model.GameConstants;
-import com.monopoly.model.MoneyCard;
-import com.monopoly.model.PropertyCard;
-import com.monopoly.model.PropertyWildCard;
+import com.monopoly.model.card.ActionCard;
+import com.monopoly.model.card.Card;
+import com.monopoly.model.core.GameConstants;
+import com.monopoly.model.card.MoneyCard;
+import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.card.PropertyWildCard;
 
 import java.util.ArrayList;
 import java.util.List;

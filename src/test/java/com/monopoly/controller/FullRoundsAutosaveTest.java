@@ -1,8 +1,8 @@
 package com.monopoly.controller;
 
-import com.monopoly.model.GameConstants;
-import com.monopoly.model.persistence.GameSessionMemento;
-import com.monopoly.model.dto.StartSessionRequest;
+import com.monopoly.model.core.GameConstants;
+import com.monopoly.persistence.GameSessionMemento;
+import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 
 import org.junit.jupiter.api.AfterEach;

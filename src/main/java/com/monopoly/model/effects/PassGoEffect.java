@@ -1,7 +1,7 @@
 package com.monopoly.model.effects;
 
-import com.monopoly.model.Card;
-import com.monopoly.model.Player;
+import com.monopoly.model.card.Card;
+import com.monopoly.model.player.Player;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 
 /**

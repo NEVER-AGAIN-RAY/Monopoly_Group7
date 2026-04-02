@@ -1,7 +1,7 @@
 package com.monopoly.model.effects;
 
-import com.monopoly.model.PaymentSettlement;
-import com.monopoly.model.Player;
+import com.monopoly.model.settlement.PaymentSettlement;
+import com.monopoly.model.player.Player;
 
 import java.util.List;
 

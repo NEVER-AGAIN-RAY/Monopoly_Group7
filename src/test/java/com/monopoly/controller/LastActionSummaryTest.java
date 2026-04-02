@@ -1,10 +1,10 @@
 package com.monopoly.controller;
 
-import com.monopoly.model.Card;
-import com.monopoly.model.MoneyCard;
-import com.monopoly.model.dto.GameStateSnapshot;
-import com.monopoly.model.dto.PlayActionRequest;
-import com.monopoly.model.persistence.GameSessionMemento;
+import com.monopoly.model.card.Card;
+import com.monopoly.model.card.MoneyCard;
+import com.monopoly.dto.GameStateSnapshot;
+import com.monopoly.dto.PlayActionRequest;
+import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.observer.GameUpdateObserver;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 

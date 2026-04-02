@@ -3,6 +3,8 @@ package com.monopoly.network;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.monopoly.controller.GameController;
+import com.monopoly.network.connection.ClientConnection;
+import com.monopoly.network.protocol.MessageDispatcher;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 import org.junit.jupiter.api.Test;
 

@@ -6,9 +6,7 @@ import com.monopoly.model.settlement.PropertySetCalculator;
 import com.monopoly.model.settlement.RentCalculator;
 
 /**
- * 双倍租金效果（Double The Rent）：配合下一张收租牌使用时租金翻倍。
- * 简化实现：直接按当前颜色完整套数租金 × 2 向目标收取。
- * requirements：无完整套数时无法打出。
+ * 双倍租金效果：须该色完整套；应付 = 该色应收基础租与建筑加值之和 × 2。
  */
 public class DoubleRentEffect implements ActionEffect {
 
@@ -24,8 +22,9 @@ public class DoubleRentEffect implements ActionEffect {
             return RentEffect.DueResult.error("双倍租金需指定颜色。");
         }
 
-        if (!PropertySetCalculator.hasCompleteSetForColor(landlord.getPropertyCardsView(), colorKey)) {
-            return RentEffect.DueResult.error("无 " + colorKey + " 完整集，无法打出双倍租金牌。");
+        String ck = colorKey.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!PropertySetCalculator.hasCompleteSetForColor(landlord.getPropertyCardsView(), ck)) {
+            return RentEffect.DueResult.error("你在财产区没有 " + ck + " 的完整房产套，无法打出双倍租金牌。");
         }
 
         int base = RentCalculator.computeRentForColor(landlord, colorKey);

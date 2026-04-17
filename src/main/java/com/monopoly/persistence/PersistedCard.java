@@ -7,6 +7,10 @@ import com.monopoly.model.card.MoneyCard;
 import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.card.PropertyWildCard;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
 /**
  * Gson 友好的卡牌快照：{@link #getId()} + 具体类型字段，用于存档往返，不依赖运行时单张实例引用。
  */
@@ -20,6 +24,14 @@ public final class PersistedCard {
     private String colorGroup;
     private String buildingLevel;
     private String effectCode;
+    /** RENT_DUAL 卡面色组，如 {@code LIGHT_BLUE|BROWN} */
+    private String rentPalette;
+    private Boolean rentDualChargesEachOtherPlayer;
+    private Boolean wildcardRentCard;
+    /** {@link com.monopoly.model.card.PropertyWildCard.WildPropertyKind#name()} */
+    private String wildKind;
+    /** 双色万能印色 {@code A|B} */
+    private String wildPrintedPair;
     private String assignedColorKey;
 
     public PersistedCard() {
@@ -37,12 +49,26 @@ public final class PersistedCard {
             p.valueM = m.getValueM();
         } else if (card instanceof PropertyWildCard w) {
             p.assignedColorKey = w.getAssignedColorKey();
+            p.wildKind = w.getWildPropertyKind().name();
+            if (w.getWildPropertyKind() == PropertyWildCard.WildPropertyKind.DUAL_COLOR
+                    && w.getPrintedColorPairView().size() == 2) {
+                p.wildPrintedPair = String.join("|", w.getPrintedColorPairView());
+            }
             p.buildingLevel = w.getBuildingLevel() != null ? w.getBuildingLevel().name() : BuildingLevel.BASE.name();
         } else if (card instanceof PropertyCard pc) {
             p.colorGroup = pc.getColorGroup();
             p.buildingLevel = pc.getBuildingLevel() != null ? pc.getBuildingLevel().name() : BuildingLevel.BASE.name();
         } else if (card instanceof ActionCard a) {
             p.effectCode = a.getEffectCode();
+            if (!a.getRentPaletteView().isEmpty()) {
+                p.rentPalette = String.join("|", a.getRentPaletteView());
+            }
+            if (a.isRentDualChargesEachOtherPlayer()) {
+                p.rentDualChargesEachOtherPlayer = true;
+            }
+            if (a.isWildcardRentCard()) {
+                p.wildcardRentCard = true;
+            }
         }
         return p;
     }
@@ -61,7 +87,22 @@ public final class PersistedCard {
                 yield new MoneyCard(p.id, nm, p.valueM);
             }
             case "PropertyWildCard" -> {
-                PropertyWildCard w = new PropertyWildCard(p.id, nm);
+                PropertyWildCard.WildPropertyKind k = PropertyWildCard.WildPropertyKind.ANY_COLOR;
+                if (p.wildKind != null && !p.wildKind.isBlank()) {
+                    try {
+                        k = PropertyWildCard.WildPropertyKind.valueOf(p.wildKind.trim());
+                    } catch (IllegalArgumentException ignored) {
+                        k = PropertyWildCard.WildPropertyKind.ANY_COLOR;
+                    }
+                }
+                List<String> wpair = parseRentPaletteJoined(p.wildPrintedPair);
+                if (k == PropertyWildCard.WildPropertyKind.ANY_COLOR) {
+                    wpair = List.of();
+                } else if (wpair.size() != 2) {
+                    k = PropertyWildCard.WildPropertyKind.ANY_COLOR;
+                    wpair = List.of();
+                }
+                PropertyWildCard w = new PropertyWildCard(p.id, nm, k, wpair);
                 if (p.assignedColorKey != null && !p.assignedColorKey.isBlank()) {
                     w.setAssignedColorKey(p.assignedColorKey);
                 }
@@ -77,7 +118,17 @@ public final class PersistedCard {
                 }
                 yield pc;
             }
-            case "ActionCard" -> new ActionCard(p.id, nm, p.effectCode != null ? p.effectCode : "BIRTHDAY");
+            case "ActionCard" -> {
+                String ec = p.effectCode != null ? p.effectCode : "BIRTHDAY";
+                List<String> pal = parseRentPaletteJoined(p.rentPalette);
+                boolean dualAll = p.rentDualChargesEachOtherPlayer != null && p.rentDualChargesEachOtherPlayer;
+                boolean wildRent = p.wildcardRentCard != null && p.wildcardRentCard;
+                int bv = com.monopoly.model.rules.MonopolyDealBankValues.bankValueForActionEffect(ec);
+                if (pal.isEmpty()) {
+                    yield new ActionCard(p.id, nm, ec, bv, List.of(), dualAll, wildRent);
+                }
+                yield new ActionCard(p.id, nm, ec, bv, pal, dualAll, wildRent);
+            }
             default -> throw new IllegalArgumentException("不支持的卡牌类型: " + cn);
         };
     }
@@ -136,6 +187,27 @@ public final class PersistedCard {
 
     public void setEffectCode(String effectCode) {
         this.effectCode = effectCode;
+    }
+
+    public String getRentPalette() {
+        return rentPalette;
+    }
+
+    public void setRentPalette(String rentPalette) {
+        this.rentPalette = rentPalette;
+    }
+
+    private static List<String> parseRentPaletteJoined(String joined) {
+        if (joined == null || joined.isBlank()) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        for (String part : joined.split("\\|")) {
+            if (part != null && !part.isBlank()) {
+                out.add(part.trim().toUpperCase(Locale.ROOT));
+            }
+        }
+        return out;
     }
 
     public String getAssignedColorKey() {

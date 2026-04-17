@@ -16,6 +16,8 @@ public class GameContext {
     private List<Player> players = List.of();
     private final List<EffectStackEntry> effectStack = new ArrayList<>();
     private StackResponseState responseState;
+    /** 非空时表示正在进行 RENT_DUAL 多承租人依次收租。 */
+    private RentChargeSequence rentChargeSequence;
 
     public void bindPlayers(List<Player> players) {
         this.players = players == null ? List.of() : Collections.unmodifiableList(players);
@@ -51,6 +53,18 @@ public class GameContext {
     public void clearEffectStack() {
         effectStack.clear();
         responseState = null;
+    }
+
+    public RentChargeSequence getRentChargeSequence() {
+        return rentChargeSequence;
+    }
+
+    public void setRentChargeSequence(RentChargeSequence rentChargeSequence) {
+        this.rentChargeSequence = rentChargeSequence;
+    }
+
+    public void clearRentChargeSequence() {
+        this.rentChargeSequence = null;
     }
 
     public StackResponseState getResponseState() {

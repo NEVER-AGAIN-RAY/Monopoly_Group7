@@ -12,6 +12,7 @@ import com.monopoly.model.core.GameContext;
 import com.monopoly.model.player.HumanPlayer;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.core.RentChargeSequence;
 import com.monopoly.model.effects.StackResponseState;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 import com.monopoly.pattern.strategy.AiPlayStrategy;
@@ -55,6 +56,7 @@ public final class GameSessionMemento {
 
     private List<EffectStackEntryMemento> effectStack = new ArrayList<>();
     private StackResponseStateMemento responseState;
+    private RentChargeSequenceMemento rentChargeSequence;
 
     private static final Gson GSON = new GsonBuilder()
             .serializeNulls()
@@ -181,6 +183,14 @@ public final class GameSessionMemento {
         this.responseState = responseState;
     }
 
+    public RentChargeSequenceMemento getRentChargeSequence() {
+        return rentChargeSequence;
+    }
+
+    public void setRentChargeSequence(RentChargeSequenceMemento rentChargeSequence) {
+        this.rentChargeSequence = rentChargeSequence;
+    }
+
     public String toJson() {
         return GSON.toJson(this);
     }
@@ -250,6 +260,9 @@ public final class GameSessionMemento {
             StackResponseState st = ctx.getResponseState();
             m.responseState = StackResponseStateMemento.fromState(st);
 
+            RentChargeSequence rcs = ctx.getRentChargeSequence();
+            m.rentChargeSequence = RentChargeSequenceMemento.from(rcs);
+
             return m;
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("捕获会话快照失败", e);
@@ -318,6 +331,12 @@ public final class GameSessionMemento {
                 ctx.pushEffect(restoreEffectEntry(em));
             }
             ctx.setResponseState(restoreResponseState(memento.getResponseState()));
+
+            if (memento.getRentChargeSequence() != null) {
+                ctx.setRentChargeSequence(memento.getRentChargeSequence().toDomain());
+            } else {
+                ctx.clearRentChargeSequence();
+            }
 
             Object turnFlow = readField(controller, "turnFlowService");
             Class<?> phaseClass = Class.forName("com.monopoly.controller.TurnFlowService$TurnPhase");

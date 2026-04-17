@@ -7,9 +7,9 @@ import com.monopoly.model.player.Player;
 import java.util.Locale;
 
 /**
- * 收租金额：根据收租方财产区指定颜色的完成度汇总。
- * <p>
- * 仅当该颜色「纯色 + 已挂载万能」达到完整套时计租；万能牌按声明颜色参与基础租金与建筑加值。
+ * 收租金额：与实体 Monopoly Deal 一致——须该色<strong>完整套</strong>方可收租；
+ * 基础租来自 {@link RentTierTable}（按该色张数查表，多套同色分段累计），
+ * 再叠加各张房产上的房屋 +3M / 旅馆 +7M（相对平地）。
  */
 public final class RentCalculator {
 
@@ -17,9 +17,7 @@ public final class RentCalculator {
     }
 
     /**
-     * @param landlord 收租方（财产区在己方）
-     * @param colorKey   收租针对的颜色（大写键，与 {@link PropertySetCalculator} 一致）
-     * @return 应付租金总额（M），若该颜色未形成完整集则为 0
+     * @return 应付租金（M）；该色未形成完整套时为 0
      */
     public static int computeRentForColor(Player landlord, String colorKey) {
         if (landlord == null || colorKey == null || colorKey.isBlank()) {
@@ -29,65 +27,64 @@ public final class RentCalculator {
         if (!PropertySetCalculator.hasCompleteSetForColor(landlord.getPropertyCardsView(), key)) {
             return 0;
         }
-        int total = 0;
+        int n = PropertySetCalculator.effectiveCountForColor(landlord.getPropertyCardsView(), key);
+        if (n <= 0) {
+            return 0;
+        }
+        int base = RentTierTable.baseRentForPropertyCount(key, n);
+        int building = 0;
         for (PropertyCard p : landlord.getPropertyCardsView()) {
             if (p == null) {
                 continue;
             }
-            if (p.isWildProperty()) {
-                if (p instanceof PropertyWildCard w) {
-                    String ak = w.getAssignedColorKey();
-                    if (ak != null && key.equals(ak)) {
-                        total += rentForOneProperty(p, key);
-                    }
-                }
-            } else {
-                String cg = p.getColorGroup();
-                if (cg != null && key.equals(cg.trim().toUpperCase(Locale.ROOT))) {
-                    total += rentForOneProperty(p, key);
-                }
+            if (matchesColor(p, key)) {
+                building += buildingBonusM(p);
             }
         }
-        return total;
+        return base + building;
+    }
+
+    private static boolean matchesColor(PropertyCard p, String key) {
+        if (p.isWildProperty() && p instanceof PropertyWildCard w) {
+            String ak = w.getAssignedColorKey();
+            return ak != null && key.equals(ak.trim().toUpperCase(Locale.ROOT));
+        }
+        String cg = p.getColorGroup();
+        return cg != null && key.equals(cg.trim().toUpperCase(Locale.ROOT));
     }
 
     /**
-     * 单张房产在本套内的收租贡献：基础租金 + 房子/酒店加值；{@code rentColorKey} 用于确定基础租金轨道。
+     * 单张房产对收租的<strong>建筑加值</strong>（房屋 +3M；旅馆共 +7M），不含基础租表。
      */
-    public static int rentForOneProperty(PropertyCard card, String rentColorKey) {
+    public static int buildingBonusM(PropertyCard card) {
         if (card == null) {
             return 0;
         }
-        int base = baseRentForColor(rentColorKey);
-        int bonus = switch (card.getBuildingLevel()) {
+        return switch (card.getBuildingLevel()) {
             case BASE -> 0;
-            case HOUSE -> 2;
-            case HOTEL -> 5;
+            case HOUSE -> 3;
+            case HOTEL -> 7;
         };
-        return base + bonus;
+    }
+
+    /**
+     * 兼容旧调用：返回「建筑加值」（基础租改由套内总表计算，不再按张加基础）。
+     */
+    public static int rentForOneProperty(PropertyCard card, String rentColorKey) {
+        return buildingBonusM(card);
     }
 
     public static int rentForOneProperty(PropertyCard card) {
-        if (card == null) {
-            return 0;
-        }
-        if (card.isWildProperty() && card instanceof PropertyWildCard w) {
-            return rentForOneProperty(card, w.getAssignedColorKey());
-        }
-        return rentForOneProperty(card, card.getColorGroup());
+        return buildingBonusM(card);
     }
 
-    private static int baseRentForColor(String colorGroup) {
+    /**
+     * 该色仅 1 张时的表上基础租，供协议/UI。
+     */
+    public static int baseRentOnlyForColor(String colorGroup) {
         if (colorGroup == null || colorGroup.isBlank()) {
-            return 2;
+            return 0;
         }
-        String k = colorGroup.trim().toUpperCase(Locale.ROOT);
-        return switch (k) {
-            case "BROWN", "DARK_BLUE" -> 1;
-            case "LIGHT_BLUE", "PINK", "ORANGE", "RED", "YELLOW", "GREEN" -> 2;
-            case "RAILROAD" -> 2;
-            case "UTILITY" -> 1;
-            default -> 2;
-        };
+        return RentTierTable.firstTierRent(colorGroup.trim().toUpperCase(Locale.ROOT));
     }
 }

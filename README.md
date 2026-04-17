@@ -17,7 +17,7 @@ Phase-1 due Week 8 (2026-04-22). Phase-2 due Week 15 (2026-06-09). Demo on 2026-
 | 9 | Implement GameController and TurnManager. |
 | 10 | Apply Factory (Deck creation) and Strategy (AI logic) , Write JUnit test cases for game rules (e.g., Rent calculation). |
 | 11 | Implement GameUpdateSubject (Observer Pattern). |
-| 12 | Setup WebSocket/Network dispatchers , Connect Java Backend with Flutter Frontend UI. |
+| 12 | Setup WebSocket/Network dispatchers , Connect Java Backend with JavaFX (FXML) desktop UI. |
 | 13 | Refine AI difficulties (Easy/Hard) , Code refactoring to eliminate "Code Smells" (Ensure no large classes/methods). |
 | 14 | End-to-end system testing. |
 | 15 | Write Phase-2 final PDF explanation , Code freeze and final submission. |
@@ -36,7 +36,7 @@ The contribution percentages differ because core code development (architecture,
 
 ## 项目简介与运行说明
 
-Monopoly Deal backend project with WebSocket-based multiplayer support and a Flutter client integration path.
+Monopoly Deal: Java WebSocket server plus a **JavaFX + FXML** desktop client (`mvn javafx:run`).
 
 ### 环境要求
 
@@ -48,6 +48,7 @@ Monopoly Deal backend project with WebSocket-based multiplayer support and a Flu
 
 - Run backend tests: `mvn -q test`
 - Start WebSocket server: `mvn -q exec:java`
+- Start desktop client (after server is up): `mvn javafx:run`
 - Default endpoint: `ws://localhost:8025/ws`
 - Quick connectivity check:
   - `wscat -c ws://localhost:8025/ws`

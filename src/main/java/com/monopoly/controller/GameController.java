@@ -2,14 +2,19 @@ package com.monopoly.controller;
 
 import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.core.AiGameBridge;
+import com.google.gson.JsonArray;
+import com.monopoly.dto.PropertyColorProgress;
 import com.monopoly.model.card.Card;
+import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.core.GameConstants;
 import com.monopoly.model.core.GameContext;
+import com.monopoly.model.effects.EffectStackEntry;
 import com.monopoly.model.effects.StackResponseState;
 import com.monopoly.model.player.HumanPlayer;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.settlement.PaymentSettlement;
 import com.monopoly.model.settlement.PropertyZoneSummary;
+import com.monopoly.dto.ActionOptionsResult;
 import com.monopoly.dto.ActionParamContext;
 import com.monopoly.dto.GameStateSnapshot;
 import com.monopoly.dto.PlayActionRequest;
@@ -25,6 +30,7 @@ import com.monopoly.pattern.strategy.EasyAiPlayStrategy;
 import com.monopoly.pattern.strategy.HardAiPlayStrategy;
 import com.monopoly.pattern.strategy.NormalAiPlayStrategy;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
+import com.monopoly.presentation.HandCardJson;
 
 import static com.monopoly.controller.ProtocolErrors.*;
 
@@ -34,12 +40,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * 【Facade 外观模式】
- * 对 Flutter 客户端/网络层暴露统一的高层操作入口，隐藏摸牌、租金结算、
+ * 对桌面客户端/网络层暴露统一的高层操作入口，隐藏摸牌、租金结算、
  * 回合推进、效果栈编排等协作细节。
  * <p>
  * 核心逻辑已拆分至六个内聚服务：
@@ -113,6 +120,10 @@ public class GameController implements AiGameBridge {
         startNewSession(req);
     }
 
+    /**
+     * 开始新会话：从工厂取得有序 108 张牌，{@linkplain Collections#shuffle 洗牌} 后装入抽牌堆并发初始手牌。
+     * 读档恢复牌序走 {@link com.monopoly.persistence.GameSessionMemento}，不经过本方法的洗牌逻辑。
+     */
     public void startNewSession(StartSessionRequest req) {
         if (req == null) {
             throw new IllegalArgumentException("StartSessionRequest 不能为 null。");
@@ -141,7 +152,9 @@ public class GameController implements AiGameBridge {
         sessionForceEnded = false;
         forceEndReason = null;
         quitPlayerIds.clear();
-        engine.attachDrawPile(cardFactory.createStandardDeck108());
+        List<Card> deck = new ArrayList<>(cardFactory.createStandardDeck108());
+        Collections.shuffle(deck, ThreadLocalRandom.current());
+        engine.attachDrawPile(deck);
 
         sessionPlayers.clear();
         if ("HVM".equals(mode)) {
@@ -168,11 +181,13 @@ public class GameController implements AiGameBridge {
         gameContext.clearEffectStack();
         effectStackOrchestrator.cancelPendingResponseTimeout();
 
-        for (Player p : sessionPlayers) {
-            for (int i = 0; i < TurnFlowService.INITIAL_HAND_SIZE; i++) {
+        int initialEach = TurnFlowService.INITIAL_HAND_SIZE;
+        dealInitialHands:
+        for (int round = 0; round < initialEach; round++) {
+            for (Player p : sessionPlayers) {
                 Card card = engine.drawOne();
                 if (card == null) {
-                    break;
+                    break dealInitialHands;
                 }
                 p.receiveCardToHand(card);
             }
@@ -182,7 +197,7 @@ public class GameController implements AiGameBridge {
         turnFlowService.initForSession(current);
         clearLastError();
         assertDeckIntegrityOrLog();
-        pushSnapshot(currentSessionId, "INIT", "New session started.");
+        pushSnapshot(currentSessionId, "INIT", "新局已开始：牌堆已随机洗牌，起手按真人发牌方式轮流发 5 张。");
     }
 
     private static AiPlayStrategy resolveAiStrategy(String normalizedDifficulty) {
@@ -285,7 +300,8 @@ public class GameController implements AiGameBridge {
             if (turnFlowService.currentTurnPhase
                     == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
                 if ("RESPONSE_PASS".equals(normalized)) {
-                    effectStackOrchestrator.performResponsePass(req.getActingPlayerId());
+                    effectStackOrchestrator.performResponsePass(
+                            req.getActingPlayerId(), req.getPaymentCardIds());
                     return;
                 }
                 if ("ACTION".equals(normalized)) {
@@ -310,6 +326,75 @@ public class GameController implements AiGameBridge {
             Card card = turnFlowService.resolveCardInHand(
                     current, req.getCardId(), req.getHandIndex());
             turnFlowService.playCard(current, card, normalized, params);
+        } catch (RuntimeException e) {
+            if (!PauseVoteService.MSG_PAUSED.equals(e.getMessage())) {
+                recordErrorAndSnapshot(e);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 出牌阶段：为指定行动手牌生成可选目标/参数列表（供客户端点选后再 {@code PLAY}）。
+     */
+    public ActionOptionsResult queryActionOptionsForHandCard(String playerId, String cardId) {
+        try {
+            ensureNotPaused();
+            ensureSessionActive();
+            clearLastError();
+            if (playerId == null || playerId.isBlank()) {
+                throw new IllegalArgumentException("playerId 不能为空。");
+            }
+            if (cardId == null || cardId.isBlank()) {
+                throw new IllegalArgumentException("cardId 不能为空。");
+            }
+            Player cur = requireCurrentPlayer();
+            if (!playerId.trim().equals(cur.getPlayerId())) {
+                throw new IllegalStateException("仅当前回合玩家可查询行动选项。");
+            }
+            if (turnFlowService.currentTurnPhase != TurnFlowService.TurnPhase.PLAY) {
+                throw new IllegalStateException("仅在出牌阶段可查询行动选项。");
+            }
+            Card c = turnFlowService.resolveCardInHand(cur, cardId, null);
+            if (!(c instanceof ActionCard ac)) {
+                throw new IllegalArgumentException("该卡牌不是行动牌。");
+            }
+            return ActionOptionsService.build(
+                    cur, ac, List.copyOf(sessionPlayers), engine);
+        } catch (RuntimeException e) {
+            if (!PauseVoteService.MSG_PAUSED.equals(e.getMessage())) {
+                recordErrorAndSnapshot(e);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 出牌阶段：按动作类型（存入/部署/弃牌/行动）生成可选参数，供 {@code PLAY_OPTIONS} 向导使用。
+     */
+    public ActionOptionsResult queryPlayOptions(String playerId, String cardId, String actionType) {
+        try {
+            ensureNotPaused();
+            ensureSessionActive();
+            clearLastError();
+            if (playerId == null || playerId.isBlank()) {
+                throw new IllegalArgumentException("playerId 不能为空。");
+            }
+            if (cardId == null || cardId.isBlank()) {
+                throw new IllegalArgumentException("cardId 不能为空。");
+            }
+            if (actionType == null || actionType.isBlank()) {
+                throw new IllegalArgumentException("actionType 不能为空。");
+            }
+            Player cur = requireCurrentPlayer();
+            if (!playerId.trim().equals(cur.getPlayerId())) {
+                throw new IllegalStateException("仅当前回合玩家可查询出牌选项。");
+            }
+            if (turnFlowService.currentTurnPhase != TurnFlowService.TurnPhase.PLAY) {
+                throw new IllegalStateException("仅在出牌阶段可查询出牌选项。");
+            }
+            Card c = turnFlowService.resolveCardInHand(cur, cardId, null);
+            return PlayOptionsService.build(cur, c, actionType, List.copyOf(sessionPlayers), engine);
         } catch (RuntimeException e) {
             if (!PauseVoteService.MSG_PAUSED.equals(e.getMessage())) {
                 recordErrorAndSnapshot(e);
@@ -658,6 +743,7 @@ public class GameController implements AiGameBridge {
         snap.setTurnPhase(tp == null ? "UNKNOWN" : tp.name());
         snap.setDrawPileCount(engine.remainingCount());
         snap.setDiscardPileCount(engine.discardCount());
+        Integer pendingPaymentAmt = null;
         if (tp == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
             StackResponseState st = gameContext.getResponseState();
             if (st != null) {
@@ -666,6 +752,12 @@ public class GameController implements AiGameBridge {
                 snap.setResponseDeadlineEpochMs(st.getDeadlineEpochMs());
                 snap.setPendingResponseHint(
                         EffectStackOrchestrator.buildPendingResponseHint(st));
+                if (st.getRole() == StackResponseState.Role.TENANT) {
+                    EffectStackEntry top = gameContext.peekTopEffect();
+                    if (top != null && top.isRentLike()) {
+                        pendingPaymentAmt = top.getAmountDue();
+                    }
+                }
             }
             snap.setEffectStackDepth(gameContext.getEffectStackView().size());
         } else {
@@ -675,12 +767,27 @@ public class GameController implements AiGameBridge {
             snap.setPendingResponseHint(null);
             snap.setEffectStackDepth(0);
         }
+        snap.setPendingPaymentAmountM(pendingPaymentAmt);
         snap.setLastErrorCode(lastErrorCode);
         snap.setLastErrorMessage(lastErrorMessage);
         snap.setLastErrorTimestampEpochMs(lastErrorTimestampEpochMs);
         snap.setGameOver(sessionForceEnded || "GAME_OVER".equals(originalPhase));
         snap.setForceEndReason(sessionForceEnded ? forceEndReason : null);
         for (Player p : sessionPlayers) {
+            JsonArray bankArr = new JsonArray();
+            for (Card c : p.getBankCardsView()) {
+                if (c != null) {
+                    bankArr.add(HandCardJson.toHandCardObject(c));
+                }
+            }
+            JsonArray propArr = new JsonArray();
+            for (PropertyCard pc : p.getPropertyCardsView()) {
+                if (pc != null) {
+                    propArr.add(HandCardJson.toHandCardObject(pc));
+                }
+            }
+            List<PropertyColorProgress> prog =
+                    PropertyZoneSummary.colorProgress(p.getPropertyCardsView());
             snap.addPlayerSummary(
                     p.getPlayerId(),
                     p.getDisplayName(),
@@ -690,7 +797,10 @@ public class GameController implements AiGameBridge {
                     p.getActionZoneCardCount(),
                     p.countCompletePropertySets(),
                     p.totalBankValueM(),
-                    PropertyZoneSummary.summarizeByColor(p.getPropertyCardsView())
+                    PropertyZoneSummary.summarizeByColor(p.getPropertyCardsView()),
+                    bankArr,
+                    propArr,
+                    prog
             );
         }
         gameUpdateSubject.notifyStateChanged(snap);

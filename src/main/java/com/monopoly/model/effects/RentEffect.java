@@ -6,8 +6,7 @@ import com.monopoly.model.settlement.PropertySetCalculator;
 import com.monopoly.model.settlement.RentCalculator;
 
 /**
- * 收租效果：向目标玩家按施效者指定颜色的地产集收取租金。
- * requirements：无对应颜色的完整房产集时不能打出此牌（合法性校验在此实现）。
+ * 收租效果：须施效者该色已有<strong>完整套</strong>；金额 = 牌面租金表 + 房/旅馆加值。
  */
 public class RentEffect implements ActionEffect {
 
@@ -24,10 +23,34 @@ public class RentEffect implements ActionEffect {
             return DueResult.error("必须指定收租颜色。");
         }
 
-        if (!PropertySetCalculator.hasCompleteSetForColor(landlord.getPropertyCardsView(), colorKey)) {
-            return DueResult.error("当前无 " + colorKey + " 的完整房产集，无法打出收租牌。");
+        String ck = colorKey.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!PropertySetCalculator.hasCompleteSetForColor(landlord.getPropertyCardsView(), ck)) {
+            return DueResult.error("你在财产区没有 " + ck + " 的完整房产套，无法打出收租牌。");
         }
 
+        int due = RentCalculator.computeRentForColor(landlord, colorKey);
+        if (due <= 0) {
+            return DueResult.error("该颜色租金为 0，无需收租。");
+        }
+        return DueResult.ok(due);
+    }
+
+    /**
+     * {@link com.monopoly.model.card.ActionCard} 的 RENT_DUAL：仅校验房东所选颜色完整套并计算金额（承租人由序列决定）。
+     */
+    public static DueResult computeDueLandlordColorOnly(ActionEffectContext ctx) {
+        Player landlord = ctx.getActor();
+        String colorKey = ctx.getTargetColorKey();
+        if (landlord == null) {
+            return DueResult.error("房东无效。");
+        }
+        if (colorKey == null || colorKey.isBlank()) {
+            return DueResult.error("必须指定收租颜色。");
+        }
+        String ck = colorKey.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!PropertySetCalculator.hasCompleteSetForColor(landlord.getPropertyCardsView(), ck)) {
+            return DueResult.error("你在财产区没有 " + ck + " 的完整房产套，无法打出该双色收租牌。");
+        }
         int due = RentCalculator.computeRentForColor(landlord, colorKey);
         if (due <= 0) {
             return DueResult.error("该颜色租金为 0，无需收租。");

@@ -10,10 +10,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 计算玩家财产区中「完整地产集」数量与某色是否具备收租资格。
+ * 计算玩家财产区中「完整地产集」数量及各色有效张数。
  * <p>
- * 纯色牌张数 + 已挂载为指定颜色的万能牌张数 ≥ 该颜色凑套需求数时，视为该色至少有一套完整集（用于收租资格）；
- * 完整集总套数按各色分别取 {@code floor(有效张数 / 需求张数)} 后求和。
+ * 纯色牌张数 + 已挂载为指定颜色的万能牌张数 ≥ 该颜色凑套需求数时，视为该色至少有一套完整集（用于胜利、盖房等）；
+ * 收租按张累计见 {@link RentCalculator}。完整集总套数按各色分别取 {@code floor(有效张数 / 需求张数)} 后求和。
  */
 public final class PropertySetCalculator {
 
@@ -65,7 +65,7 @@ public final class PropertySetCalculator {
     }
 
     /**
-     * 该颜色是否至少有一套完整地产集（可收该色租金）。
+     * 该颜色是否至少有一套完整地产集（胜利计数、加盖房屋、交易破坏者等；收租见 {@link RentCalculator}）。
      */
     public static boolean hasCompleteSetForColor(List<PropertyCard> propertyZone, String colorKey) {
         String key = normalizeColorKey(colorKey);

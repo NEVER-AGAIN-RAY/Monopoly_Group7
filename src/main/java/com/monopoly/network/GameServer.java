@@ -7,6 +7,8 @@ import com.monopoly.model.card.Card;
 import com.monopoly.model.player.HumanPlayer;
 import com.monopoly.model.player.Player;
 import com.monopoly.persistence.SaveEncryption;
+import com.monopoly.presentation.HandCardJson;
+import com.monopoly.dto.ActionOptionsResult;
 import com.monopoly.dto.GameStateSnapshot;
 import com.monopoly.dto.PlayActionRequest;
 import com.monopoly.dto.StartSessionRequest;
@@ -129,6 +131,45 @@ public class GameServer implements GameUpdateObserver {
             }
             return;
         }
+        if ("ACTION_OPTIONS".equals(type)) {
+            String requestId = dispatcher.extractRequestId(root, payload);
+            try {
+                String playerId = dispatcher.getString(payload, "playerId", null);
+                String cardId = dispatcher.getString(payload, "cardId", null);
+                ActionOptionsResult r = gameController.queryActionOptionsForHandCard(playerId, cardId);
+                try {
+                    from.sendText(dispatcher.toJsonEnvelopeModel("ACTION_OPTIONS_RESULT", r));
+                } catch (IOException ignored) {
+                }
+            } catch (IllegalArgumentException e) {
+                sendError(from, "ACTION_OPTIONS_BAD", e.getMessage(), requestId);
+            } catch (IllegalStateException e) {
+                sendError(from, "ACTION_OPTIONS_STATE", e.getMessage(), requestId);
+            } catch (RuntimeException e) {
+                sendError(from, "ACTION_OPTIONS_FAIL", e.getMessage(), requestId);
+            }
+            return;
+        }
+        if ("PLAY_OPTIONS".equals(type)) {
+            String requestId = dispatcher.extractRequestId(root, payload);
+            try {
+                String playerId = dispatcher.getString(payload, "playerId", null);
+                String cardId = dispatcher.getString(payload, "cardId", null);
+                String actionType = dispatcher.getString(payload, "actionType", null);
+                ActionOptionsResult r = gameController.queryPlayOptions(playerId, cardId, actionType);
+                try {
+                    from.sendText(dispatcher.toJsonEnvelopeModel("PLAY_OPTIONS_RESULT", r));
+                } catch (IOException ignored) {
+                }
+            } catch (IllegalArgumentException e) {
+                sendError(from, "PLAY_OPTIONS_BAD", e.getMessage(), requestId);
+            } catch (IllegalStateException e) {
+                sendError(from, "PLAY_OPTIONS_STATE", e.getMessage(), requestId);
+            } catch (RuntimeException e) {
+                sendError(from, "PLAY_OPTIONS_FAIL", e.getMessage(), requestId);
+            }
+            return;
+        }
         if ("END_TURN".equals(type)) {
             gameController.handleEndTurnCommand();
             return;
@@ -139,9 +180,18 @@ public class GameServer implements GameUpdateObserver {
             return;
         }
         if ("RESPONSE_PASS".equals(type)) {
-            String actingPlayerId = dispatcher.getString(payload, "actingPlayerId", null);
-            if (actingPlayerId != null && !actingPlayerId.isBlank()) {
-                gameController.handleResponsePass(actingPlayerId);
+            String requestId = dispatcher.extractRequestId(root, payload);
+            try {
+                PlayActionRequest passReq = dispatcher.parsePlayActionRequest(payload);
+                if (passReq.getActingPlayerId() == null || passReq.getActingPlayerId().isBlank()) {
+                    passReq.setActingPlayerId(dispatcher.getString(payload, "actingPlayerId", null));
+                }
+                passReq.setActionType("RESPONSE_PASS");
+                gameController.handlePlayActionRequest(passReq);
+            } catch (ProtocolErrors.ProtocolValidationException e) {
+                sendError(from, e.getCode(), e.getMessage(), requestId);
+            } catch (RuntimeException e) {
+                sendError(from, "RESPONSE_PASS_BAD", e.getMessage(), requestId);
             }
             return;
         }
@@ -485,10 +535,7 @@ public class GameServer implements GameUpdateObserver {
         payload.addProperty("playerId", player.getPlayerId());
         com.google.gson.JsonArray cards = new com.google.gson.JsonArray();
         for (Card card : player.getHandCardsView()) {
-            JsonObject one = new JsonObject();
-            one.addProperty("id", card.getId());
-            one.addProperty("name", card.getName());
-            cards.add(one);
+            cards.add(HandCardJson.toHandCardObject(card));
         }
         payload.add("cards", cards);
         return dispatcher.toJsonEnvelope("MY_HAND", payload);

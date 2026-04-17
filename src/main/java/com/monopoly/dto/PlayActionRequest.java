@@ -1,5 +1,7 @@
 package com.monopoly.dto;
 
+import java.util.List;
+
 /**
  * WebSocket 出牌指令载荷：支持按卡牌 ID 与行动参数描述一次出牌；
  * {@code actionType} 含 DEPLOY、DEPOSIT、ACTION、DISCARD（出牌阶段弃入手牌至弃牌堆，计入每回合 3 次行动上限）。
@@ -26,6 +28,10 @@ public class PlayActionRequest {
      *（当前回合仍为收租方，被收租方需凭此字段出牌）。
      */
     private String actingPlayerId;
+    /**
+     * {@code RESPONSE_PASS} 且为承租人时可选：指定用于支付首笔应付租金的银行/财产牌 id（不找零）。
+     */
+    private List<String> paymentCardIds;
 
     public String getCardId() {
         return cardId;
@@ -97,5 +103,13 @@ public class PlayActionRequest {
 
     public void setActingPlayerId(String actingPlayerId) {
         this.actingPlayerId = actingPlayerId;
+    }
+
+    public List<String> getPaymentCardIds() {
+        return paymentCardIds;
+    }
+
+    public void setPaymentCardIds(List<String> paymentCardIds) {
+        this.paymentCardIds = paymentCardIds;
     }
 }

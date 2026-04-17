@@ -2,10 +2,13 @@ package com.monopoly.model.card;
 
 import com.monopoly.dto.ActionParamContext;
 import com.monopoly.model.core.GameContext;
+import com.monopoly.model.rules.MonopolyDealBankValues;
+import com.monopoly.model.settlement.BuildingPlacementRules;
 import com.monopoly.model.settlement.PropertySetCalculator;
 import com.monopoly.model.settlement.StealTargetZone;
 import com.monopoly.model.player.Player;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -14,10 +17,66 @@ import java.util.Locale;
 public class ActionCard extends Card implements Payable {
 
     private final String effectCode;
+    private final int bankValueM;
+    /** 仅 {@code RENT_DUAL}：卡面两色键，其余类型为空列表。 */
+    private final List<String> rentPalette;
+    /**
+     * 仅 {@code RENT_DUAL}：true 时对除房东外每名玩家依次收租（房规/扩展）；实体默认 false（1 对 1）。
+     */
+    private final boolean rentDualChargesEachOtherPlayer;
+    /** 仅 {@code RENT}：卡面为「任意色」租金牌（展示用），规则同单色收租。 */
+    private final boolean wildcardRentCard;
 
     public ActionCard(String id, String name, String effectCode) {
+        this(id, name, effectCode, List.of());
+    }
+
+    public ActionCard(String id, String name, String effectCode, List<String> rentPalette) {
+        this(id, name, effectCode, MonopolyDealBankValues.bankValueForActionEffect(effectCode), rentPalette);
+    }
+
+    public ActionCard(String id, String name, String effectCode, int bankValueM) {
+        this(id, name, effectCode, bankValueM, List.of());
+    }
+
+    public ActionCard(String id, String name, String effectCode, int bankValueM, List<String> rentPalette) {
+        this(id, name, effectCode, bankValueM, rentPalette, false, false);
+    }
+
+    public ActionCard(
+            String id,
+            String name,
+            String effectCode,
+            int bankValueM,
+            List<String> rentPalette,
+            boolean rentDualChargesEachOtherPlayer,
+            boolean wildcardRentCard) {
         super(id, name);
         this.effectCode = effectCode;
+        this.bankValueM = Math.max(0, bankValueM);
+        this.rentPalette = rentPalette == null ? List.of() : List.copyOf(rentPalette);
+        this.rentDualChargesEachOtherPlayer = rentDualChargesEachOtherPlayer;
+        this.wildcardRentCard = wildcardRentCard;
+    }
+
+    /** 不可变；非双色收租牌为空列表。 */
+    public List<String> getRentPaletteView() {
+        return rentPalette;
+    }
+
+    public boolean isRentDualChargesEachOtherPlayer() {
+        return rentDualChargesEachOtherPlayer;
+    }
+
+    public boolean isWildcardRentCard() {
+        return wildcardRentCard;
+    }
+
+    /**
+     * 存入银行时可作现金的 M 数（实体牌角标）。
+     */
+    public int getBankValueM() {
+        return bankValueM;
     }
 
     public String getEffectCode() {
@@ -42,6 +101,28 @@ public class ActionCard extends Card implements Payable {
                 return false;
             }
             return PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), color);
+        }
+
+        if ("RENT_DUAL".equals(code)) {
+            if (params == null || blank(params.getTargetColorKey())) {
+                return false;
+            }
+            String chosen = params.getTargetColorKey().trim().toUpperCase(Locale.ROOT);
+            boolean inPalette = rentPalette.stream().anyMatch(chosen::equals);
+            if (!inPalette) {
+                return false;
+            }
+            if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), chosen)) {
+                return false;
+            }
+            if (!rentDualChargesEachOtherPlayer) {
+                if (blank(params.getTargetPlayerId())) {
+                    return false;
+                }
+                Player target = context.findPlayer(params.getTargetPlayerId());
+                return target != null && target != actor;
+            }
+            return true;
         }
 
         if ("STEAL_PROPERTY".equals(code)) {
@@ -128,6 +209,9 @@ public class ActionCard extends Card implements Payable {
         if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), key)) {
             return false;
         }
+        if (!BuildingPlacementRules.allowsHouseHotel(key)) {
+            return false;
+        }
         return pc.getBuildingLevel() == BuildingLevel.BASE;
     }
 
@@ -137,6 +221,9 @@ public class ActionCard extends Card implements Payable {
             return false;
         }
         if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), key)) {
+            return false;
+        }
+        if (!BuildingPlacementRules.allowsHouseHotel(key)) {
             return false;
         }
         return pc.getBuildingLevel() == BuildingLevel.HOUSE;
@@ -178,6 +265,6 @@ public class ActionCard extends Card implements Payable {
 
     @Override
     public int getPaymentValue() {
-        return 3;
+        return bankValueM;
     }
 }

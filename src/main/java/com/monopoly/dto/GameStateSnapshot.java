@@ -1,5 +1,7 @@
 package com.monopoly.dto;
 
+import com.google.gson.JsonArray;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +23,8 @@ public class GameStateSnapshot {
     private long responseDeadlineEpochMs;
     private String pendingResponseHint;
     private int effectStackDepth;
+    /** 承租人响应窗口内首笔应付租金（M），非该阶段为 null */
+    private Integer pendingPaymentAmountM;
     /** 最近一次规则/操作错误码，无则为 null */
     private String lastErrorCode;
     /** 最近一次错误说明，无则为 null */
@@ -31,7 +35,7 @@ public class GameStateSnapshot {
     private boolean gameOver;
     /** 强制结束原因，如 {@code TIMEOUT}；非强制结束时为 null */
     private String forceEndReason;
-    /** 最近一次操作的简述（供 Flutter / JSON 展示），如摸牌、出牌、结束回合 */
+    /** 最近一次操作的简述（供客户端 / JSON 展示），如摸牌、出牌、结束回合 */
     private String lastActionSummary;
     private final List<PlayerPublicSummary> players = new ArrayList<>();
 
@@ -123,6 +127,14 @@ public class GameStateSnapshot {
         this.effectStackDepth = effectStackDepth;
     }
 
+    public Integer getPendingPaymentAmountM() {
+        return pendingPaymentAmountM;
+    }
+
+    public void setPendingPaymentAmountM(Integer pendingPaymentAmountM) {
+        this.pendingPaymentAmountM = pendingPaymentAmountM;
+    }
+
     public String getLastErrorCode() {
         return lastErrorCode;
     }
@@ -212,8 +224,41 @@ public class GameStateSnapshot {
             int bankTotalValueM,
             List<PropertyColorCount> propertyCountsByColor
     ) {
+        addPlayerSummary(
+                playerId,
+                displayName,
+                handCount,
+                bankCount,
+                propertyCount,
+                actionZoneCount,
+                completePropertySets,
+                bankTotalValueM,
+                propertyCountsByColor,
+                new JsonArray(),
+                new JsonArray(),
+                Collections.emptyList());
+    }
+
+    public void addPlayerSummary(
+            String playerId,
+            String displayName,
+            int handCount,
+            int bankCount,
+            int propertyCount,
+            int actionZoneCount,
+            int completePropertySets,
+            int bankTotalValueM,
+            List<PropertyColorCount> propertyCountsByColor,
+            JsonArray bankCardViews,
+            JsonArray propertyZoneCardViews,
+            List<PropertyColorProgress> propertyColorProgress
+    ) {
         List<PropertyColorCount> safeColorCounts =
                 propertyCountsByColor == null ? Collections.emptyList() : List.copyOf(propertyCountsByColor);
+        JsonArray bankArr = bankCardViews != null ? bankCardViews : new JsonArray();
+        JsonArray propArr = propertyZoneCardViews != null ? propertyZoneCardViews : new JsonArray();
+        List<PropertyColorProgress> prog =
+                propertyColorProgress == null ? Collections.emptyList() : List.copyOf(propertyColorProgress);
         players.add(new PlayerPublicSummary(
                 playerId,
                 displayName,
@@ -223,7 +268,10 @@ public class GameStateSnapshot {
                 actionZoneCount,
                 completePropertySets,
                 bankTotalValueM,
-                safeColorCounts
+                safeColorCounts,
+                bankArr,
+                propArr,
+                prog
         ));
     }
 
@@ -237,6 +285,9 @@ public class GameStateSnapshot {
         private final int completePropertySets;
         private final int bankTotalValueM;
         private final List<PropertyColorCount> propertyCountsByColor;
+        private final JsonArray bankCards;
+        private final JsonArray propertyZoneCards;
+        private final List<PropertyColorProgress> propertyColorProgress;
 
         public PlayerPublicSummary(
                 String playerId,
@@ -247,7 +298,10 @@ public class GameStateSnapshot {
                 int actionZoneCount,
                 int completePropertySets,
                 int bankTotalValueM,
-                List<PropertyColorCount> propertyCountsByColor
+                List<PropertyColorCount> propertyCountsByColor,
+                JsonArray bankCards,
+                JsonArray propertyZoneCards,
+                List<PropertyColorProgress> propertyColorProgress
         ) {
             this.playerId = playerId;
             this.displayName = displayName;
@@ -258,6 +312,10 @@ public class GameStateSnapshot {
             this.completePropertySets = completePropertySets;
             this.bankTotalValueM = bankTotalValueM;
             this.propertyCountsByColor = propertyCountsByColor;
+            this.bankCards = bankCards != null ? bankCards : new JsonArray();
+            this.propertyZoneCards = propertyZoneCards != null ? propertyZoneCards : new JsonArray();
+            this.propertyColorProgress = propertyColorProgress != null
+                    ? propertyColorProgress : Collections.emptyList();
         }
 
         public String getPlayerId() {
@@ -294,6 +352,18 @@ public class GameStateSnapshot {
 
         public List<PropertyColorCount> getPropertyCountsByColor() {
             return propertyCountsByColor;
+        }
+
+        public JsonArray getBankCards() {
+            return bankCards;
+        }
+
+        public JsonArray getPropertyZoneCards() {
+            return propertyZoneCards;
+        }
+
+        public List<PropertyColorProgress> getPropertyColorProgress() {
+            return propertyColorProgress;
         }
     }
 }

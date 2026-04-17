@@ -1,0 +1,198 @@
+/* Monopoly Deal 风格桌面客户端（原创扁平样式，非官方美术） */
+
+.root {
+    -fx-font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    -fx-background-color: #eceff1;
+}
+
+.tab-pane .tab-header-area .tab {
+    -fx-background-radius: 6 6 0 0;
+}
+
+/* ---------- 卡牌 ---------- */
+.card {
+    -fx-pref-width: 118px;
+    -fx-pref-height: 176px;
+    -fx-min-width: 118px;
+    -fx-min-height: 176px;
+    -fx-max-width: 118px;
+    -fx-max-height: 176px;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: rgba(0, 0, 0, 0.18);
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 6, 0.2, 0, 2);
+    -fx-cursor: hand;
+}
+
+.card:hover {
+    -fx-border-color: #1976d2;
+    -fx-effect: dropshadow(gaussian, rgba(25, 118, 210, 0.35), 10, 0.2, 0, 3);
+}
+
+.card-selected {
+    -fx-border-color: #0d47a1;
+    -fx-border-width: 2;
+    -fx-effect: dropshadow(gaussian, rgba(13, 71, 161, 0.45), 12, 0.25, 0, 3);
+}
+
+.card-money {
+    -fx-background-color: linear-gradient(to bottom, #fffde7, #fff9c4);
+}
+
+.card-property {
+    -fx-background-color: linear-gradient(to bottom, #fafafa, #eeeeee);
+}
+
+.card-wild {
+    -fx-background-color: linear-gradient(to bottom right, #e1bee7, #b3e5fc, #c8e6c9);
+}
+
+.card-action {
+    -fx-background-color: linear-gradient(to bottom, #e3f2fd, #bbdefb);
+}
+
+.card-unknown {
+    -fx-background-color: linear-gradient(to bottom, #eeeeee, #e0e0e0);
+}
+
+.card-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #212121;
+    -fx-wrap-text: true;
+    -fx-text-alignment: center;
+}
+
+.card-hint {
+    -fx-font-size: 10px;
+    -fx-text-fill: #424242;
+    -fx-wrap-text: true;
+    -fx-opacity: 0.92;
+}
+
+.card-rent-detail {
+    -fx-font-size: 8px;
+    -fx-text-fill: #37474f;
+    -fx-wrap-text: true;
+    -fx-opacity: 0.88;
+    -fx-line-spacing: 1px;
+}
+
+.card-kind-badge {
+    -fx-font-size: 9px;
+    -fx-text-fill: #546e7a;
+    -fx-padding: 2 6 2 6;
+    -fx-background-color: rgba(255, 255, 255, 0.65);
+    -fx-background-radius: 4;
+}
+
+.card-value-corner {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1565c0;
+    -fx-padding: 1 4 1 4;
+    -fx-background-color: rgba(255, 255, 255, 0.88);
+    -fx-background-radius: 4;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 2, 0, 0, 1);
+}
+
+.color-bar {
+    -fx-pref-height: 14px;
+    -fx-max-height: 14px;
+    -fx-min-height: 14px;
+    -fx-background-radius: 8 8 0 0;
+}
+
+/* 与后端 colorGroup 一致 */
+.color-BROWN { -fx-background-color: #795548; }
+.color-LIGHT_BLUE { -fx-background-color: #4fc3f7; }
+.color-PINK { -fx-background-color: #f06292; }
+.color-ORANGE { -fx-background-color: #ff9800; }
+.color-RED { -fx-background-color: #e53935; }
+.color-YELLOW { -fx-background-color: #ffeb3b; }
+.color-GREEN { -fx-background-color: #43a047; }
+.color-DARK_BLUE { -fx-background-color: #1e88e5; }
+.color-RAILROAD { -fx-background-color: #5d4037; }
+.color-UTILITY { -fx-background-color: #90a4ae; }
+.color-WILD_BAR {
+    -fx-background-color: linear-gradient(to right, #e91e63, #9c27b0, #3f51b5, #009688);
+}
+
+.color-WILD_UNASSIGNED {
+    -fx-background-color: #9e9e9e;
+}
+
+/* ---------- 玩家桌面块 ---------- */
+.player-panel {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(0, 0, 0, 0.08);
+    -fx-border-radius: 8;
+    -fx-padding: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 4, 0, 0, 1);
+}
+
+.player-panel-active {
+    -fx-border-color: #1976d2;
+    -fx-border-width: 2;
+}
+
+.player-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.player-stats {
+    -fx-font-size: 11px;
+    -fx-text-fill: #455a64;
+}
+
+.zone-section-title {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #546e7a;
+}
+
+.zone-mini-card {
+    -fx-font-size: 10px;
+    -fx-text-fill: #263238;
+    -fx-padding: 4 6 4 6;
+    -fx-background-color: rgba(255, 255, 255, 0.75);
+    -fx-background-radius: 6;
+    -fx-border-color: rgba(0, 0, 0, 0.08);
+    -fx-border-radius: 6;
+}
+
+.chip {
+    -fx-font-size: 10px;
+    -fx-text-fill: #fff;
+    -fx-padding: 3 8 3 8;
+    -fx-background-radius: 12;
+}
+
+.chip.color-YELLOW {
+    -fx-text-fill: #333;
+    -fx-background-color: #fbc02d;
+}
+
+.chip.color-BROWN { -fx-background-color: #795548; }
+.chip.color-LIGHT_BLUE { -fx-background-color: #039be5; }
+.chip.color-PINK { -fx-background-color: #d81b60; }
+.chip.color-ORANGE { -fx-background-color: #f57c00; }
+.chip.color-RED { -fx-background-color: #c62828; }
+.chip.color-GREEN { -fx-background-color: #2e7d32; }
+.chip.color-DARK_BLUE { -fx-background-color: #1565c0; }
+.chip.color-RAILROAD { -fx-background-color: #4e342e; }
+.chip.color-UTILITY { -fx-background-color: #546e7a; }
+
+.turn-guide {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1565c0;
+    -fx-padding: 6 0 4 0;
+}
+
+.turn-guide-wait {
+    -fx-text-fill: #6d4c41;
+}

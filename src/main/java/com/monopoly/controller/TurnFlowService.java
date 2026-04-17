@@ -15,8 +15,10 @@ import com.monopoly.model.effects.ActionEffectDispatcher;
 import com.monopoly.model.effects.ActionEffectResult;
 import com.monopoly.model.effects.DoubleRentEffect;
 import com.monopoly.model.effects.RentEffect;
+import com.monopoly.model.core.RentChargeSequence;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -96,6 +98,11 @@ final class TurnFlowService {
             }
             player.receiveCardToHand(card);
             drawn++;
+        }
+        if (checkWinCondition(player)) {
+            controller.pushSnapshot(controller.getCurrentSessionId(), "GAME_OVER",
+                    player.getDisplayName() + " wins (3 complete property sets).");
+            return;
         }
         currentTurnPhase = TurnPhase.PLAY;
         controller.assertDeckIntegrityOrLog();
@@ -340,7 +347,8 @@ final class TurnFlowService {
                 targetProp = target != null
                         ? resolvePropertyCardById(target, params.getTargetCardId()) : null;
             }
-        } else if (!"HOUSE".equals(ec) && !"HOTEL".equals(ec) && !"PASS_GO".equals(ec)) {
+        } else if (!"HOUSE".equals(ec) && !"HOTEL".equals(ec) && !"PASS_GO".equals(ec)
+                && !"RENT_DUAL".equals(ec)) {
             targetProp = target != null
                     ? resolvePropertyCardById(target, params.getTargetCardId()) : null;
         }
@@ -432,6 +440,70 @@ final class TurnFlowService {
             effectStack.enterRentResponseWindow(ctx.getTarget());
             ActionEffectResult result = ActionEffectResult.success(
                     "双倍收租已入栈，等待对方在 "
+                            + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
+                            + " 秒内打出免租或放弃。");
+            System.out.println("[ACTION] " + result.getMessage());
+            return result;
+        }
+
+        if ("RENT_DUAL".equals(effectCodeStr)) {
+            if (card.isRentDualChargesEachOtherPlayer()) {
+                RentEffect.DueResult dueAll = RentEffect.computeDueLandlordColorOnly(ctx);
+                if (!dueAll.isOk()) {
+                    throw new IllegalStateException(dueAll.getError());
+                }
+                List<String> tenantIds = new ArrayList<>();
+                for (Player p : controller.getSessionPlayersView()) {
+                    if (p != null && !p.getPlayerId().equals(actor.getPlayerId())) {
+                        tenantIds.add(p.getPlayerId());
+                    }
+                }
+                if (tenantIds.isEmpty()) {
+                    throw new IllegalStateException("没有其他玩家可收租。");
+                }
+                currentTurnActionCount++;
+                actor.placeActionToCenter(card);
+                gameContext.clearRentChargeSequence();
+                gameContext.setRentChargeSequence(new RentChargeSequence(
+                        actor.getPlayerId(),
+                        ctx.getTargetColorKey(),
+                        dueAll.getAmountDue(),
+                        tenantIds));
+                Player firstTenant = controller.resolvePlayer(tenantIds.get(0));
+                if (firstTenant == null) {
+                    gameContext.clearRentChargeSequence();
+                    throw new IllegalStateException("承租人玩家不存在。");
+                }
+                gameContext.pushEffect(EffectStackEntry.pendingRent(
+                        actor.getPlayerId(),
+                        firstTenant.getPlayerId(),
+                        ctx.getTargetColorKey(),
+                        dueAll.getAmountDue()));
+                effectStack.enterRentResponseWindow(firstTenant);
+                ActionEffectResult result = ActionEffectResult.success(
+                        "双色全员收租已入栈，将依次向每位其他玩家收租；当前等待 "
+                                + firstTenant.getDisplayName()
+                                + " 在 "
+                                + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
+                                + " 秒内打出免租或放弃。");
+                System.out.println("[ACTION] " + result.getMessage());
+                return result;
+            }
+            RentEffect.DueResult due = RentEffect.computeDue(ctx);
+            if (!due.isOk()) {
+                throw new IllegalStateException(due.getError());
+            }
+            currentTurnActionCount++;
+            actor.placeActionToCenter(card);
+            EffectStackEntry rentEntry = EffectStackEntry.pendingRent(
+                    actor.getPlayerId(),
+                    ctx.getTarget().getPlayerId(),
+                    ctx.getTargetColorKey(),
+                    due.getAmountDue());
+            gameContext.pushEffect(rentEntry);
+            effectStack.enterRentResponseWindow(ctx.getTarget());
+            ActionEffectResult result = ActionEffectResult.success(
+                    "双色收租已入栈，等待对方在 "
                             + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
                             + " 秒内打出免租或放弃。");
             System.out.println("[ACTION] " + result.getMessage());

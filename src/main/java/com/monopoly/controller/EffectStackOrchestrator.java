@@ -5,6 +5,7 @@ import com.monopoly.model.card.Card;
 import com.monopoly.model.effects.EffectStackEntry;
 import com.monopoly.model.effects.EffectStackResolver;
 import com.monopoly.model.core.GameContext;
+import com.monopoly.model.core.RentChargeSequence;
 import com.monopoly.model.settlement.PaymentSettlement;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.effects.StackResponseState;
@@ -14,6 +15,7 @@ import com.monopoly.pattern.singleton.GameEngineSingleton;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -81,7 +83,7 @@ final class EffectStackOrchestrator {
             }
             try {
                 cancelPendingResponseTimeout();
-                resolveEffectStackAndResume("RESPONSE_TIMEOUT");
+                resolveEffectStackAndResume("RESPONSE_TIMEOUT", null, null);
             } catch (RuntimeException ex) {
                 ex.printStackTrace();
             }
@@ -98,14 +100,46 @@ final class EffectStackOrchestrator {
     // ─── 响应/放弃 ─────────────────────────────────────────
 
     void performResponsePass(String actingPlayerId) {
+        performResponsePass(actingPlayerId, null);
+    }
+
+    /**
+     * @param paymentCardIds 非空时：承租人指定用于<strong>首笔</strong>应付租金的银行/财产牌 id（找零不退）；仅 {@link StackResponseState.Role#TENANT} 阶段允许。
+     */
+    void performResponsePass(String actingPlayerId, List<String> paymentCardIds) {
         if (actingPlayerId == null || actingPlayerId.isBlank()) {
             throw new IllegalArgumentException("放弃响应时必须提供 actingPlayerId。");
         }
         if (!controller.getGameContext().isAwaitingResponseFrom(actingPlayerId)) {
             throw new IllegalStateException("当前未轮到该玩家响应或已超时。");
         }
+        GameContext ctx = controller.getGameContext();
+        StackResponseState st = ctx.getResponseState();
+        if (paymentCardIds != null && !paymentCardIds.isEmpty()) {
+            if (st == null || st.getRole() != StackResponseState.Role.TENANT) {
+                throw new IllegalStateException("仅承租人在放弃免租时可指定 paymentCardIds。");
+            }
+            List<EffectStackEntry> copy = new ArrayList<>(ctx.getEffectStackView());
+            Set<String> cancelled = EffectStackResolver.computeCancelledEntryIds(copy);
+            List<EffectStackEntry> active = EffectStackResolver.activeRentEntriesInOrder(copy, cancelled);
+            if (active.isEmpty()) {
+                throw new IllegalStateException("当前无应付租金，请勿指定 paymentCardIds。");
+            }
+            EffectStackEntry first = active.get(0);
+            if (!actingPlayerId.equals(first.getTenantPlayerId())) {
+                throw new IllegalStateException("首条应付租金不指向你，不能指定 paymentCardIds。");
+            }
+            Player tenant = controller.resolvePlayer(actingPlayerId);
+            if (tenant == null) {
+                throw new IllegalStateException("承租人玩家不存在。");
+            }
+            PaymentSettlement.validateExplicitChoice(tenant, first.getAmountDue(), paymentCardIds);
+        }
         cancelPendingResponseTimeout();
-        resolveEffectStackAndResume("RESPONSE_PASS");
+        String tenantExplicit = (paymentCardIds != null && !paymentCardIds.isEmpty())
+                ? actingPlayerId
+                : null;
+        resolveEffectStackAndResume("RESPONSE_PASS", paymentCardIds, tenantExplicit);
     }
 
     // ─── 免租牌（Just Say No）响应 ────────────────────────
@@ -162,23 +196,58 @@ final class EffectStackOrchestrator {
             controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_AWAITING_COUNTER",
                     actor.getDisplayName() + " played Just Say No; landlord may counter.");
         } else {
-            resolveEffectStackAndResume("JSN_COUNTER_RESOLVED");
+            resolveEffectStackAndResume("JSN_COUNTER_RESOLVED", null, null);
         }
     }
 
     // ─── 效果栈结算 ────────────────────────────────────────
 
     void resolveEffectStackAndResume(String phaseHint) {
+        resolveEffectStackAndResume(phaseHint, null, null);
+    }
+
+    void resolveEffectStackAndResume(
+            String phaseHint,
+            List<String> explicitPaymentCardIds,
+            String actingTenantIdForExplicit) {
         if (controller.isSessionForceEnded()) {
             return;
         }
         GameContext ctx = controller.getGameContext();
         List<EffectStackEntry> copy = new ArrayList<>(ctx.getEffectStackView());
+        RentChargeSequence rentSeq = ctx.getRentChargeSequence();
         ctx.clearEffectStack();
-        turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.PLAY;
 
         PaymentSettlement.Result pay = EffectStackResolver.resolveRentPayments(
-                copy, controller.getSessionPlayersView(), engine);
+                copy,
+                controller.getSessionPlayersView(),
+                engine,
+                explicitPaymentCardIds,
+                actingTenantIdForExplicit);
+
+        if (rentSeq != null) {
+            boolean moreTenants = rentSeq.advanceToNextTenant();
+            if (moreTenants) {
+                String nextId = rentSeq.getCurrentTenantId();
+                Player nextTenant = controller.resolvePlayer(nextId);
+                if (nextTenant != null) {
+                    ctx.pushEffect(EffectStackEntry.pendingRent(
+                            rentSeq.getLandlordId(),
+                            nextId,
+                            rentSeq.getColorKey(),
+                            rentSeq.getAmountDuePerTenant()));
+                    enterRentResponseWindow(nextTenant);
+                    controller.pushSnapshot(controller.getCurrentSessionId(), phaseHint,
+                            "Effect stack resolved: " + pay.getMessage() + " — 下一名承租人。");
+                    System.out.println("[EFFECT_STACK] " + phaseHint + " " + pay.getMessage()
+                            + " (rent sequence continues)");
+                    return;
+                }
+            }
+            ctx.clearRentChargeSequence();
+        }
+
+        turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.PLAY;
         if (turnFlow.currentTurnActionCount >= TurnFlowService.MAX_ACTIONS_PER_TURN) {
             turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.END_TURN;
         }

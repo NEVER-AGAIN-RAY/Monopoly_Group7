@@ -3,6 +3,7 @@ package com.monopoly.model.effects;
 import com.monopoly.model.card.BuildingLevel;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.settlement.BuildingPlacementRules;
 import com.monopoly.model.settlement.PropertySetCalculator;
 import com.monopoly.model.card.PropertyWildCard;
 
@@ -32,6 +33,9 @@ public final class HouseEffect implements ActionEffect {
         }
         if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), colorKey)) {
             return ActionEffectResult.failed("该颜色尚未形成完整地产集，无法加盖房子。");
+        }
+        if (!BuildingPlacementRules.allowsHouseHotel(colorKey)) {
+            return ActionEffectResult.failed("铁路与公共事业套不能加盖房屋或旅馆。");
         }
         if (target.getBuildingLevel() != BuildingLevel.BASE) {
             return ActionEffectResult.failed("该房产已有建筑，请使用酒店卡将房子升级为酒店。");

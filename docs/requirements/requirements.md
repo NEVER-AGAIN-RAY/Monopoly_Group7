@@ -66,7 +66,7 @@
 
 #### 2.2.2 Organizational and Delivery Constraints
 
-- Backend uses Java (JDK 17+); frontend uses Flutter.
+- Backend uses Java (JDK 17+); desktop frontend uses JavaFX with FXML layouts.
 - The architecture follows MVC separation principles.
 - The project uses Git-based collaboration and clear commit history.
 - Delivery targets standard OS environments (Windows/macOS/Linux).

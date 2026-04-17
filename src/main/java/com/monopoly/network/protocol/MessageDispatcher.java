@@ -101,6 +101,16 @@ public class MessageDispatcher {
         return gson.toJson(root);
     }
 
+    /**
+     * 将 Java Bean / DTO 序列化为 payload（例如 {@code ACTION_OPTIONS_RESULT}）。
+     */
+    public String toJsonEnvelopeModel(String messageType, Object payloadModel) {
+        JsonObject root = new JsonObject();
+        root.addProperty("type", messageType);
+        root.add("payload", payloadModel == null ? new JsonObject() : gson.toJsonTree(payloadModel));
+        return gson.toJson(root);
+    }
+
     /** SAVE_GAME_RESULT / LOAD_GAME_RESULT 载荷 */
     public JsonObject operationResult(boolean ok, String errorMessage) {
         JsonObject p = new JsonObject();

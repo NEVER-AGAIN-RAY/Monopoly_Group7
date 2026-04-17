@@ -11,6 +11,6 @@ public interface GameUpdateSubject {
 
     void unregisterObserver(GameUpdateObserver observer);
 
-    /** 由模型或控制器在数据变更后调用，驱动网络层向 Flutter 推送 JSON */
+    /** 由模型或控制器在数据变更后调用，驱动网络层向客户端推送 JSON */
     void notifyStateChanged(GameStateSnapshot snapshot);
 }

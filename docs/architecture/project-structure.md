@@ -6,7 +6,7 @@
 
 ## 1. 核心目录树（Tree）
 
-以下为仓库**核心**结构：`src`（Java）、`flutter_app/lib`（Dart 源码）、`docs`（文档）。平台工程目录（`flutter_app/android`、`ios`、`windows` 等）为 Flutter 标准脚手架，此处不逐层展开。
+以下为仓库**核心**结构：`src`（Java 后端 + JavaFX/FXML 桌面客户端）、`docs`（文档）。
 
 ```text
 Monopoly_Group7/
@@ -23,37 +23,17 @@ Monopoly_Group7/
 │   │   └── websocket-protocol.md
 │   └── requirements/
 │       └── requirements.md
-├── flutter_app/
-│   ├── pubspec.yaml
-│   └── lib/
-│       ├── main.dart
-│       └── app/
-│           ├── app.dart
-│           ├── core/
-│           │   └── network/
-│           │       ├── ws_client.dart
-│           │       ├── ws_envelope.dart
-│           │       ├── ws_message_codec.dart
-│           │       ├── ws_traffic_message.dart
-│           │       └── models/
-│           │           ├── play_action_request.dart
-│           │           ├── play_action_request_builder.dart
-│           │           └── start_session_request.dart
-│           └── feature/
-│               ├── debug/
-│               │   ├── debug_page.dart
-│               │   └── debug_console_page.dart
-│               ├── game/
-│               │   ├── game_page.dart
-│               │   ├── game_view_model.dart
-│               │   ├── game_state.dart
-│               │   └── action_toolbar.dart
-│               └── lobby/
-│                   ├── lobby_page.dart
-│                   └── lobby_view_model.dart
 └── src/
     ├── main/java/com/monopoly/
     │   ├── ServerBootstrap.java
+    │   ├── fx/
+    │   │   ├── MonopolyFxApp.java
+    │   │   ├── MainController.java
+    │   │   ├── FxWebSocketClient.java
+    │   │   ├── WsJson.java
+    │   │   ├── presentation/CardDisplayData.java
+    │   │   └── ui/CardView.java, PlayerBoardPanel.java, TargetPickerDialog.java
+    │   ├── presentation/HandCardJson.java
     │   ├── controller/
     │   ├── dto/
     │   ├── model/
@@ -73,6 +53,8 @@ Monopoly_Group7/
     │   │   ├── singleton/
     │   │   └── strategy/
     │   └── persistence/
+    ├── main/resources/com/monopoly/fx/MainView.fxml
+    ├── main/resources/com/monopoly/fx/styles.css
     └── test/java/com/monopoly/
         ├── controller/
         ├── model/
@@ -98,7 +80,7 @@ Monopoly_Group7/
 
 ### 2.2 `controller/` — Facade 与内聚服务（重构核心）
 
-**定位**：`GameController` 是 **外观（Facade）**：向 Flutter / 测试暴露稳定 API，**不承载**长流程实现；具体逻辑下沉到 **单一职责服务类**，便于测试与演进。
+**定位**：`GameController` 是 **外观（Facade）**：向桌面客户端 / 测试暴露稳定 API，**不承载**长流程实现；具体逻辑下沉到 **单一职责服务类**，便于测试与演进。
 
 | 类型 | 职责 |
 |------|------|
@@ -224,36 +206,23 @@ Monopoly_Group7/
 
 ---
 
-## 3. Flutter 客户端：`flutter_app/lib`
+## 3. JavaFX 桌面客户端：`src/main/java/com/monopoly/fx` + `MainView.fxml`
 
-客户端按 **core（基建）** 与 **feature（功能界面）** 划分，与后端 `dto` + `interface` 文档对齐。
-
-### 3.1 `lib/app/core/network/` — 网络基建与协议模型
-
-| 文件/目录 | 职责 |
-|-----------|------|
-| `ws_client.dart` | WebSocket 连接、发送/接收、与 UI 层协作的客户端封装。 |
-| `ws_envelope.dart`、`ws_message_codec.dart` | 与后端 JSON 信封、编解码约定一致。 |
-| `ws_traffic_message.dart` | 调试用或通用流量表示（如日志/控制台）。 |
-| `models/play_action_request.dart`、`play_action_request_builder.dart` | 对应后端 `PlayActionRequest` 字段的 Dart 模型与构建器。 |
-| `models/start_session_request.dart` | 对应 `StartSessionRequest`。 |
-
-### 3.2 `lib/app/feature/` — UI 功能模块
-
-| 目录 | 职责 |
-|------|------|
-| **`lobby/`** | `lobby_page.dart`、`lobby_view_model.dart`：连接、会话参数、进入对局前交互。 |
-| **`game/`** | `game_page.dart`、`game_view_model.dart`、`game_state.dart`、`action_toolbar.dart`：对局中 UI、状态订阅、出牌工具条。 |
-| **`debug/`** | `debug_page.dart`、`debug_console_page.dart`：开发调试页（如流量/日志）。 |
-
-### 3.3 入口
+桌面端与后端通过 **WebSocket + JSON**（见 `docs/interface/websocket-protocol.md`）通信；界面用 **FXML** 声明，逻辑在 Java Controller。
 
 | 文件 | 职责 |
 |------|------|
-| `lib/main.dart` | `runApp(MonopolyApp)`。 |
-| `lib/app/app.dart` | `MaterialApp`、主导航壳（Lobby / Game / Debug 等 Tab 切换）、注入共享 `WsClient` 与各 `ViewModel`。 |
+| `MonopolyFxApp.java` | JavaFX `Application` 入口，加载 FXML，窗口关闭时释放连接。 |
+| `MainController.java` | `MainView.fxml` 的 `fx:controller`：连接/会话、可视化手牌与玩家桌面、向导式出牌、调试日志。 |
+| `FxWebSocketClient.java` | 基于 JDK `HttpClient` 的 WebSocket 封装（收发文本帧）。 |
+| `WsJson.java` | Gson：信封 JSON 构造、`payload` 格式化等。 |
+| `presentation/CardDisplayData.java` | 解析 `MY_HAND` 单卡 JSON（兼容旧字段）。 |
+| `ui/CardView.java` 等 | 卡牌控件、玩家公开信息块、目标选择对话框。 |
+| `resources/.../MainView.fxml` | 布局与控件；按钮 `onAction` 绑定至 `MainController`。 |
+| `resources/.../styles.css` | 牌面与桌面样式（原创扁平风格）。 |
+| `com.monopoly.presentation.HandCardJson` | 服务端：将领域 `Card` 序列化为 `MY_HAND` 中的富展示字段。 |
 
-> **平台目录**：`android/`、`ios/`、`macos/`、`web/`、`windows/`、`linux/` 为 Flutter 多平台模板，一般无需在架构文档中逐项说明。
+启动：`mvn javafx:run`（需先 `mvn exec:java` 启动服务端）。
 
 ---
 
@@ -271,7 +240,7 @@ Monopoly_Group7/
 ## 5. 小结
 
 - **Java**：`GameController` 保持 **薄 Facade**；**回合与行动卡**在 `TurnFlowService`，**收租响应链**在 `EffectStackOrchestrator`，**领域规则**在 `model` 各子包，**线协议**在 `dto`，**存档**在 `persistence`，**入网**在 `network` 三层子包，**可复用模式**在 `pattern`。
-- **Flutter**：`core/network` 对齐协议；`feature/*` 承载各业务界面与 ViewModel。
+- **JavaFX**：`com.monopoly.fx` 实现协议对齐的桌面调试客户端；FXML 满足「界面用 XML 描述」的课设要求。
 - **docs**：architecture / implementation / interface / requirements 四分，分别服务设计、实现追溯、协议与需求读者。
 
 如需与类图、时序图、用例图对照阅读，请参阅同目录下的 `uml_source.md`。

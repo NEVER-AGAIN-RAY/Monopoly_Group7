@@ -8,12 +8,13 @@
     <artifactId>monopoly-deal-server</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <name>Monopoly Deal Server</name>
-    <description>纯 Java 后端骨架（WebSocket + JSON）</description>
+    <description>Monopoly Deal：Java WebSocket 服务端 + JavaFX(FXML) 桌面客户端</description>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <javafx.version>17.0.12</javafx.version>
     </properties>
 
     <dependencies>
@@ -38,6 +39,17 @@
             <version>5.10.2</version>
             <scope>test</scope>
         </dependency>
+        <!-- JavaFX desktop client (FXML UI) -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -53,6 +65,14 @@
                 <version>3.5.0</version>
                 <configuration>
                     <mainClass>com.monopoly.network.endpoint.WsServerMain</mainClass>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>com.monopoly.fx.MonopolyFxApp</mainClass>
                 </configuration>
             </plugin>
         </plugins>

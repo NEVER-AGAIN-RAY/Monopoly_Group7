@@ -1,6 +1,7 @@
 package com.monopoly.model.settlement;
 
 import com.monopoly.dto.PropertyColorCount;
+import com.monopoly.dto.PropertyColorProgress;
 import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.card.PropertyWildCard;
 
@@ -55,6 +56,36 @@ public final class PropertyZoneSummary {
         List<PropertyColorCount> out = new ArrayList<>(keys.size());
         for (String k : keys) {
             out.add(new PropertyColorCount(k, map.get(k)));
+        }
+        return out;
+    }
+
+    /**
+     * 标准各色凑套进度：仅包含有至少一张有效计入该色的牌，或该色在标准轨道中且曾可考虑展示。
+     */
+    public static List<PropertyColorProgress> colorProgress(List<PropertyCard> propertyZone) {
+        if (propertyZone == null || propertyZone.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<PropertyColorProgress> out = new ArrayList<>();
+        for (String ck : PropertySetCalculator.REQUIRED_BY_COLOR.keySet()) {
+            int need = PropertySetCalculator.requiredForColor(ck);
+            int eff = PropertySetCalculator.effectiveCountForColor(propertyZone, ck);
+            if (eff <= 0) {
+                continue;
+            }
+            int sets = need <= 0 ? 0 : eff / need;
+            out.add(new PropertyColorProgress(ck, eff, need, sets));
+        }
+        int wildUnassigned = 0;
+        for (PropertyCard pc : propertyZone) {
+            if (pc instanceof PropertyWildCard w
+                    && (w.getAssignedColorKey() == null || w.getAssignedColorKey().isBlank())) {
+                wildUnassigned++;
+            }
+        }
+        if (wildUnassigned > 0) {
+            out.add(new PropertyColorProgress(WILD_UNASSIGNED_COLOR_KEY, wildUnassigned, 0, 0));
         }
         return out;
     }

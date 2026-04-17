@@ -10,6 +10,7 @@ import java.util.Map;
  * effectCode 规范（大写）：
  * <ul>
  *   <li>{@code RENT}           – 按颜色向目标收租</li>
+ *   <li>{@code RENT_DUAL}      – 双色收租（默认 1v1；{@code rentDualChargesEachOtherPlayer} 时为全员依次，由 TurnFlowService 入栈）</li>
  *   <li>{@code DOUBLE_RENT}    – 双倍租金</li>
  *   <li>{@code STEAL_PROPERTY} – 偷牌（Sly Deal，财产区/银行见 {@link StealCardEffect}）</li>
  *   <li>{@code FORCED_DEAL}    – 强制交换房产</li>
@@ -28,6 +29,8 @@ public final class ActionEffectDispatcher {
 
     static {
         REGISTRY.put("RENT", new RentEffect());
+        REGISTRY.put("RENT_DUAL", ctx -> ActionEffectResult.failed(
+                "RENT_DUAL 由回合流程入效果栈，请勿走通用 dispatch。"));
         REGISTRY.put("DOUBLE_RENT", new DoubleRentEffect());
         REGISTRY.put("STEAL_PROPERTY", new StealCardEffect());
         REGISTRY.put("FORCED_DEAL", new ForcedDealEffect());

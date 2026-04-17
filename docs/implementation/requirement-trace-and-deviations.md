@@ -3,6 +3,8 @@
 This document tracks implementation status, requirement deviations, impact scope, and follow-up plans.
 Note: Code symbols and paths are intentionally kept here (not in `docs/requirements/requirements.md`).
 
+**Normative rule source for this repo:** `rules.md` Appendix A plus `MonopolyDealCardFactory` (deck composition and rent/wild splits). Course `requirements.md` and the prose sections of `rules.md` are secondary when they conflict with that pair.
+
 ## 1. Requirement Status Matrix
 
 | Requirement Area | Status | Notes |

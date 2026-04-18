@@ -26,11 +26,11 @@ Phase-1 due Week 8 (2026-04-22). Phase-2 due Week 15 (2026-06-09). Demo on 2026-
 
 | Name | Role | Primary Tasks | Contribution (%) |
 | --- | --- | --- | --- |
-| Liu Zongrun| Architecture & Core Logic | The overall concept and structure of the design project | 20% |
-| Lei Yurun| GUI & Card Effects | Draw UML diagrams and organize group discussions | 20% |
-| Wang Tingdong | Summarize the requirements after the group discussion and prepare the requirements document | 20% |
-| Qiu Siqi | Responsible for checking the compatibility between UML diagrams and the project | 20% |
-| Liu Yuhao | Assist in summarizing the requirements document and reviewing the presentation document | 20% |
+| Liu Zongrun| Architectural Designer | The overall concept and structure of the design project | 20% |
+| Lei Yurun| Graphic Design | Draw UML diagrams and organize group discussions | 20% |
+| Wang Tingdong | Summary of Requirements |Summarize the requirements after the group discussion and prepare the requirements document | 20% |
+| Qiu Siqi | Review and verification |Responsible for checking the compatibility between UML diagrams and the project | 20% |
+| Liu Yuhao | Contact Assistance |Assist in summarizing the requirements document and reviewing the presentation document | 20% |
 
 The contribution percentages differ because core code development (architecture, gameplay logic, GUI, design patterns) carries higher complexity and effort, while documentation and black-box testing require comparatively less specialized implementation work.
 

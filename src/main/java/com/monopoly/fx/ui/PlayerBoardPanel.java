@@ -4,9 +4,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import java.util.Locale;
@@ -35,13 +38,36 @@ public final class PlayerBoardPanel extends VBox {
         if (activeTurn) {
             getStyleClass().add("player-panel-active");
         }
-        setSpacing(6);
-        setPadding(new Insets(10));
+        setSpacing(8);
+        setPadding(new Insets(12));
+        setPrefWidth(296);
+        setMinWidth(272);
+        setMaxWidth(328);
 
         String pid = jsonStr(playerObj, "playerId", "—");
         String pname = jsonStr(playerObj, "displayName", pid);
-        Label title = new Label(pname + "  (" + pid + ")");
+        Label avatar = new Label(avatarText(pname, pid));
+        avatar.getStyleClass().add("player-avatar");
+
+        Label title = new Label(pname);
         title.getStyleClass().add("player-title");
+        title.setWrapText(true);
+        title.setMaxWidth(Double.MAX_VALUE);
+
+        Label idLabel = new Label(pid);
+        idLabel.getStyleClass().add("player-id");
+
+        VBox nameBox = new VBox(1, title, idLabel);
+        HBox.setHgrow(nameBox, Priority.ALWAYS);
+
+        HBox header = new HBox(8, avatar, nameBox);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getStyleClass().add("player-header");
+        if (activeTurn) {
+            Label turnBadge = new Label("行动中");
+            turnBadge.getStyleClass().add("player-turn-badge");
+            header.getChildren().add(turnBadge);
+        }
 
         int hand = jsonInt(playerObj, "handCount", 0);
         int bank = jsonInt(playerObj, "bankCount", 0);
@@ -50,10 +76,17 @@ public final class PlayerBoardPanel extends VBox {
         int act = jsonInt(playerObj, "actionZoneCount", 0);
         int bankVal = jsonInt(playerObj, "bankTotalValueM", 0);
 
-        Label stats = new Label(String.format(
-                Locale.ROOT, "手牌 %d ｜ 银行 %d 张（共 %dM）｜ 房产 %d ｜ 行动区 %d ｜ 完整套 %d",
-                hand, bank, bankVal, prop, act, sets));
+        HBox statRow = new HBox(6,
+                statTile(String.valueOf(hand), "手牌"),
+                statTile(bankVal + "M", "金库"),
+                statTile(String.valueOf(prop), "地产"),
+                statTile(sets + "/3", "套装"));
+        statRow.getStyleClass().add("player-stats-row");
+
+        Label stats = new Label(String.format(Locale.ROOT, "金库 %d 张 ｜ 行动区 %d 张", bank, act));
         stats.getStyleClass().add("player-stats");
+        stats.setWrapText(true);
+        stats.setMaxWidth(Double.MAX_VALUE);
 
         FlowPane progressChips = new FlowPane();
         progressChips.setHgap(6);
@@ -83,14 +116,14 @@ public final class PlayerBoardPanel extends VBox {
         }
 
         TitledPane bankPane = new TitledPane();
-        bankPane.setText("银行牌（每张）");
+        bankPane.setText("金库");
         bankPane.setCollapsible(true);
         bankPane.setExpanded(bank > 0 && bank <= 12);
         FlowPane bankFlow = zoneCardFlow(playerObj.getAsJsonArray("bankCards"));
         bankPane.setContent(wrapScroll(bankFlow));
 
         TitledPane propPane = new TitledPane();
-        propPane.setText("财产区（每张）");
+        propPane.setText("地产");
         propPane.setCollapsible(true);
         propPane.setExpanded(prop > 0 && prop <= 10);
         FlowPane propFlow = zoneCardFlow(playerObj.getAsJsonArray("propertyZoneCards"));
@@ -117,7 +150,7 @@ public final class PlayerBoardPanel extends VBox {
             }
         }
 
-        getChildren().addAll(title, stats);
+        getChildren().addAll(header, statRow, stats);
         if (!progressChips.getChildren().isEmpty()) {
             Label pTitle = new Label("凑套进度");
             pTitle.getStyleClass().add("zone-section-title");
@@ -125,7 +158,7 @@ public final class PlayerBoardPanel extends VBox {
         }
         getChildren().addAll(bankPane, propPane);
         if (!legacyChips.getChildren().isEmpty()) {
-            Label oTitle = new Label("颜色张数（简）");
+            Label oTitle = new Label("颜色张数");
             oTitle.getStyleClass().add("zone-section-title");
             getChildren().addAll(oTitle, legacyChips);
         }
@@ -142,7 +175,7 @@ public final class PlayerBoardPanel extends VBox {
         flow.setHgap(6);
         flow.setVgap(6);
         if (arr == null) {
-            flow.getChildren().add(new Label("（空）"));
+            flow.getChildren().add(new Label("空"));
             return flow;
         }
         boolean any = false;
@@ -156,10 +189,11 @@ public final class PlayerBoardPanel extends VBox {
             lab.setWrapText(true);
             lab.setMaxWidth(108);
             lab.getStyleClass().add("zone-mini-card");
+            lab.getStyleClass().add(zoneMiniKindClass(jsonStr(c, "kind", "")));
             flow.getChildren().add(lab);
         }
         if (!any) {
-            flow.getChildren().add(new Label("（空）"));
+            flow.getChildren().add(new Label("空"));
         }
         return flow;
     }
@@ -180,6 +214,35 @@ public final class PlayerBoardPanel extends VBox {
             case "MONEY", "ACTION" -> (title.isBlank() ? kind : title) + " · " + vm + "M";
             case "PROPERTY", "WILD" -> (title.isBlank() ? kind : title) + extra + " ·抵" + vm + "M";
             default -> title + " ·" + vm + "M";
+        };
+    }
+
+    private static VBox statTile(String value, String label) {
+        Label v = new Label(value);
+        v.getStyleClass().add("stat-value");
+        Label l = new Label(label);
+        l.getStyleClass().add("stat-label");
+        VBox box = new VBox(1, v, l);
+        box.setAlignment(Pos.CENTER);
+        box.getStyleClass().add("stat-tile");
+        return box;
+    }
+
+    private static String avatarText(String name, String pid) {
+        String source = name == null || name.isBlank() ? pid : name;
+        if (source == null || source.isBlank()) {
+            return "?";
+        }
+        return source.substring(0, Math.min(source.length(), 1)).toUpperCase(Locale.ROOT);
+    }
+
+    private static String zoneMiniKindClass(String kind) {
+        String k = kind == null ? "" : kind.toUpperCase(Locale.ROOT);
+        return switch (k) {
+            case "MONEY" -> "zone-mini-money";
+            case "PROPERTY", "WILD" -> "zone-mini-property";
+            case "ACTION" -> "zone-mini-action";
+            default -> "zone-mini-card";
         };
     }
 

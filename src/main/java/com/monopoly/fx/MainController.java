@@ -48,6 +48,7 @@ public class MainController {
     private JsonObject lastStatePayload;
     private CardDisplayData selectedCard;
     private int pendingRentPaymentM;
+    private boolean quickStartAfterConnect;
     /** 等待 {@code ACTION_OPTIONS_RESULT} / {@code PLAY_OPTIONS_RESULT} 时在 FX 线程上消费 payload。 */
     private Consumer<JsonObject> pendingOptionsResultHandler;
 
@@ -59,6 +60,22 @@ public class MainController {
     private Button disconnectButton;
     @FXML
     private Label statusLabel;
+    @FXML
+    private Label phaseValueLabel;
+    @FXML
+    private Label currentPlayerValueLabel;
+    @FXML
+    private Label turnPhaseValueLabel;
+    @FXML
+    private Label drawPileValueLabel;
+    @FXML
+    private Label discardPileValueLabel;
+    @FXML
+    private Label drawPileCenterLabel;
+    @FXML
+    private Label discardPileCenterLabel;
+    @FXML
+    private Label lastActionLabel;
 
     @FXML
     private TextField playerIdField;
@@ -104,6 +121,8 @@ public class MainController {
     @FXML
     private HBox handStrip;
     @FXML
+    private Label handCountLabel;
+    @FXML
     private Label selectedCardLabel;
 
     @FXML
@@ -140,8 +159,8 @@ public class MainController {
     @FXML
     private void initialize() {
         wsUrlField.setText("ws://localhost:8025/ws");
-        sessionIdField.setText("demo-pvp");
-        playerCountSpinner.setValueFactory(new javafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory(2, 6, 2));
+        sessionIdField.setText("deal-room");
+        playerCountSpinner.setValueFactory(new javafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory(2, 5, 2));
         gameModeCombo.getItems().setAll("HVM", "PVP");
         gameModeCombo.getSelectionModel().selectFirst();
 
@@ -150,7 +169,7 @@ public class MainController {
 
         playActionCombo.getItems().setAll("DEPOSIT", "DEPLOY", "ACTION", "DISCARD");
         playActionCombo.getSelectionModel().selectFirst();
-        playCardIdField.setPromptText("点选手牌自动填入");
+        playCardIdField.setPromptText("选择手牌后自动填入");
 
         trafficArea.setEditable(false);
 
@@ -166,7 +185,7 @@ public class MainController {
                 selectedCardLabel.setText("已选：" + selectedCard.getTitleZh());
             } else {
                 selectedCard = null;
-                selectedCardLabel.setText("点选一张牌后，用下方彩色按钮出牌");
+                selectedCardLabel.setText("选择一张牌");
             }
             syncWizardButtons();
         });
@@ -175,7 +194,10 @@ public class MainController {
         gameModeCombo.valueProperty().addListener((obs, prev, mode) -> syncModeUi());
 
         randomizeFirstCheck.setSelected(false);
-        summaryLabel.setText("提示：连接 → 认证并开局 → 摸牌。");
+        statusLabel.setText("未入桌");
+        summaryLabel.setText("选择房间设置后，进入牌桌并开局。");
+        resetHud();
+        handCountLabel.setText("0 张");
         hideError();
         syncWizardButtons();
         refreshButtons();
@@ -188,13 +210,37 @@ public class MainController {
         aiDifficultyLabel.setDisable(!hvm);
         if (hvm) {
             playerIdField.setText("human-1");
-            modeHintLabel.setText(
-                    "人机：人类固定为 human-1，AI 自动出牌。点「认证并开局」即可单人游玩。");
+            modeHintLabel.setText("人机模式：你坐在第一席，其余席位由 AI 接手。");
         } else {
             playerIdField.setText("pvp-1");
-            modeHintLabel.setText(
-                    "人人：各客户端用 pvp-1、pvp-2… 分别认证后再开局。");
+            modeHintLabel.setText("人人模式：每个客户端选择自己的席位，再加入同一个房间。");
         }
+    }
+
+    private void resetHud() {
+        phaseValueLabel.setText("—");
+        currentPlayerValueLabel.setText("—");
+        turnPhaseValueLabel.setText("—");
+        drawPileValueLabel.setText("0");
+        discardPileValueLabel.setText("0");
+        drawPileCenterLabel.setText("0");
+        discardPileCenterLabel.setText("0");
+        lastActionLabel.setText("开局后会显示最近一次操作。");
+    }
+
+    private void clearTableState() {
+        lastStatePayload = null;
+        playerBoardContainer.getChildren().clear();
+        handStrip.getChildren().clear();
+        for (Toggle t : new ArrayList<>(handToggleGroup.getToggles())) {
+            handToggleGroup.getToggles().remove(t);
+        }
+        handToggleGroup.selectToggle(null);
+        selectedCard = null;
+        handCountLabel.setText("0 张");
+        selectedCardLabel.setText("选择一张牌");
+        resetHud();
+        syncWizardButtons();
     }
 
     private void syncWizardButtons() {
@@ -235,21 +281,35 @@ public class MainController {
 
     @FXML
     private void onQuickAuthAndStart() {
+        if (!ws.isConnected()) {
+            quickStartAfterConnect = true;
+            onConnect();
+            return;
+        }
+        quickStartAfterConnect = false;
+        authAndStartSession();
+    }
+
+    private void authAndStartSession() {
         onAuth();
         onStartSession();
     }
 
     @FXML
     private void onConnect() {
-        statusLabel.setText("连接中…");
+        statusLabel.setText("入桌中...");
         ws.connect(wsUrlField.getText().trim(), new FxWebSocketClient.Listener() {
             @Override
             public void onOpen() {
                 Platform.runLater(() -> {
-                    statusLabel.setText("已连接");
-                    appendTraffic("« 系统» 已打开 WebSocket");
+                    statusLabel.setText("已入桌");
+                    appendTraffic("« 系统» 已进入牌桌");
                     refreshButtons();
                     updateTurnGuide();
+                    if (quickStartAfterConnect) {
+                        quickStartAfterConnect = false;
+                        authAndStartSession();
+                    }
                 });
             }
 
@@ -261,7 +321,9 @@ public class MainController {
             @Override
             public void onError(Throwable error) {
                 Platform.runLater(() -> {
-                    statusLabel.setText("错误: " + error.getMessage());
+                    statusLabel.setText("入桌失败");
+                    quickStartAfterConnect = false;
+                    showError("无法进入牌桌：" + error.getMessage());
                     appendTraffic("« 错误» " + error);
                     refreshButtons();
                 });
@@ -270,10 +332,10 @@ public class MainController {
             @Override
             public void onClose(int code, String reason) {
                 Platform.runLater(() -> {
-                    statusLabel.setText("已断开 (" + code + ")");
-                    appendTraffic("« 系统» 连接关闭: " + code + " " + reason);
-                    lastStatePayload = null;
-                    playerBoardContainer.getChildren().clear();
+                    statusLabel.setText("已离桌");
+                    appendTraffic("« 系统» 离开牌桌: " + code + " " + reason);
+                    clearTableState();
+                    quickStartAfterConnect = false;
                     pendingOptionsResultHandler = null;
                     refreshButtons();
                     updateTurnGuide();
@@ -285,9 +347,9 @@ public class MainController {
     @FXML
     private void onDisconnect() {
         ws.closeQuietly();
-        statusLabel.setText("已断开");
-        lastStatePayload = null;
-        playerBoardContainer.getChildren().clear();
+        statusLabel.setText("已离桌");
+        clearTableState();
+        quickStartAfterConnect = false;
         pendingOptionsResultHandler = null;
         refreshButtons();
         updateTurnGuide();
@@ -379,7 +441,7 @@ public class MainController {
     private void requestPlayOptionsThenPlay(String cardId, String actionType) {
         String me = playerIdField.getText().trim();
         if (me.isEmpty()) {
-            showError("请先在连接区填写 playerId 并认证。");
+            showError("请先在设置里选择玩家并加入房间。");
             return;
         }
         if (pendingOptionsResultHandler != null) {
@@ -397,7 +459,7 @@ public class MainController {
                 appendTraffic("« 提示» 强制交易组合过多，列表已截断。");
             }
             if (!payload.has("options") || !payload.get("options").isJsonArray()) {
-                showError("服务器未返回选项列表。");
+                showError("当前没有可用目标。");
                 return;
             }
             JsonArray opts = payload.getAsJsonArray("options");
@@ -413,8 +475,8 @@ public class MainController {
             }
             ChoiceDialog<String> dlg = new ChoiceDialog<>(labels.get(0), labels);
             dlg.initOwner(dialogOwner());
-            dlg.setTitle("选择出牌参数");
-            dlg.setHeaderText("从服务器给出的合法参数中选一项；取消则不出牌。");
+            dlg.setTitle("选择目标");
+            dlg.setHeaderText("请选择这张牌要影响的目标。");
             dlg.showAndWait().ifPresent(chosenLabel -> {
                 int idx = labels.indexOf(chosenLabel);
                 if (idx < 0 || idx >= opts.size()) {
@@ -457,7 +519,7 @@ public class MainController {
             playCardIdField.setText(cardId);
         }
         if (cardId.isEmpty()) {
-            showError("请先点选手牌或在高级里填写 cardId。");
+            showError("请先选择一张手牌。");
             return;
         }
         hideError();
@@ -474,7 +536,7 @@ public class MainController {
             playCardIdField.setText(cardId);
         }
         if (cardId.isEmpty()) {
-            showError("请先点选手牌或在高级里填写 cardId。");
+            showError("请先选择一张手牌。");
             return;
         }
         hideError();
@@ -551,10 +613,10 @@ public class MainController {
             JsonObject p = root.getAsJsonObject("payload");
             boolean ok = p.has("ok") && p.get("ok").getAsBoolean();
             if (ok) {
-                summaryLabel.setText("认证成功。可点击「认证并开局」。");
+                summaryLabel.setText("已坐下。准备好后可以开局。");
                 hideError();
             } else {
-                showError(jsonString(p, "error", "认证失败"));
+                showError(jsonString(p, "error", "加入房间失败"));
             }
         } catch (RuntimeException ignored) {
             // ignore
@@ -575,10 +637,12 @@ public class MainController {
             boolean over = p.has("gameOver") && p.get("gameOver").getAsBoolean();
             String lastSum = jsonString(p, "lastActionSummary", null);
 
+            updateHud(phase, current, turnPhase, draw, disc, over, lastSum);
+
             StringBuilder line = new StringBuilder();
-            line.append("阶段 ").append(phase);
-            line.append(" ｜ 当前回合 ").append(current);
-            line.append(" ｜ 回合 ").append(turnPhase);
+            line.append("局面 ").append(phaseText(phase));
+            line.append(" ｜ 当前玩家 ").append(current);
+            line.append(" ｜ 步骤 ").append(turnPhaseText(turnPhase));
             line.append(" ｜ 牌堆 ").append(draw).append(" ｜ 弃牌 ").append(disc);
             if (over) {
                 line.append(" ｜ 对局已结束");
@@ -601,6 +665,55 @@ public class MainController {
         } catch (RuntimeException ex) {
             summaryLabel.setText("状态解析失败：" + ex.getMessage());
         }
+    }
+
+    private void updateHud(String phase, String current, String turnPhase, int draw, int disc,
+                           boolean gameOver, String lastSummary) {
+        phaseValueLabel.setText(gameOver ? phaseText(phase) + " · 结束" : phaseText(phase));
+        currentPlayerValueLabel.setText(current == null || current.isBlank() ? "—" : current);
+        turnPhaseValueLabel.setText(turnPhaseText(turnPhase));
+        String drawText = String.valueOf(Math.max(draw, 0));
+        String discardText = String.valueOf(Math.max(disc, 0));
+        drawPileValueLabel.setText(drawText);
+        discardPileValueLabel.setText(discardText);
+        drawPileCenterLabel.setText(drawText);
+        discardPileCenterLabel.setText(discardText);
+        if (lastSummary != null && !lastSummary.isBlank()) {
+            lastActionLabel.setText(lastSummary);
+        } else {
+            lastActionLabel.setText("等待玩家行动。");
+        }
+    }
+
+    private static String phaseText(String phase) {
+        if (phase == null || phase.isBlank()) {
+            return "—";
+        }
+        return switch (phase) {
+            case "INIT" -> "开局";
+            case "START_SESSION", "SESSION_STARTED" -> "已开局";
+            case "DRAW" -> "摸牌";
+            case "PLAY" -> "出牌";
+            case "END_TURN" -> "回合结束";
+            case "GAME_OVER" -> "游戏结束";
+            case "GAME_FORCE_END" -> "强制结束";
+            case "SAVE", "LOAD" -> "存档";
+            default -> phase;
+        };
+    }
+
+    private static String turnPhaseText(String turnPhase) {
+        if (turnPhase == null || turnPhase.isBlank()) {
+            return "—";
+        }
+        return switch (turnPhase) {
+            case "DRAW" -> "摸牌";
+            case "PLAY" -> "出牌";
+            case "WAITING_FOR_RESPONSE" -> "等待响应";
+            case "END_TURN" -> "结束回合";
+            case "UNKNOWN" -> "—";
+            default -> turnPhase;
+        };
     }
 
     private void updateRentPaymentPanel(JsonObject p) {
@@ -631,8 +744,8 @@ public class MainController {
             return;
         }
         pendingRentPaymentM = due;
-        rentPaymentHint.setText("你需支付租金 " + due
-                + "M。勾选银行/财产中的牌（合计须≥应付，多付不退）；也可不勾选并点「自动选牌」。");
+        rentPaymentHint.setText("你需要支付 " + due
+                + "M。选择要交出的银行牌或地产牌；也可以让系统自动挑选。");
         rentPaymentPickPane.getChildren().clear();
         JsonObject self = findPlayerInState(p, local);
         if (self != null) {
@@ -748,7 +861,7 @@ public class MainController {
             }
         }
         if (ids.isEmpty()) {
-            showError("请至少勾选一张牌，或使用「自动选牌」。");
+            showError("请至少选择一张牌，或使用「自动支付」。");
             return;
         }
         if (computeSelectedPaymentSum() < pendingRentPaymentM) {
@@ -799,12 +912,12 @@ public class MainController {
             return;
         }
         if (!ws.isConnected()) {
-            turnGuideLabel.setText("请先连接服务器。");
+            turnGuideLabel.setText("先进入牌桌，然后开局。");
             turnGuideLabel.getStyleClass().setAll("turn-guide");
             return;
         }
         if (lastStatePayload == null) {
-            turnGuideLabel.setText("已连接。点击「① 认证并开局」开始游戏。");
+            turnGuideLabel.setText("已入桌。点击「开局」开始游戏。");
             turnGuideLabel.getStyleClass().setAll("turn-guide");
             return;
         }
@@ -814,18 +927,18 @@ public class MainController {
         if (local.equals(current)) {
             turnGuideLabel.getStyleClass().setAll("turn-guide");
             if ("DRAW".equals(tp)) {
-                turnGuideLabel.setText("轮到你：请先点「摸 2 张牌」。");
+                turnGuideLabel.setText("轮到你：先摸牌。");
             } else if ("PLAY".equals(tp)) {
-                turnGuideLabel.setText("轮到你：点选手牌，再选「存入银行 / 部署房产 / 打出行动牌 / 弃牌」。");
+                turnGuideLabel.setText("轮到你：选择一张手牌，再决定存银行、放地产、打行动牌或弃牌。");
             } else if ("WAITING_FOR_RESPONSE".equals(tp)) {
                 turnGuideLabel.setText(
-                        "轮到你响应：可打免租牌；若放弃免租，用上方「租金支付」勾选要交的牌（或自动选牌）。");
+                        "轮到你响应：可以打免租牌；如果要支付租金，请在上方选择要交出的牌。");
             } else {
-                turnGuideLabel.setText("轮到你（阶段 " + tp + "）。可结束回合或按摘要操作。");
+                turnGuideLabel.setText("轮到你。可以结束回合，或按当前局面继续操作。");
             }
         } else {
             turnGuideLabel.getStyleClass().setAll("turn-guide", "turn-guide-wait");
-            turnGuideLabel.setText("当前回合：" + current + "。你：" + local + " — 请稍候。");
+            turnGuideLabel.setText("当前轮到 " + current + "。请稍候。");
         }
     }
 
@@ -842,10 +955,12 @@ public class MainController {
             syncWizardButtons();
 
             if (!payload.has("cards") || !payload.get("cards").isJsonArray()) {
-                selectedCardLabel.setText("未收到手牌");
+                selectedCardLabel.setText("当前没有手牌");
+                handCountLabel.setText("0 张");
                 return;
             }
             JsonArray cards = payload.getAsJsonArray("cards");
+            int rendered = 0;
             for (JsonElement el : cards) {
                 if (!el.isJsonObject()) {
                     continue;
@@ -861,11 +976,17 @@ public class MainController {
                 CardView cv = new CardView(data, kindClass);
                 cv.setToggleGroup(handToggleGroup);
                 handStrip.getChildren().add(cv);
+                rendered++;
+            }
+            handCountLabel.setText(rendered + " 张");
+            if (rendered == 0) {
+                selectedCardLabel.setText("当前没有手牌");
             }
             handStrip.layout();
             handScroll.layout();
         } catch (RuntimeException ex) {
-            selectedCardLabel.setText("手牌解析失败");
+            selectedCardLabel.setText("手牌显示失败");
+            handCountLabel.setText("0 张");
         }
     }
 
@@ -938,6 +1059,7 @@ public class MainController {
             ws.sendRaw(json);
             appendTraffic("← " + json);
         } catch (Exception ex) {
+            showError("发送失败：" + ex.getMessage());
             appendTraffic("« 本地» 发送失败: " + ex.getMessage());
         }
     }

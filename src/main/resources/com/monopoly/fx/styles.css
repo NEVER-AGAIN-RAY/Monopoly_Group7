@@ -1,110 +1,508 @@
-/* Monopoly Deal 风格桌面客户端（原创扁平样式，非官方美术） */
+/* Original JavaFX tabletop skin for the Monopoly Deal desktop client. */
 
 .root {
-    -fx-font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-    -fx-background-color: #eceff1;
+    -fx-font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    -fx-background-color: #15181c;
+    -fx-font-size: 13px;
 }
 
-.tab-pane .tab-header-area .tab {
-    -fx-background-radius: 6 6 0 0;
+.app-tabs {
+    -fx-background-color: #15181c;
 }
 
-/* ---------- 卡牌 ---------- */
-.card {
+.app-tabs .tab-header-area {
+    -fx-padding: 8 12 0 12;
+}
+
+.app-tabs .tab-header-background {
+    -fx-background-color: #15181c;
+}
+
+.app-tabs .tab {
+    -fx-background-color: #262b33;
+    -fx-background-radius: 8 8 0 0;
+    -fx-padding: 7 16 7 16;
+}
+
+.app-tabs .tab:selected {
+    -fx-background-color: #f6f1e7;
+}
+
+.app-tabs .tab .tab-label {
+    -fx-text-fill: #e9edf3;
+    -fx-font-weight: bold;
+}
+
+.app-tabs .tab:selected .tab-label {
+    -fx-text-fill: #172026;
+}
+
+.button {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-padding: 8 13 8 13;
+}
+
+.button:disabled {
+    -fx-opacity: 0.42;
+    -fx-cursor: default;
+}
+
+.primary-button {
+    -fx-background-color: #147f78;
+    -fx-text-fill: white;
+    -fx-border-color: rgba(255, 255, 255, 0.18);
+}
+
+.primary-button:hover {
+    -fx-background-color: #18a094;
+}
+
+.gold-button {
+    -fx-background-color: #f5ba3e;
+    -fx-text-fill: #2d210e;
+    -fx-border-color: rgba(255, 255, 255, 0.22);
+}
+
+.gold-button:hover {
+    -fx-background-color: #ffd15d;
+}
+
+.play-button {
+    -fx-background-color: #f6f1e7;
+    -fx-text-fill: #19242b;
+    -fx-border-color: rgba(25, 36, 43, 0.22);
+}
+
+.play-button:hover {
+    -fx-background-color: #ffffff;
+}
+
+.ghost-button {
+    -fx-background-color: rgba(255, 255, 255, 0.10);
+    -fx-text-fill: #f6f1e7;
+    -fx-border-color: rgba(255, 255, 255, 0.24);
+}
+
+.ghost-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.18);
+}
+
+.danger-button {
+    -fx-background-color: #c04b4b;
+    -fx-text-fill: white;
+    -fx-border-color: rgba(255, 255, 255, 0.20);
+}
+
+.end-turn-button {
+    -fx-background-color: #25406d;
+    -fx-text-fill: white;
+    -fx-border-color: rgba(255, 255, 255, 0.20);
+}
+
+.game-shell {
+    -fx-background-color: #15181c;
+}
+
+.table-header {
+    -fx-background-color: linear-gradient(to right, #1b2027, #29313b);
+    -fx-border-color: rgba(255, 255, 255, 0.10);
+    -fx-border-width: 0 0 1 0;
+}
+
+.brand-block {
+    -fx-padding: 0 8 0 0;
+}
+
+.game-title {
+    -fx-font-size: 25px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #f6f1e7;
+}
+
+.game-subtitle {
+    -fx-font-size: 12px;
+    -fx-text-fill: #bfc9d6;
+}
+
+.hud-strip {
+    -fx-padding: 0 4 0 2;
+}
+
+.hud-card {
+    -fx-min-width: 108px;
     -fx-pref-width: 118px;
-    -fx-pref-height: 176px;
-    -fx-min-width: 118px;
-    -fx-min-height: 176px;
-    -fx-max-width: 118px;
-    -fx-max-height: 176px;
-    -fx-background-radius: 10;
-    -fx-border-radius: 10;
-    -fx-border-color: rgba(0, 0, 0, 0.18);
+    -fx-padding: 8 10 8 10;
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(255, 255, 255, 0.14);
+    -fx-border-radius: 8;
+}
+
+.hud-card-small {
+    -fx-min-width: 70px;
+    -fx-pref-width: 74px;
+}
+
+.hud-caption {
+    -fx-font-size: 10px;
+    -fx-text-fill: #aab6c5;
+}
+
+.hud-value {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+}
+
+.status-pill {
+    -fx-text-fill: #172026;
+    -fx-font-weight: bold;
+    -fx-padding: 7 12 7 12;
+    -fx-background-color: #e8d49a;
+    -fx-background-radius: 8;
+}
+
+.table-summary {
+    -fx-text-fill: #edf2f7;
+    -fx-font-size: 13px;
+    -fx-padding: 8 11 8 11;
+    -fx-background-color: rgba(0, 0, 0, 0.24);
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(255, 255, 255, 0.10);
+    -fx-border-radius: 8;
+}
+
+.error-banner {
+    -fx-text-fill: #fff8f2;
+    -fx-font-weight: bold;
+    -fx-padding: 9 11 9 11;
+    -fx-background-color: #a64141;
+    -fx-background-radius: 8;
+}
+
+.game-stage {
+    -fx-background-color: linear-gradient(to bottom, #2f7f64, #1d5f4f 58%, #174337);
+}
+
+.guide-row {
+    -fx-min-height: 58px;
+}
+
+.turn-guide {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #172026;
+    -fx-padding: 12 14 12 14;
+    -fx-background-color: #f6f1e7;
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(255, 255, 255, 0.52);
+    -fx-border-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.24), 10, 0.18, 0, 3);
+}
+
+.turn-guide-wait {
+    -fx-text-fill: #4e3419;
+    -fx-background-color: #f1d69b;
+}
+
+.objective-card {
+    -fx-min-width: 150px;
+    -fx-padding: 10 12 10 12;
+    -fx-background-color: rgba(20, 30, 35, 0.64);
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(255, 255, 255, 0.18);
+    -fx-border-radius: 8;
+}
+
+.objective-caption {
+    -fx-font-size: 10px;
+    -fx-text-fill: #b6c8c1;
+}
+
+.objective-value {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f5ba3e;
+}
+
+.rent-panel {
+    -fx-padding: 12;
+    -fx-background-color: #fff7e3;
+    -fx-background-radius: 8;
+    -fx-border-color: #d98237;
+    -fx-border-radius: 8;
+    -fx-border-width: 2;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.22), 10, 0.16, 0, 3);
+}
+
+.rent-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #5f3119;
+}
+
+.rent-subtitle {
+    -fx-text-fill: #6d4c30;
+}
+
+.rent-panel .check-box {
+    -fx-padding: 5 8 5 8;
+    -fx-background-color: rgba(255, 255, 255, 0.70);
+    -fx-background-radius: 8;
+}
+
+.table-core-row {
+    -fx-min-height: 330px;
+}
+
+.board-rail,
+.table-side-panel,
+.hand-zone {
+    -fx-padding: 12;
+    -fx-background-color: rgba(16, 29, 31, 0.66);
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(255, 255, 255, 0.16);
+    -fx-border-radius: 8;
+}
+
+.section-title {
+    -fx-text-fill: #fbf7ee;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.section-subtitle,
+.selected-card-label {
+    -fx-text-fill: #c6d7d1;
+}
+
+.hand-count-pill {
+    -fx-text-fill: #172026;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-padding: 4 8 4 8;
+    -fx-background-color: #f5ba3e;
+    -fx-background-radius: 8;
+}
+
+.player-scroll,
+.hand-scroll,
+.settings-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.player-scroll > .viewport,
+.hand-scroll > .viewport,
+.settings-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar:horizontal,
+.scroll-bar:vertical {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .track {
+    -fx-background-color: rgba(0, 0, 0, 0.18);
+    -fx-background-radius: 8;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: rgba(246, 241, 231, 0.40);
+    -fx-background-radius: 8;
+}
+
+.table-side-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #fbf7ee;
+}
+
+.pile-row {
+    -fx-padding: 2 0 0 0;
+}
+
+.pile-card {
+    -fx-min-width: 112px;
+    -fx-pref-width: 112px;
+    -fx-min-height: 148px;
+    -fx-pref-height: 148px;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-width: 2;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.32), 12, 0.20, 0, 4);
+}
+
+.draw-pile-card {
+    -fx-background-color: linear-gradient(to bottom right, #245f8f, #162b4a);
+    -fx-border-color: rgba(255, 255, 255, 0.30);
+}
+
+.discard-pile-card {
+    -fx-background-color: linear-gradient(to bottom right, #a93d3d, #51222b);
+    -fx-border-color: rgba(255, 255, 255, 0.30);
+}
+
+.pile-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+}
+
+.pile-count {
+    -fx-font-size: 34px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #f5ba3e;
+}
+
+.pile-subtitle {
+    -fx-font-size: 10px;
+    -fx-text-fill: rgba(255, 255, 255, 0.72);
+}
+
+.last-move-card,
+.quick-room-card {
+    -fx-padding: 10;
+    -fx-background-color: rgba(255, 255, 255, 0.10);
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(255, 255, 255, 0.12);
+    -fx-border-radius: 8;
+}
+
+.side-section-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f5ba3e;
+}
+
+.last-move-text,
+.side-help-text {
+    -fx-text-fill: #e4eee9;
+    -fx-line-spacing: 2px;
+}
+
+.action-bar {
+    -fx-background-color: #1b2027;
+    -fx-border-color: rgba(255, 255, 255, 0.10);
+    -fx-border-width: 1 0 0 0;
+}
+
+.action-title {
+    -fx-text-fill: #f6f1e7;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-padding: 0 6 0 0;
+}
+
+/* ---------- Cards ---------- */
+.card {
+    -fx-pref-width: 126px;
+    -fx-pref-height: 184px;
+    -fx-min-width: 126px;
+    -fx-min-height: 184px;
+    -fx-max-width: 126px;
+    -fx-max-height: 184px;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: rgba(0, 0, 0, 0.36);
     -fx-border-width: 1;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 6, 0.2, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.30), 10, 0.22, 0, 4);
     -fx-cursor: hand;
 }
 
 .card:hover {
-    -fx-border-color: #1976d2;
-    -fx-effect: dropshadow(gaussian, rgba(25, 118, 210, 0.35), 10, 0.2, 0, 3);
+    -fx-translate-y: -5;
+    -fx-border-color: #f5ba3e;
+    -fx-effect: dropshadow(gaussian, rgba(245, 186, 62, 0.46), 14, 0.22, 0, 5);
 }
 
+.card:selected,
 .card-selected {
-    -fx-border-color: #0d47a1;
-    -fx-border-width: 2;
-    -fx-effect: dropshadow(gaussian, rgba(13, 71, 161, 0.45), 12, 0.25, 0, 3);
+    -fx-translate-y: -8;
+    -fx-border-color: #f5ba3e;
+    -fx-border-width: 3;
+    -fx-effect: dropshadow(gaussian, rgba(245, 186, 62, 0.68), 16, 0.25, 0, 5);
 }
 
 .card-money {
-    -fx-background-color: linear-gradient(to bottom, #fffde7, #fff9c4);
+    -fx-background-color: linear-gradient(to bottom, #fff4b6, #e2bf3f);
 }
 
 .card-property {
-    -fx-background-color: linear-gradient(to bottom, #fafafa, #eeeeee);
+    -fx-background-color: linear-gradient(to bottom, #fffdf4, #ded7c9);
 }
 
 .card-wild {
-    -fx-background-color: linear-gradient(to bottom right, #e1bee7, #b3e5fc, #c8e6c9);
+    -fx-background-color: linear-gradient(to bottom right, #f7d84d, #d54a62, #3476b7, #2c9a72);
 }
 
 .card-action {
-    -fx-background-color: linear-gradient(to bottom, #e3f2fd, #bbdefb);
+    -fx-background-color: linear-gradient(to bottom, #eef8ff, #a9cee9);
 }
 
 .card-unknown {
-    -fx-background-color: linear-gradient(to bottom, #eeeeee, #e0e0e0);
+    -fx-background-color: linear-gradient(to bottom, #eeeeee, #d8d8d8);
 }
 
 .card-title {
-    -fx-font-size: 12px;
+    -fx-font-size: 13px;
     -fx-font-weight: bold;
-    -fx-text-fill: #212121;
+    -fx-text-fill: #14191d;
     -fx-wrap-text: true;
     -fx-text-alignment: center;
 }
 
 .card-hint {
     -fx-font-size: 10px;
-    -fx-text-fill: #424242;
+    -fx-text-fill: #2e373d;
     -fx-wrap-text: true;
-    -fx-opacity: 0.92;
+    -fx-opacity: 0.94;
 }
 
 .card-rent-detail {
     -fx-font-size: 8px;
-    -fx-text-fill: #37474f;
+    -fx-text-fill: #263238;
     -fx-wrap-text: true;
-    -fx-opacity: 0.88;
+    -fx-opacity: 0.92;
     -fx-line-spacing: 1px;
+}
+
+.card-meta {
+    -fx-font-size: 9px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4a565c;
+    -fx-wrap-text: true;
 }
 
 .card-kind-badge {
     -fx-font-size: 9px;
-    -fx-text-fill: #546e7a;
-    -fx-padding: 2 6 2 6;
-    -fx-background-color: rgba(255, 255, 255, 0.65);
-    -fx-background-radius: 4;
+    -fx-text-fill: #172026;
+    -fx-padding: 3 7 3 7;
+    -fx-background-color: rgba(255, 255, 255, 0.76);
+    -fx-background-radius: 6;
 }
 
 .card-value-corner {
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-font-weight: bold;
-    -fx-text-fill: #1565c0;
-    -fx-padding: 1 4 1 4;
-    -fx-background-color: rgba(255, 255, 255, 0.88);
-    -fx-background-radius: 4;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 2, 0, 0, 1);
+    -fx-text-fill: #172026;
+    -fx-padding: 3 6 3 6;
+    -fx-background-color: rgba(255, 255, 255, 0.92);
+    -fx-background-radius: 6;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.20), 3, 0, 0, 1);
 }
 
 .color-bar {
-    -fx-pref-height: 14px;
-    -fx-max-height: 14px;
-    -fx-min-height: 14px;
+    -fx-pref-height: 16px;
+    -fx-min-height: 16px;
+    -fx-max-height: 16px;
     -fx-background-radius: 8 8 0 0;
 }
 
-/* 与后端 colorGroup 一致 */
+/* Backend colorGroup keys. */
 .color-BROWN { -fx-background-color: #795548; }
 .color-LIGHT_BLUE { -fx-background-color: #4fc3f7; }
 .color-PINK { -fx-background-color: #f06292; }
@@ -115,60 +513,128 @@
 .color-DARK_BLUE { -fx-background-color: #1e88e5; }
 .color-RAILROAD { -fx-background-color: #5d4037; }
 .color-UTILITY { -fx-background-color: #90a4ae; }
+.color-WILD_UNASSIGNED { -fx-background-color: #9e9e9e; }
 .color-WILD_BAR {
-    -fx-background-color: linear-gradient(to right, #e91e63, #9c27b0, #3f51b5, #009688);
+    -fx-background-color: linear-gradient(to right, #e53935, #f5ba3e, #1e88e5, #43a047);
 }
 
-.color-WILD_UNASSIGNED {
-    -fx-background-color: #9e9e9e;
-}
-
-/* ---------- 玩家桌面块 ---------- */
+/* ---------- Player boards ---------- */
 .player-panel {
-    -fx-background-color: #ffffff;
+    -fx-background-color: #f7f1e5;
     -fx-background-radius: 8;
-    -fx-border-color: rgba(0, 0, 0, 0.08);
+    -fx-border-color: rgba(23, 32, 38, 0.24);
     -fx-border-radius: 8;
-    -fx-padding: 10;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 4, 0, 0, 1);
+    -fx-padding: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.26), 10, 0.18, 0, 3);
 }
 
 .player-panel-active {
-    -fx-border-color: #1976d2;
-    -fx-border-width: 2;
+    -fx-border-color: #f5ba3e;
+    -fx-border-width: 3;
+    -fx-background-color: #fff7df;
+}
+
+.player-header {
+    -fx-padding: 0 0 4 0;
+}
+
+.player-avatar {
+    -fx-min-width: 34px;
+    -fx-min-height: 34px;
+    -fx-pref-width: 34px;
+    -fx-pref-height: 34px;
+    -fx-alignment: center;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-background-color: #25406d;
+    -fx-background-radius: 8;
 }
 
 .player-title {
-    -fx-font-size: 14px;
+    -fx-font-size: 15px;
     -fx-font-weight: bold;
+    -fx-text-fill: #172026;
+}
+
+.player-id {
+    -fx-font-size: 10px;
+    -fx-text-fill: #6b747a;
+}
+
+.player-turn-badge {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #392705;
+    -fx-padding: 4 7 4 7;
+    -fx-background-color: #f5ba3e;
+    -fx-background-radius: 8;
+}
+
+.player-stats-row {
+    -fx-padding: 3 0 4 0;
+}
+
+.stat-tile {
+    -fx-min-width: 58px;
+    -fx-pref-width: 58px;
+    -fx-padding: 6 5 6 5;
+    -fx-alignment: center;
+    -fx-background-color: rgba(23, 32, 38, 0.07);
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(23, 32, 38, 0.08);
+    -fx-border-radius: 8;
+}
+
+.stat-value {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #172026;
+}
+
+.stat-label {
+    -fx-font-size: 10px;
+    -fx-text-fill: #657178;
 }
 
 .player-stats {
     -fx-font-size: 11px;
-    -fx-text-fill: #455a64;
+    -fx-text-fill: #46535a;
 }
 
 .zone-section-title {
     -fx-font-size: 11px;
     -fx-font-weight: bold;
-    -fx-text-fill: #546e7a;
+    -fx-text-fill: #4e5b61;
 }
 
 .zone-mini-card {
     -fx-font-size: 10px;
     -fx-text-fill: #263238;
-    -fx-padding: 4 6 4 6;
-    -fx-background-color: rgba(255, 255, 255, 0.75);
+    -fx-padding: 6 8 6 8;
+    -fx-background-color: rgba(255, 255, 255, 0.84);
     -fx-background-radius: 6;
-    -fx-border-color: rgba(0, 0, 0, 0.08);
+    -fx-border-color: rgba(0, 0, 0, 0.10);
     -fx-border-radius: 6;
+}
+
+.zone-mini-money {
+    -fx-background-color: #fff1a6;
+}
+
+.zone-mini-property {
+    -fx-background-color: #fefcf5;
+}
+
+.zone-mini-action {
+    -fx-background-color: #d8edf9;
 }
 
 .chip {
     -fx-font-size: 10px;
     -fx-text-fill: #fff;
-    -fx-padding: 3 8 3 8;
-    -fx-background-radius: 12;
+    -fx-padding: 4 8 4 8;
+    -fx-background-radius: 8;
 }
 
 .chip.color-YELLOW {
@@ -186,13 +652,79 @@
 .chip.color-RAILROAD { -fx-background-color: #4e342e; }
 .chip.color-UTILITY { -fx-background-color: #546e7a; }
 
-.turn-guide {
-    -fx-font-size: 14px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #1565c0;
-    -fx-padding: 6 0 4 0;
+.titled-pane > .title {
+    -fx-background-color: rgba(23, 32, 38, 0.08);
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
 }
 
-.turn-guide-wait {
-    -fx-text-fill: #6d4c41;
+.titled-pane > .title > .text {
+    -fx-font-weight: bold;
+    -fx-fill: #263238;
+}
+
+.titled-pane > *.content {
+    -fx-background-color: transparent;
+    -fx-border-color: rgba(23, 32, 38, 0.12);
+    -fx-border-radius: 0 0 8 8;
+}
+
+/* ---------- Settings, rules, log ---------- */
+.settings-page,
+.rules-page,
+.log-page {
+    -fx-background-color: #f6f1e7;
+}
+
+.settings-heading {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #172026;
+}
+
+.settings-panel {
+    -fx-background-color: #fffaf0;
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(23, 32, 38, 0.14);
+    -fx-border-radius: 8;
+}
+
+.settings-page .ghost-button,
+.rules-page .ghost-button,
+.log-page .ghost-button {
+    -fx-background-color: rgba(23, 32, 38, 0.08);
+    -fx-text-fill: #172026;
+    -fx-border-color: rgba(23, 32, 38, 0.22);
+}
+
+.settings-page .ghost-button:hover,
+.rules-page .ghost-button:hover,
+.log-page .ghost-button:hover {
+    -fx-background-color: rgba(23, 32, 38, 0.14);
+}
+
+.settings-hint {
+    -fx-text-fill: #58666d;
+}
+
+.text-field,
+.combo-box,
+.spinner {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+}
+
+.rules-text,
+.traffic-log {
+    -fx-background-color: #fffaf0;
+    -fx-control-inner-background: #fffaf0;
+}
+
+.rules-text {
+    -fx-font-size: 13px;
+}
+
+.traffic-log {
+    -fx-font-family: "Menlo", "Consolas", monospace;
+    -fx-font-size: 12px;
 }

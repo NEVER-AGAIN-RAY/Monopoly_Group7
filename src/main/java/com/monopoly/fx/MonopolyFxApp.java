@@ -21,10 +21,12 @@ public class MonopolyFxApp extends Application {
         Parent root = loader.load();
         MainController controller = loader.getController();
         stage.setTitle("Monopoly Deal — JavaFX 客户端");
-        Scene scene = new Scene(root, 1100, 820);
+        Scene scene = new Scene(root, 1280, 860);
         scene.getStylesheets().add(
                 MonopolyFxApp.class.getResource("/com/monopoly/fx/styles.css").toExternalForm());
         stage.setScene(scene);
+        stage.setMinWidth(1180);
+        stage.setMinHeight(780);
         stage.setOnCloseRequest(e -> {
             if (controller != null) {
                 controller.shutdown();

@@ -1,6 +1,7 @@
 package com.monopoly.fx.presentation;
 
 import com.google.gson.JsonObject;
+import com.monopoly.fx.I18n;
 
 /**
  * MY_HAND 单张牌在客户端的展示模型（兼容旧版仅 id/name）。
@@ -10,20 +11,25 @@ public final class CardDisplayData {
     private final String id;
     private final String kind;
     private final String titleZh;
+    private final String titleEn;
     private final String hintZh;
+    private final String hintEn;
     private final String rentDetailZh;
+    private final String rentDetailEn;
     private final String colorGroup;
     private final String effectCode;
     private final Integer valueM;
-    /** 该色凑齐完整套所需张数（仅房产牌常见）。 */
     private final Integer setNeed;
 
     public CardDisplayData(
             String id,
             String kind,
             String titleZh,
+            String titleEn,
             String hintZh,
+            String hintEn,
             String rentDetailZh,
+            String rentDetailEn,
             String colorGroup,
             String effectCode,
             Integer valueM,
@@ -31,8 +37,11 @@ public final class CardDisplayData {
         this.id = id;
         this.kind = kind;
         this.titleZh = titleZh;
+        this.titleEn = titleEn;
         this.hintZh = hintZh;
+        this.hintEn = hintEn;
         this.rentDetailZh = rentDetailZh;
+        this.rentDetailEn = rentDetailEn;
         this.colorGroup = colorGroup;
         this.effectCode = effectCode;
         this.valueM = valueM;
@@ -51,13 +60,36 @@ public final class CardDisplayData {
         return titleZh;
     }
 
+    public String getTitleEn() {
+        return titleEn;
+    }
+
+    public String getTitle() {
+        return I18n.isChinese() ? titleZh : (titleEn != null && !titleEn.isBlank() ? titleEn : titleZh);
+    }
+
     public String getHintZh() {
         return hintZh;
     }
 
-    /** 与 RentCalculator / PropertySetCalculator 一致的中文租金轨道说明（房产/万能）。 */
+    public String getHintEn() {
+        return hintEn;
+    }
+
+    public String getHint() {
+        return I18n.isChinese() ? hintZh : (hintEn != null && !hintEn.isBlank() ? hintEn : hintZh);
+    }
+
     public String getRentDetailZh() {
         return rentDetailZh;
+    }
+
+    public String getRentDetailEn() {
+        return rentDetailEn;
+    }
+
+    public String getRentDetail() {
+        return I18n.isChinese() ? rentDetailZh : (rentDetailEn != null && !rentDetailEn.isBlank() ? rentDetailEn : rentDetailZh);
     }
 
     public String getColorGroup() {
@@ -84,14 +116,23 @@ public final class CardDisplayData {
             kind = inferKind(id, name);
         }
         String titleZh = str(c, "titleZh", null);
+        String titleEn = str(c, "titleEn", null);
         String hintZh = str(c, "hintZh", null);
+        String hintEn = str(c, "hintEn", null);
         if (titleZh == null || titleZh.isBlank()) {
             titleZh = fallbackTitle(kind, name);
+        }
+        if (titleEn == null || titleEn.isBlank()) {
+            titleEn = fallbackTitle(kind, name);
         }
         if (hintZh == null) {
             hintZh = "";
         }
+        if (hintEn == null) {
+            hintEn = "";
+        }
         String rentDetailZh = str(c, "rentDetailZh", "");
+        String rentDetailEn = str(c, "rentDetailEn", "");
         String colorGroup = str(c, "colorGroup", "");
         String effectCode = str(c, "effectCode", "");
         Integer valueM = null;
@@ -110,7 +151,7 @@ public final class CardDisplayData {
                 setNeed = null;
             }
         }
-        return new CardDisplayData(id, kind, titleZh, hintZh, rentDetailZh, colorGroup, effectCode, valueM, setNeed);
+        return new CardDisplayData(id, kind, titleZh, titleEn, hintZh, hintEn, rentDetailZh, rentDetailEn, colorGroup, effectCode, valueM, setNeed);
     }
 
     private static String inferKind(String id, String name) {
@@ -132,10 +173,10 @@ public final class CardDisplayData {
 
     private static String fallbackTitle(String kind, String name) {
         return switch (kind) {
-            case "MONEY" -> "现金";
-            case "PROPERTY" -> "房产";
-            case "WILD" -> "万能房产";
-            case "ACTION" -> "行动牌";
+            case "MONEY" -> I18n.get("card.money");
+            case "PROPERTY" -> I18n.get("card.property");
+            case "WILD" -> I18n.get("card.wildProperty");
+            case "ACTION" -> I18n.get("card.actionCard");
             default -> name;
         };
     }

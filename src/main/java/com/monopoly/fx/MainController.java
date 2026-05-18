@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.monopoly.fx.presentation.CardDisplayData;
 import com.monopoly.fx.ui.CardView;
 import com.monopoly.model.rules.MonopolyDealRulesSummary;
+import com.monopoly.model.rules.MultiplayerGuideSummary;
 import com.monopoly.fx.ui.PlayerBoardPanel;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -18,6 +19,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Toggle;
 import javafx.scene.Node;
@@ -26,12 +28,20 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -48,6 +58,10 @@ public class MainController {
     private JsonObject lastStatePayload;
     private CardDisplayData selectedCard;
     private int pendingRentPaymentM;
+    /** 连接成功后自动执行认证并开局。 */
+    private boolean autoStartAfterConnect;
+    /** 连接超时定时器。 */
+    private PauseTransition connectionTimeout;
     /** 等待 {@code ACTION_OPTIONS_RESULT} / {@code PLAY_OPTIONS_RESULT} 时在 FX 线程上消费 payload。 */
     private Consumer<JsonObject> pendingOptionsResultHandler;
 
@@ -69,9 +83,17 @@ public class MainController {
     @FXML
     private ComboBox<String> gameModeCombo;
     @FXML
+    private Label gameModeLabel;
+    @FXML
+    private Label playerCountLabel;
+    @FXML
     private Label aiDifficultyLabel;
     @FXML
     private ComboBox<String> aiDifficultyCombo;
+    @FXML
+    private Label languageLabel;
+    @FXML
+    private ComboBox<String> languageCombo;
     @FXML
     private CheckBox randomizeFirstCheck;
     @FXML
@@ -80,9 +102,58 @@ public class MainController {
     private Label summaryLabel;
     @FXML
     private Label errorLabel;
+    @FXML
+    private Label appTitleLabel;
+    @FXML
+    private Label appSubtitleLabel;
+    @FXML
+    private TitledPane advancedPane;
+    @FXML
+    private Label serverLabel;
+    @FXML
+    private Label playerIdLabel;
+    @FXML
+    private Label sessionIdLabel;
+    @FXML
+    private Button authOnlyButton;
+    @FXML
+    private Button startOnlyButton;
+    @FXML
+    private Label myHandLabel;
+    @FXML
+    private Button clearLogButton;
+    @FXML
+    private TitledPane debugTitledPane;
+    @FXML
+    private Label debugActionLabel;
+    @FXML
+    private Button wizardPlayButton;
+    @FXML
+    private Button directPlayButton;
 
     @FXML
-    private Label turnGuideLabel;
+    private VBox quickStartCard;
+    @FXML
+    private VBox aiDifficultyBox;
+    @FXML
+    private HBox gameStatusBar;
+    @FXML
+    private Label errorLabelInGame;
+    @FXML
+    private Label boardsTitle;
+    @FXML
+    private ScrollPane boardsScrollPane;
+    @FXML
+    private HBox handHeader;
+    @FXML
+    private VBox actionBar;
+
+    @FXML
+    private VBox actionGuidePanel;
+    @FXML
+    private Label actionGuideTitle;
+    @FXML
+    private Label actionGuideStep1;
     @FXML
     private VBox rentPaymentBox;
     @FXML
@@ -114,6 +185,14 @@ public class MainController {
     private Button wizardActionButton;
     @FXML
     private Button wizardDiscardButton;
+    @FXML
+    private Button startGameButton;
+    @FXML
+    private Button drawButton;
+    @FXML
+    private Button endTurnButton;
+    @FXML
+    private Label playHintLabel;
 
     @FXML
     private ComboBox<String> playActionCombo;
@@ -135,7 +214,21 @@ public class MainController {
     @FXML
     private TextArea trafficArea;
     @FXML
-    private TextArea rulesTextArea;
+    private javafx.scene.web.WebView rulesWebView;
+    @FXML
+    private javafx.scene.control.TabPane rootTabPane;
+    @FXML
+    private javafx.scene.control.Tab gameTab;
+    @FXML
+    private javafx.scene.control.Tab rulesTab;
+    @FXML
+    private javafx.scene.control.Tab guideTab;
+    @FXML
+    private javafx.scene.web.WebView guideWebView;
+    @FXML
+    private Button showGuideButton;
+    @FXML
+    private javafx.scene.control.Tab debugTab;
 
     @FXML
     private void initialize() {
@@ -148,25 +241,35 @@ public class MainController {
         aiDifficultyCombo.getItems().setAll("EASY", "NORMAL", "HARD");
         aiDifficultyCombo.getSelectionModel().select("NORMAL");
 
+        languageCombo.getItems().setAll("中文", "English");
+        languageCombo.getSelectionModel().selectFirst();
+        languageCombo.valueProperty().addListener((obs, prev, val) -> {
+            if ("English".equals(val)) {
+                I18n.setLocale(Locale.ENGLISH);
+            } else {
+                I18n.setLocale(Locale.CHINESE);
+            }
+            applyI18n();
+        });
+
         playActionCombo.getItems().setAll("DEPOSIT", "DEPLOY", "ACTION", "DISCARD");
         playActionCombo.getSelectionModel().selectFirst();
-        playCardIdField.setPromptText("点选手牌自动填入");
+        playCardIdField.setPromptText(I18n.get("debug.cardIdHint"));
 
         trafficArea.setEditable(false);
 
-        if (rulesTextArea != null) {
-            rulesTextArea.setEditable(false);
-            rulesTextArea.setText(MonopolyDealRulesSummary.buildPlainTextChinese());
+        if (rulesWebView != null) {
+            loadHtmlToWebView(rulesWebView, MonopolyDealRulesSummary.buildHtmlChinese());
         }
 
         handToggleGroup.selectedToggleProperty().addListener((obs, oldT, newT) -> {
             if (newT instanceof CardView cv) {
                 selectedCard = cv.getCardData();
                 playCardIdField.setText(selectedCard.getId());
-                selectedCardLabel.setText("已选：" + selectedCard.getTitleZh());
+                selectedCardLabel.setText(I18n.get("label.selected", selectedCard.getTitleZh()));
             } else {
                 selectedCard = null;
-                selectedCardLabel.setText("点选一张牌后，用下方彩色按钮出牌");
+                selectedCardLabel.setText(I18n.get("label.selectCardHint"));
             }
             syncWizardButtons();
         });
@@ -175,26 +278,103 @@ public class MainController {
         gameModeCombo.valueProperty().addListener((obs, prev, mode) -> syncModeUi());
 
         randomizeFirstCheck.setSelected(false);
-        summaryLabel.setText("提示：连接 → 认证并开局 → 摸牌。");
+        summaryLabel.setText("");
         hideError();
         syncWizardButtons();
         refreshButtons();
+        applyI18n();
+    }
+
+    @FXML
+    private void onShowGuide() {
+        rootTabPane.getSelectionModel().select(guideTab);
+    }
+
+    private static void loadHtmlToWebView(javafx.scene.web.WebView webView, String html) {
+        try {
+            Path tmp = Files.createTempFile("monopoly-ui-", ".html");
+            Files.writeString(tmp, html, StandardCharsets.UTF_8);
+            tmp.toFile().deleteOnExit();
+            webView.getEngine().load(tmp.toUri().toString());
+        } catch (IOException e) {
+            webView.getEngine().loadContent(html, "text/html");
+        }
     }
 
     private void syncModeUi() {
         String mode = gameModeCombo.getSelectionModel().getSelectedItem();
         boolean hvm = "HVM".equals(mode);
-        aiDifficultyCombo.setDisable(!hvm);
-        aiDifficultyLabel.setDisable(!hvm);
+        aiDifficultyBox.setVisible(hvm);
+        aiDifficultyBox.setManaged(hvm);
         if (hvm) {
             playerIdField.setText("human-1");
-            modeHintLabel.setText(
-                    "人机：人类固定为 human-1，AI 自动出牌。点「认证并开局」即可单人游玩。");
+            modeHintLabel.setText(I18n.get("hint.hvm"));
         } else {
             playerIdField.setText("pvp-1");
-            modeHintLabel.setText(
-                    "人人：各客户端用 pvp-1、pvp-2… 分别认证后再开局。");
+            modeHintLabel.setText(I18n.get("hint.pvp"));
         }
+    }
+
+    private void applyI18n() {
+        gameTab.setText(I18n.get("tab.game"));
+        rulesTab.setText(I18n.get("tab.rules"));
+        debugTab.setText(I18n.get("tab.debug"));
+        appTitleLabel.setText(I18n.get("app.title"));
+        appSubtitleLabel.setText(I18n.get("app.subtitle"));
+        gameModeLabel.setText(I18n.get("label.gameMode"));
+        playerCountLabel.setText(I18n.get("label.playerCount"));
+        aiDifficultyLabel.setText(I18n.get("label.aiDifficulty"));
+        languageLabel.setText(I18n.get("label.language"));
+        startGameButton.setText(I18n.get("btn.startGame"));
+        advancedPane.setText(I18n.get("advanced.title"));
+        serverLabel.setText(I18n.get("label.server"));
+        connectButton.setText(I18n.get("btn.connect"));
+        playerIdLabel.setText(I18n.get("label.playerId"));
+        sessionIdLabel.setText(I18n.get("label.sessionId"));
+        randomizeFirstCheck.setText(I18n.get("check.randomFirst"));
+        authOnlyButton.setText(I18n.get("btn.authOnly"));
+        startOnlyButton.setText(I18n.get("btn.startOnly"));
+        disconnectButton.setText(I18n.get("btn.disconnect"));
+        drawButton.setText(I18n.get("btn.draw"));
+        endTurnButton.setText(I18n.get("btn.endTurn"));
+        playHintLabel.setText(I18n.get("label.playHint"));
+        wizardDepositButton.setText(I18n.get("btn.deposit"));
+        wizardDeployButton.setText(I18n.get("btn.deploy"));
+        wizardActionButton.setText(I18n.get("btn.action"));
+        wizardDiscardButton.setText(I18n.get("btn.discard"));
+        rentPaymentGreedyButton.setText(I18n.get("btn.autoSelect"));
+        rentPaymentSubmitButton.setText(I18n.get("btn.confirmPay"));
+        rentPaymentClearButton.setText(I18n.get("btn.clearSelection"));
+        myHandLabel.setText(I18n.get("label.myHand"));
+        selectedCardLabel.setText(I18n.get("label.selectCardHint"));
+        clearLogButton.setText(I18n.get("btn.clearLog"));
+        debugTitledPane.setText(I18n.get("debug.title"));
+        debugActionLabel.setText(I18n.get("debug.action"));
+        wizardPlayButton.setText(I18n.get("btn.wizardPlay"));
+        directPlayButton.setText(I18n.get("btn.directPlay"));
+        playCardIdField.setPromptText(I18n.get("debug.cardIdHint"));
+        boardsTitle.setText(I18n.get("label.playerBoards"));
+        if (rulesWebView != null) {
+            loadHtmlToWebView(rulesWebView, I18n.isChinese()
+                    ? MonopolyDealRulesSummary.buildHtmlChinese()
+                    : MonopolyDealRulesSummary.buildHtmlEnglish());
+        }
+        if (guideTab != null) {
+            guideTab.setText(I18n.get("tab.guide"));
+        }
+        if (showGuideButton != null) {
+            showGuideButton.setText(I18n.get("btn.showGuide"));
+        }
+        if (guideWebView != null) {
+            loadHtmlToWebView(guideWebView, I18n.isChinese()
+                    ? MultiplayerGuideSummary.buildHtmlChinese()
+                    : MultiplayerGuideSummary.buildHtmlEnglish());
+        }
+        if (!ws.isConnected()) {
+            statusLabel.setText(I18n.get("label.notConnected"));
+        }
+        syncModeUi();
+        updateTurnGuide();
     }
 
     private void syncWizardButtons() {
@@ -235,20 +415,37 @@ public class MainController {
 
     @FXML
     private void onQuickAuthAndStart() {
-        onAuth();
-        onStartSession();
+        if (ws.isConnected()) {
+            // 已连接，直接认证并开局
+            onAuth();
+            onStartSession();
+            switchToGameView();
+        } else {
+            // 先连接，连接成功后自动认证并开局
+            autoStartAfterConnect = true;
+            updateTurnGuide();
+            onConnect();
+        }
     }
 
     @FXML
     private void onConnect() {
-        statusLabel.setText("连接中…");
+        statusLabel.setText(I18n.get("status.connecting"));
+        cancelConnectionTimeout();
         ws.connect(wsUrlField.getText().trim(), new FxWebSocketClient.Listener() {
             @Override
             public void onOpen() {
                 Platform.runLater(() -> {
-                    statusLabel.setText("已连接");
-                    appendTraffic("« 系统» 已打开 WebSocket");
+                    cancelConnectionTimeout();
+                    statusLabel.setText(I18n.get("status.connected"));
+                    appendTraffic("« " + I18n.get("log.wsOpened") + "»");
                     refreshButtons();
+                    if (autoStartAfterConnect) {
+                        autoStartAfterConnect = false;
+                        onAuth();
+                        onStartSession();
+                        switchToGameView();
+                    }
                     updateTurnGuide();
                 });
             }
@@ -261,34 +458,59 @@ public class MainController {
             @Override
             public void onError(Throwable error) {
                 Platform.runLater(() -> {
-                    statusLabel.setText("错误: " + error.getMessage());
-                    appendTraffic("« 错误» " + error);
+                    cancelConnectionTimeout();
+                    autoStartAfterConnect = false;
+                    statusLabel.setText(I18n.get("status.connectFailed", error.getMessage()));
+                    appendTraffic("« " + I18n.get("log.error") + "» " + error);
                     refreshButtons();
+                    updateTurnGuide();
                 });
             }
 
             @Override
             public void onClose(int code, String reason) {
                 Platform.runLater(() -> {
-                    statusLabel.setText("已断开 (" + code + ")");
-                    appendTraffic("« 系统» 连接关闭: " + code + " " + reason);
+                    cancelConnectionTimeout();
+                    statusLabel.setText(I18n.get("status.closed", code));
+                    appendTraffic("« " + I18n.get("log.closed", code, reason) + "»");
                     lastStatePayload = null;
                     playerBoardContainer.getChildren().clear();
                     pendingOptionsResultHandler = null;
+                    autoStartAfterConnect = false;
+                    switchToPreGameView();
                     refreshButtons();
                     updateTurnGuide();
                 });
             }
         });
+        connectionTimeout = new PauseTransition(Duration.seconds(8));
+        connectionTimeout.setOnFinished(e -> {
+            if (!ws.isConnected() && autoStartAfterConnect) {
+                autoStartAfterConnect = false;
+                statusLabel.setText(I18n.get("status.timeout"));
+                showError(I18n.get("error.connectHint", wsUrlField.getText().trim()));
+                refreshButtons();
+                updateTurnGuide();
+            }
+        });
+        connectionTimeout.play();
+    }
+
+    private void cancelConnectionTimeout() {
+        if (connectionTimeout != null) {
+            connectionTimeout.stop();
+            connectionTimeout = null;
+        }
     }
 
     @FXML
     private void onDisconnect() {
         ws.closeQuietly();
-        statusLabel.setText("已断开");
+        statusLabel.setText(I18n.get("status.disconnected"));
         lastStatePayload = null;
         playerBoardContainer.getChildren().clear();
         pendingOptionsResultHandler = null;
+        switchToPreGameView();
         refreshButtons();
         updateTurnGuide();
     }
@@ -379,42 +601,42 @@ public class MainController {
     private void requestPlayOptionsThenPlay(String cardId, String actionType) {
         String me = playerIdField.getText().trim();
         if (me.isEmpty()) {
-            showError("请先在连接区填写 playerId 并认证。");
+            showError(I18n.get("error.noPlayerId"));
             return;
         }
         if (pendingOptionsResultHandler != null) {
-            showError("请等待上一条选项结果。");
+            showError(I18n.get("error.waitOption"));
             return;
         }
         pendingOptionsResultHandler = payload -> {
             boolean ok = payload.has("ok") && payload.get("ok").getAsBoolean();
             if (!ok) {
-                showError(jsonString(payload, "error", "无法生成出牌选项"));
+                showError(jsonString(payload, "error", I18n.get("error.noOptions")));
                 return;
             }
             if (payload.has("truncated") && !payload.get("truncated").isJsonNull()
                     && payload.get("truncated").getAsBoolean()) {
-                appendTraffic("« 提示» 强制交易组合过多，列表已截断。");
+                appendTraffic("« " + I18n.get("msg.optionsTruncated") + " »");
             }
             if (!payload.has("options") || !payload.get("options").isJsonArray()) {
-                showError("服务器未返回选项列表。");
+                showError(I18n.get("error.noOptionList"));
                 return;
             }
             JsonArray opts = payload.getAsJsonArray("options");
             if (opts.size() == 0) {
-                showError("没有可用选项。");
+                showError(I18n.get("error.noOptions"));
                 return;
             }
             List<String> labels = new ArrayList<>();
             for (int i = 0; i < opts.size(); i++) {
                 JsonObject row = opts.get(i).getAsJsonObject();
                 String lbl = jsonString(row, "labelZh", "");
-                labels.add(lbl.isEmpty() ? ("选项 " + (i + 1)) : lbl);
+                labels.add(lbl.isEmpty() ? I18n.get("dialog.option", i + 1) : lbl);
             }
             ChoiceDialog<String> dlg = new ChoiceDialog<>(labels.get(0), labels);
             dlg.initOwner(dialogOwner());
-            dlg.setTitle("选择出牌参数");
-            dlg.setHeaderText("从服务器给出的合法参数中选一项；取消则不出牌。");
+            dlg.setTitle(I18n.get("dialog.chooseParam"));
+            dlg.setHeaderText(I18n.get("dialog.chooseHint"));
             dlg.showAndWait().ifPresent(chosenLabel -> {
                 int idx = labels.indexOf(chosenLabel);
                 if (idx < 0 || idx >= opts.size()) {
@@ -457,7 +679,7 @@ public class MainController {
             playCardIdField.setText(cardId);
         }
         if (cardId.isEmpty()) {
-            showError("请先点选手牌或在高级里填写 cardId。");
+            showError(I18n.get("error.noCardId"));
             return;
         }
         hideError();
@@ -474,7 +696,7 @@ public class MainController {
             playCardIdField.setText(cardId);
         }
         if (cardId.isEmpty()) {
-            showError("请先点选手牌或在高级里填写 cardId。");
+            showError(I18n.get("error.noCardId"));
             return;
         }
         hideError();
@@ -524,7 +746,7 @@ public class MainController {
             JsonObject p = root.getAsJsonObject("payload");
             handler.accept(p);
         } catch (RuntimeException ex) {
-            showError("选项结果解析失败：" + ex.getMessage());
+            showError(I18n.get("msg.stateParseError", ex.getMessage()));
         }
     }
 
@@ -534,9 +756,9 @@ public class MainController {
             JsonObject root = JsonParser.parseString(raw).getAsJsonObject();
             JsonObject p = root.getAsJsonObject("payload");
             String code = jsonString(p, "code", "");
-            String msg = jsonString(p, "message", "错误");
+            String msg = jsonString(p, "message", I18n.get("log.error"));
             if (!code.isEmpty()) {
-                showError(code + "：" + msg);
+                showError(code + ": " + msg);
             } else {
                 showError(msg);
             }
@@ -551,10 +773,10 @@ public class MainController {
             JsonObject p = root.getAsJsonObject("payload");
             boolean ok = p.has("ok") && p.get("ok").getAsBoolean();
             if (ok) {
-                summaryLabel.setText("认证成功。可点击「认证并开局」。");
+                summaryLabel.setText(I18n.get("msg.authSuccess"));
                 hideError();
             } else {
-                showError(jsonString(p, "error", "认证失败"));
+                showError(jsonString(p, "error", I18n.get("error.authFailed")));
             }
         } catch (RuntimeException ignored) {
             // ignore
@@ -567,6 +789,10 @@ public class MainController {
             JsonObject p = root.getAsJsonObject("payload");
             lastStatePayload = p;
 
+            if (quickStartCard.isVisible()) {
+                switchToGameView();
+            }
+
             String phase = jsonString(p, "phase", "—");
             String current = jsonString(p, "currentPlayerId", "—");
             String turnPhase = jsonString(p, "turnPhase", "—");
@@ -576,15 +802,16 @@ public class MainController {
             String lastSum = jsonString(p, "lastActionSummary", null);
 
             StringBuilder line = new StringBuilder();
-            line.append("阶段 ").append(phase);
-            line.append(" ｜ 当前回合 ").append(current);
-            line.append(" ｜ 回合 ").append(turnPhase);
-            line.append(" ｜ 牌堆 ").append(draw).append(" ｜ 弃牌 ").append(disc);
+            line.append(I18n.get("state.phase", phase));
+            line.append(" | ").append(I18n.get("state.currentTurn", current));
+            line.append(" | ").append(I18n.get("state.turnPhase", turnPhase));
+            line.append(" | ").append(I18n.get("state.drawPile", draw));
+            line.append(" | ").append(I18n.get("state.discardPile", disc));
             if (over) {
-                line.append(" ｜ 对局已结束");
+                line.append(" | ").append(I18n.get("state.gameOver"));
             }
             if (lastSum != null && !lastSum.isBlank()) {
-                line.append("\n最近：").append(lastSum);
+                line.append("\n").append(I18n.get("state.recent", lastSum));
             }
             summaryLabel.setText(line.toString());
 
@@ -599,7 +826,7 @@ public class MainController {
             updateRentPaymentPanel(p);
             updateTurnGuide();
         } catch (RuntimeException ex) {
-            summaryLabel.setText("状态解析失败：" + ex.getMessage());
+            summaryLabel.setText(I18n.get("msg.stateParseError", ex.getMessage()));
         }
     }
 
@@ -631,13 +858,12 @@ public class MainController {
             return;
         }
         pendingRentPaymentM = due;
-        rentPaymentHint.setText("你需支付租金 " + due
-                + "M。勾选银行/财产中的牌（合计须≥应付，多付不退）；也可不勾选并点「自动选牌」。");
+        rentPaymentHint.setText(I18n.get("rent.hint", due));
         rentPaymentPickPane.getChildren().clear();
         JsonObject self = findPlayerInState(p, local);
         if (self != null) {
-            addRentPaymentChoices(self.getAsJsonArray("bankCards"), "银行");
-            addRentPaymentChoices(self.getAsJsonArray("propertyZoneCards"), "财产");
+            addRentPaymentChoices(self.getAsJsonArray("bankCards"), I18n.get("rent.zoneBank"));
+            addRentPaymentChoices(self.getAsJsonArray("propertyZoneCards"), I18n.get("rent.zoneProperty"));
         }
         refreshRentPaymentSumLabel();
     }
@@ -684,7 +910,7 @@ public class MainController {
             return;
         }
         int sel = computeSelectedPaymentSum();
-        rentPaymentSumLabel.setText("已选合计 " + sel + "M ／ 应付 " + pendingRentPaymentM + "M");
+        rentPaymentSumLabel.setText(I18n.get("rent.sumLabel", sel, pendingRentPaymentM));
     }
 
     private int computeSelectedPaymentSum() {
@@ -748,11 +974,11 @@ public class MainController {
             }
         }
         if (ids.isEmpty()) {
-            showError("请至少勾选一张牌，或使用「自动选牌」。");
+            showError(I18n.get("error.selectAtLeast"));
             return;
         }
         if (computeSelectedPaymentSum() < pendingRentPaymentM) {
-            showError("所选牌面值不足应付额 " + pendingRentPaymentM + "M。");
+            showError(I18n.get("error.insufficientValue", pendingRentPaymentM));
             return;
         }
         hideError();
@@ -795,38 +1021,65 @@ public class MainController {
     }
 
     private void updateTurnGuide() {
-        if (turnGuideLabel == null) {
+        if (actionGuidePanel == null) {
             return;
         }
         if (!ws.isConnected()) {
-            turnGuideLabel.setText("请先连接服务器。");
-            turnGuideLabel.getStyleClass().setAll("turn-guide");
+            if (autoStartAfterConnect) {
+                setGuideState(false,
+                        I18n.get("guide.connecting"),
+                        I18n.get("guide.pleaseWait"));
+            } else {
+                setGuideState(false,
+                        I18n.get("guide.welcome"),
+                        I18n.get("guide.selectMode"));
+            }
             return;
         }
         if (lastStatePayload == null) {
-            turnGuideLabel.setText("已连接。点击「① 认证并开局」开始游戏。");
-            turnGuideLabel.getStyleClass().setAll("turn-guide");
+            setGuideState(false,
+                    I18n.get("guide.waitConnect"),
+                    I18n.get("guide.waitStart"));
             return;
         }
         String local = playerIdField.getText().trim();
         String current = jsonString(lastStatePayload, "currentPlayerId", "");
         String tp = jsonString(lastStatePayload, "turnPhase", "");
+        boolean over = lastStatePayload.has("gameOver")
+                && lastStatePayload.get("gameOver").getAsBoolean();
+        if (over) {
+            setGuideState(false, I18n.get("guide.gameOver"), I18n.get("guide.waitNext"));
+            return;
+        }
         if (local.equals(current)) {
-            turnGuideLabel.getStyleClass().setAll("turn-guide");
-            if ("DRAW".equals(tp)) {
-                turnGuideLabel.setText("轮到你：请先点「摸 2 张牌」。");
-            } else if ("PLAY".equals(tp)) {
-                turnGuideLabel.setText("轮到你：点选手牌，再选「存入银行 / 部署房产 / 打出行动牌 / 弃牌」。");
-            } else if ("WAITING_FOR_RESPONSE".equals(tp)) {
-                turnGuideLabel.setText(
-                        "轮到你响应：可打免租牌；若放弃免租，用上方「租金支付」勾选要交的牌（或自动选牌）。");
-            } else {
-                turnGuideLabel.setText("轮到你（阶段 " + tp + "）。可结束回合或按摘要操作。");
+            switch (tp) {
+                case "DRAW" -> setGuideState(false,
+                        I18n.get("guide.yourTurnDraw"),
+                        I18n.get("guide.clickDraw"));
+                case "PLAY" -> setGuideState(false,
+                        I18n.get("guide.yourTurnPlay"),
+                        I18n.get("guide.playSteps"));
+                case "WAITING_FOR_RESPONSE" -> setGuideState(false,
+                        I18n.get("guide.yourTurnResponse"),
+                        I18n.get("guide.responseSteps"));
+                default -> setGuideState(false,
+                        I18n.get("guide.yourTurn", tp),
+                        I18n.get("guide.followHint"));
             }
         } else {
-            turnGuideLabel.getStyleClass().setAll("turn-guide", "turn-guide-wait");
-            turnGuideLabel.setText("当前回合：" + current + "。你：" + local + " — 请稍候。");
+            setGuideState(true,
+                    I18n.get("guide.waiting", current),
+                    I18n.get("guide.youWait", local));
         }
+    }
+
+    private void setGuideState(boolean waiting, String title, String step) {
+        actionGuidePanel.getStyleClass().setAll("action-guide");
+        if (waiting) {
+            actionGuidePanel.getStyleClass().add("action-guide-wait");
+        }
+        actionGuideTitle.setText(title);
+        actionGuideStep1.setText(step);
     }
 
     private void applyMyHand(String raw) {
@@ -842,7 +1095,7 @@ public class MainController {
             syncWizardButtons();
 
             if (!payload.has("cards") || !payload.get("cards").isJsonArray()) {
-                selectedCardLabel.setText("未收到手牌");
+                selectedCardLabel.setText(I18n.get("msg.noHand"));
                 return;
             }
             JsonArray cards = payload.getAsJsonArray("cards");
@@ -865,7 +1118,7 @@ public class MainController {
             handStrip.layout();
             handScroll.layout();
         } catch (RuntimeException ex) {
-            selectedCardLabel.setText("手牌解析失败");
+            selectedCardLabel.setText(I18n.get("msg.handParseError"));
         }
     }
 
@@ -921,15 +1174,64 @@ public class MainController {
     }
 
     private void showError(String msg) {
-        errorLabel.setText(msg);
-        errorLabel.setVisible(true);
-        errorLabel.setManaged(true);
+        // Show error on whichever error label is currently visible
+        if (gameStatusBar != null && gameStatusBar.isVisible()) {
+            errorLabelInGame.setText(msg);
+            errorLabelInGame.setVisible(true);
+            errorLabelInGame.setManaged(true);
+        } else {
+            errorLabel.setText(msg);
+            errorLabel.setVisible(true);
+            errorLabel.setManaged(true);
+        }
     }
 
     private void hideError() {
         errorLabel.setVisible(false);
         errorLabel.setManaged(false);
         errorLabel.setText("");
+        if (errorLabelInGame != null) {
+            errorLabelInGame.setVisible(false);
+            errorLabelInGame.setManaged(false);
+            errorLabelInGame.setText("");
+        }
+    }
+
+    /** 切换到游戏进行中的视图：隐藏快速开始卡片，显示游戏区域。 */
+    private void switchToGameView() {
+        quickStartCard.setVisible(false);
+        quickStartCard.setManaged(false);
+        gameStatusBar.setVisible(true);
+        gameStatusBar.setManaged(true);
+        boardsTitle.setVisible(true);
+        boardsTitle.setManaged(true);
+        boardsScrollPane.setVisible(true);
+        boardsScrollPane.setManaged(true);
+        handHeader.setVisible(true);
+        handHeader.setManaged(true);
+        handScroll.setVisible(true);
+        handScroll.setManaged(true);
+        actionBar.setVisible(true);
+        actionBar.setManaged(true);
+    }
+
+    /** 切换回开始前视图：显示快速开始卡片，隐藏游戏区域。 */
+    private void switchToPreGameView() {
+        quickStartCard.setVisible(true);
+        quickStartCard.setManaged(true);
+        gameStatusBar.setVisible(false);
+        gameStatusBar.setManaged(false);
+        boardsTitle.setVisible(false);
+        boardsTitle.setManaged(false);
+        boardsScrollPane.setVisible(false);
+        boardsScrollPane.setManaged(false);
+        handHeader.setVisible(false);
+        handHeader.setManaged(false);
+        handScroll.setVisible(false);
+        handScroll.setManaged(false);
+        actionBar.setVisible(false);
+        actionBar.setManaged(false);
+        hideError();
     }
 
     private void sendEnvelope(String type, Map<String, Object> payload) {
@@ -938,7 +1240,7 @@ public class MainController {
             ws.sendRaw(json);
             appendTraffic("← " + json);
         } catch (Exception ex) {
-            appendTraffic("« 本地» 发送失败: " + ex.getMessage());
+            appendTraffic("« " + I18n.get("log.sendFailed", ex.getMessage()) + " »");
         }
     }
 

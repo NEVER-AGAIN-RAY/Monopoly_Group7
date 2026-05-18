@@ -1,5 +1,6 @@
 package com.monopoly.fx.ui;
 
+import com.monopoly.fx.I18n;
 import com.monopoly.fx.presentation.CardDisplayData;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -30,19 +31,19 @@ public class CardView extends ToggleButton {
         colorBar.getStyleClass().add("color-bar");
         applyColorBar(colorBar, data);
 
-        Label title = new Label(data.getTitleZh());
+        Label title = new Label(data.getTitle());
         title.getStyleClass().add("card-title");
         title.setMaxWidth(Double.MAX_VALUE);
         title.setAlignment(Pos.CENTER);
 
-        Label hint = new Label(data.getHintZh());
+        Label hint = new Label(data.getHint());
         hint.getStyleClass().add("card-hint");
         hint.setMaxWidth(Double.MAX_VALUE);
         hint.setAlignment(Pos.CENTER);
 
         Label rentDetail = null;
-        if (data.getRentDetailZh() != null && !data.getRentDetailZh().isBlank()) {
-            rentDetail = new Label(data.getRentDetailZh());
+        if (data.getRentDetail() != null && !data.getRentDetail().isBlank()) {
+            rentDetail = new Label(data.getRentDetail());
             rentDetail.getStyleClass().add("card-rent-detail");
             rentDetail.setMaxWidth(Double.MAX_VALUE);
             rentDetail.setAlignment(Pos.CENTER);
@@ -108,10 +109,10 @@ public class CardView extends ToggleButton {
             return "";
         }
         return switch (kind) {
-            case "MONEY" -> "现金";
-            case "PROPERTY" -> "房产";
-            case "WILD" -> "万能";
-            case "ACTION" -> "行动";
+            case "MONEY" -> I18n.get("card.money");
+            case "PROPERTY" -> I18n.get("card.property");
+            case "WILD" -> I18n.get("card.wild");
+            case "ACTION" -> I18n.get("card.action");
             default -> kind;
         };
     }

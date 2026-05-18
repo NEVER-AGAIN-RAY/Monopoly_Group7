@@ -3,6 +3,7 @@ package com.monopoly.fx.ui;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.monopoly.fx.I18n;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
@@ -16,19 +17,9 @@ import java.util.Locale;
  */
 public final class PlayerBoardPanel extends VBox {
 
-    private static final java.util.Map<String, String> COLOR_ZH = java.util.Map.ofEntries(
-            java.util.Map.entry("BROWN", "棕"),
-            java.util.Map.entry("LIGHT_BLUE", "浅蓝"),
-            java.util.Map.entry("PINK", "粉"),
-            java.util.Map.entry("ORANGE", "橙"),
-            java.util.Map.entry("RED", "红"),
-            java.util.Map.entry("YELLOW", "黄"),
-            java.util.Map.entry("GREEN", "绿"),
-            java.util.Map.entry("DARK_BLUE", "深蓝"),
-            java.util.Map.entry("RAILROAD", "铁路"),
-            java.util.Map.entry("UTILITY", "公共"),
-            java.util.Map.entry("WILD_UNASSIGNED", "万能未分配")
-    );
+    private static String colorName(String key) {
+        return I18n.get("color." + key);
+    }
 
     public PlayerBoardPanel(JsonObject playerObj, boolean activeTurn) {
         getStyleClass().add("player-panel");
@@ -50,9 +41,7 @@ public final class PlayerBoardPanel extends VBox {
         int act = jsonInt(playerObj, "actionZoneCount", 0);
         int bankVal = jsonInt(playerObj, "bankTotalValueM", 0);
 
-        Label stats = new Label(String.format(
-                Locale.ROOT, "手牌 %d ｜ 银行 %d 张（共 %dM）｜ 房产 %d ｜ 行动区 %d ｜ 完整套 %d",
-                hand, bank, bankVal, prop, act, sets));
+        Label stats = new Label(I18n.get("board.stats", hand, bank, bankVal, prop, act, sets));
         stats.getStyleClass().add("player-stats");
 
         FlowPane progressChips = new FlowPane();
@@ -71,10 +60,10 @@ public final class PlayerBoardPanel extends VBox {
                 if (ck.isEmpty()) {
                     continue;
                 }
-                String cz = COLOR_ZH.getOrDefault(ck, ck);
-                String txt = need > 0 ? (cz + " " + eff + "/" + need) : (cz + " ×" + eff);
+                String cz = colorName(ck);
+                String txt = need > 0 ? (cz + " " + eff + "/" + need) : (cz + " x" + eff);
                 if (completeSets > 0) {
-                    txt += " 满×" + completeSets;
+                    txt += " " + I18n.get("board.complete", completeSets);
                 }
                 Label chip = new Label(txt);
                 chip.getStyleClass().addAll("chip", "color-" + ck);
@@ -83,14 +72,14 @@ public final class PlayerBoardPanel extends VBox {
         }
 
         TitledPane bankPane = new TitledPane();
-        bankPane.setText("银行牌（每张）");
+        bankPane.setText(I18n.get("board.bankCards"));
         bankPane.setCollapsible(true);
         bankPane.setExpanded(bank > 0 && bank <= 12);
         FlowPane bankFlow = zoneCardFlow(playerObj.getAsJsonArray("bankCards"));
         bankPane.setContent(wrapScroll(bankFlow));
 
         TitledPane propPane = new TitledPane();
-        propPane.setText("财产区（每张）");
+        propPane.setText(I18n.get("board.propertyCards"));
         propPane.setCollapsible(true);
         propPane.setExpanded(prop > 0 && prop <= 10);
         FlowPane propFlow = zoneCardFlow(playerObj.getAsJsonArray("propertyZoneCards"));
@@ -111,7 +100,7 @@ public final class PlayerBoardPanel extends VBox {
                 if (cnt <= 0 || ck.isEmpty()) {
                     continue;
                 }
-                Label chip = new Label(COLOR_ZH.getOrDefault(ck, ck) + " ×" + cnt);
+                Label chip = new Label(colorName(ck) + " x" + cnt);
                 chip.getStyleClass().addAll("chip", "color-" + ck);
                 legacyChips.getChildren().add(chip);
             }
@@ -119,13 +108,13 @@ public final class PlayerBoardPanel extends VBox {
 
         getChildren().addAll(title, stats);
         if (!progressChips.getChildren().isEmpty()) {
-            Label pTitle = new Label("凑套进度");
+            Label pTitle = new Label(I18n.get("board.setProgress"));
             pTitle.getStyleClass().add("zone-section-title");
             getChildren().addAll(pTitle, progressChips);
         }
         getChildren().addAll(bankPane, propPane);
         if (!legacyChips.getChildren().isEmpty()) {
-            Label oTitle = new Label("颜色张数（简）");
+            Label oTitle = new Label(I18n.get("board.colorCount"));
             oTitle.getStyleClass().add("zone-section-title");
             getChildren().addAll(oTitle, legacyChips);
         }
@@ -142,7 +131,7 @@ public final class PlayerBoardPanel extends VBox {
         flow.setHgap(6);
         flow.setVgap(6);
         if (arr == null) {
-            flow.getChildren().add(new Label("（空）"));
+            flow.getChildren().add(new Label(I18n.get("board.empty")));
             return flow;
         }
         boolean any = false;
@@ -159,7 +148,7 @@ public final class PlayerBoardPanel extends VBox {
             flow.getChildren().add(lab);
         }
         if (!any) {
-            flow.getChildren().add(new Label("（空）"));
+            flow.getChildren().add(new Label(I18n.get("board.empty")));
         }
         return flow;
     }
@@ -178,7 +167,7 @@ public final class PlayerBoardPanel extends VBox {
         }
         return switch (kind) {
             case "MONEY", "ACTION" -> (title.isBlank() ? kind : title) + " · " + vm + "M";
-            case "PROPERTY", "WILD" -> (title.isBlank() ? kind : title) + extra + " ·抵" + vm + "M";
+            case "PROPERTY", "WILD" -> (title.isBlank() ? kind : title) + extra + " ·" + I18n.get("board.pledge") + vm + "M";
             default -> title + " ·" + vm + "M";
         };
     }

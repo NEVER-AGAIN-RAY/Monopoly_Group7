@@ -5,17 +5,11 @@ import com.monopoly.model.settlement.RentTierTable;
 
 import java.util.Locale;
 
-/**
- * 手牌/公开区房产卡上的中文租金说明（与 {@link RentTierTable}、{@link PropertySetCalculator} 一致）。
- */
 public final class RentScheduleText {
 
     private RentScheduleText() {
     }
 
-    /**
-     * 某颜色：套数需求、牌面阶梯租（1 张…满套）、房/旅馆加值说明。
-     */
     public static String forColorKey(String colorKey) {
         if (colorKey == null || colorKey.isBlank()) {
             return "";
@@ -41,9 +35,38 @@ public final class RentScheduleText {
                 + " 铁路与公共事业不可加盖房屋/旅馆。";
     }
 
-    /** 万能牌：说明无实体双色地权卡。 */
     public static String forWildCard() {
         return "部署时选一色计入该色轨道，租金阶梯与该单色一致。"
                 + " 本牌堆为简化万能模型，无实体双色地权卡；作支付价值 0M。";
+    }
+
+    public static String forColorKeyEn(String colorKey) {
+        if (colorKey == null || colorKey.isBlank()) {
+            return "";
+        }
+        String ck = colorKey.trim().toUpperCase(Locale.ROOT);
+        int need = PropertySetCalculator.REQUIRED_BY_COLOR.getOrDefault(ck, 3);
+        int[] tiers = RentTierTable.tiersForColor(ck);
+        StringBuilder tierLine = new StringBuilder();
+        for (int i = 0; i < tiers.length; i++) {
+            if (i > 0) {
+                tierLine.append("; ");
+            }
+            boolean full = i == tiers.length - 1;
+            tierLine.append(i + 1).append("->").append(tiers[i]).append("M");
+            if (full) {
+                tierLine.append(" (full set)");
+            }
+        }
+        return "Need " + need + " to complete set; must have full set to charge rent."
+                + " Base rent tiers: " + tierLine
+                + ". Multiple sets accumulate."
+                + " House +3M, Hotel +7M (added to total)."
+                + " Railroad/Utility cannot have House/Hotel.";
+    }
+
+    public static String forWildCardEn() {
+        return "Deploy as one color, rent follows that color's tier."
+                + " Payment value 0M.";
     }
 }

@@ -321,14 +321,21 @@ public class GameServer implements GameUpdateObserver {
         }
     }
 
+    private static final Path SAVE_DIR = Path.of(System.getProperty("user.home"), ".monopoly-deal", "saves");
+
     private void commitSaveGame(JsonObject payload, ClientConnection from) {
         try {
             String mementoJson = gameController.exportSessionJson();
             String path = dispatcher.getString(payload, "path", null);
             if (path != null && !path.isBlank()) {
-                Path p = Paths.get(path.trim());
-                if (p.getParent() != null) {
-                    Files.createDirectories(p.getParent());
+                String filename = Path.of(path.trim()).getFileName().toString();
+                if (filename.contains("..") || filename.startsWith(".")) {
+                    throw new SecurityException("Invalid save filename: " + filename);
+                }
+                Files.createDirectories(SAVE_DIR);
+                Path p = SAVE_DIR.resolve(filename).normalize();
+                if (!p.startsWith(SAVE_DIR)) {
+                    throw new SecurityException("Path traversal blocked");
                 }
                 String out = SaveEncryption.encodeForStorage(mementoJson);
                 Files.writeString(p, out, StandardCharsets.UTF_8);

@@ -20,7 +20,7 @@ public class MonopolyFxApp extends Application {
                 MonopolyFxApp.class.getResource("/com/monopoly/fx/MainView.fxml")));
         Parent root = loader.load();
         MainController controller = loader.getController();
-        stage.setTitle("Monopoly Deal — JavaFX 客户端");
+        stage.setTitle("Monopoly Deal");
         Scene scene = new Scene(root, 1100, 820);
         scene.getStylesheets().add(
                 MonopolyFxApp.class.getResource("/com/monopoly/fx/styles.css").toExternalForm());

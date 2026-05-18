@@ -1,0 +1,40 @@
+@startuml Monopoly_Deal_UseCase_Minimal
+skinparam packageStyle rectangle
+
+title Monopoly Deal - Use Case Diagram (minimal lines)
+
+actor "Active Player\n(human or AI)" as AP
+actor "Opponent\n(when targeted)" as OP
+actor "Game System" as SYS
+
+package "Monopoly Deal Game Engine" {
+
+  usecase UC0 as "Session: auth, start, quit"
+  usecase UC1 as "Draw cards"
+  usecase UC2 as "Play cards\n(deposit, deploy, discard, action)"
+  usecase UC3 as "Rent response chain\n(pay, Just Say No, pass)"
+  usecase UC4 as "End turn\n(trim hand if over 7)"
+  usecase UC5 as "Rules and win check"
+
+  note bottom of UC1
+    Empty hand: draw 5;
+    else default 2.
+  end note
+
+  note bottom of UC2
+    Max 3 play actions per turn.
+  end note
+
+}
+
+AP --> UC0
+AP --> UC1
+AP --> UC2
+AP --> UC3
+AP --> UC4
+
+OP --> UC3
+
+SYS --> UC5
+
+@enduml

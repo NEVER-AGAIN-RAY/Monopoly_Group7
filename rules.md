@@ -3,7 +3,7 @@
 本文档为 **Monopoly Deal**（及同类地区版本，如附快速规则卡、108 张游戏牌的版本）的 **中文意译与整理**，便于课程项目与实体说明书对照。
 
 - **不声称**与某一地区印刷版说明书逐字一致；牌面数值、插图以你持有的实体盒为准。
-- **规范真源（本仓库）**：当正文 §1～§10 与下文 **附录 A** 或牌堆实现不一致时，以 **附录 A** 与 [MonopolyDealCardFactory.java](./src/main/java/com/monopoly/model/card/MonopolyDealCardFactory.java) 为准；正文为意译参考。内嵌规则摘要与附录 A 对齐，见 [MonopolyDealRulesSummary.java](./src/main/java/com/monopoly/model/rules/MonopolyDealRulesSummary.java)。
+- **规范真源（本仓库）**：当正文 §1～§10 与下文 **附录 A** 或牌堆实现不一致时，以 **附录 A** 与 [MonopolyDealCardFactory.java](./src/main/java/com/monopoly/pattern/factory/MonopolyDealCardFactory.java) 为准；正文为意译参考。内嵌规则摘要与附录 A 对齐，见 [MonopolyDealRulesSummary.java](./src/main/java/com/monopoly/model/rules/MonopolyDealRulesSummary.java)。
 
 ---
 

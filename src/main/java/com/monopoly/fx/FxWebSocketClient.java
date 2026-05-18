@@ -84,7 +84,7 @@ public final class FxWebSocketClient {
     public void sendRaw(String json) {
         WebSocket ws = socketRef.get();
         if (ws == null) {
-            throw new IllegalStateException("WebSocket 未连接");
+            throw new IllegalStateException("WebSocket not connected");
         }
         ws.sendText(json, true);
     }

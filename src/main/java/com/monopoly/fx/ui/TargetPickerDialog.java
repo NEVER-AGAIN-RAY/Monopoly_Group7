@@ -1,5 +1,6 @@
 package com.monopoly.fx.ui;
 
+import com.monopoly.fx.I18n;
 import javafx.geometry.Insets;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
@@ -33,7 +34,7 @@ public final class TargetPickerDialog {
         d.initOwner(owner);
         d.initModality(Modality.WINDOW_MODAL);
         d.setTitle(title);
-        d.setHeaderText("选择一名玩家");
+        d.setHeaderText(I18n.get("dialog.pickPlayer"));
         return d.showAndWait();
     }
 
@@ -44,8 +45,8 @@ public final class TargetPickerDialog {
         ChoiceDialog<String> d = new ChoiceDialog<>(colorKeys.get(0), colorKeys);
         d.initOwner(owner);
         d.initModality(Modality.WINDOW_MODAL);
-        d.setTitle("选择颜色");
-        d.setHeaderText("选择房产颜色（与后端 colorKey 一致）");
+        d.setTitle(I18n.get("dialog.pickColorTitle"));
+        d.setHeaderText(I18n.get("dialog.pickColorHint"));
         return d.showAndWait();
     }
 

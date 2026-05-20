@@ -145,8 +145,8 @@
 以下用于对照 **标准说明书意图** 与 **当前代码**，便于后续迭代；路径均为仓库内相对路径。
 
 - **租金计算**
-  - **标准**：实体房产牌为「该颜色持有 1 张 / 2 张 / … / 满套」的 **阶梯租金表**；须 **完整套** 方可对该色收租。
-  - **本仓库**：已用 [RentTierTable.java](./src/main/java/com/monopoly/model/settlement/RentTierTable.java) 阶梯表 + [RentCalculator.java](./src/main/java/com/monopoly/model/settlement/RentCalculator.java) 叠加房/旅馆；**须完整套** 才能收租。多套同色按「整除套数 + 余张」累计表值（实现向近似，若与最新实体 FAQ 有出入可再调表）。
+  - **标准**：实体房产牌为「该颜色持有 1 张 / 2 张 / … / 满套」的 **阶梯租金表**；拥有该色至少 1 张即可对该色收租。
+  - **本仓库**：已用 [RentTierTable.java](./src/main/java/com/monopoly/model/settlement/RentTierTable.java) 阶梯表 + [RentCalculator.java](./src/main/java/com/monopoly/model/settlement/RentCalculator.java) 叠加房/旅馆；拥有该色至少 1 张即可收租。多套同色按「整除套数 + 余张」累计表值（实现向近似，若与最新实体 FAQ 有出入可再调表）。
 
 - **租金牌独立牌种**
   - **标准**：独立 **13** 张租金牌（双色 1v1、任意色、多色示意等）。

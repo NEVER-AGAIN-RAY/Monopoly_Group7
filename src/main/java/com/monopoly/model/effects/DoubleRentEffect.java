@@ -2,11 +2,10 @@ package com.monopoly.model.effects;
 
 import com.monopoly.model.settlement.PaymentSettlement;
 import com.monopoly.model.player.Player;
-import com.monopoly.model.settlement.PropertySetCalculator;
 import com.monopoly.model.settlement.RentCalculator;
 
 /**
- * 双倍租金效果：须该色完整套；应付 = 该色应收基础租与建筑加值之和 × 2。
+ * 双倍租金效果：所选颜色有至少 1 张房产即可收租；应付 = 该色应收基础租与建筑加值之和 × 2。
  */
 public class DoubleRentEffect implements ActionEffect {
 
@@ -15,6 +14,9 @@ public class DoubleRentEffect implements ActionEffect {
         Player tenant = ctx.getTarget();
         String colorKey = ctx.getTargetColorKey();
 
+        if (landlord == null) {
+            return RentEffect.DueResult.error("房东无效。");
+        }
         if (tenant == null) {
             return RentEffect.DueResult.error("双倍租金需指定目标玩家。");
         }
@@ -23,14 +25,10 @@ public class DoubleRentEffect implements ActionEffect {
         }
 
         String ck = colorKey.trim().toUpperCase(java.util.Locale.ROOT);
-        if (!PropertySetCalculator.hasCompleteSetForColor(landlord.getPropertyCardsView(), ck)) {
-            return RentEffect.DueResult.error("你在财产区没有 " + ck + " 的完整房产套，无法打出双倍租金牌。");
-        }
-
-        int base = RentCalculator.computeRentForColor(landlord, colorKey);
+        int base = RentCalculator.computeRentForColor(landlord, ck);
         int due = base * 2;
         if (due <= 0) {
-            return RentEffect.DueResult.error("该颜色租金为 0，无法双倍收租。");
+            return RentEffect.DueResult.error("你在财产区没有 " + ck + " 房产，无法双倍收租。");
         }
         return RentEffect.DueResult.ok(due);
     }

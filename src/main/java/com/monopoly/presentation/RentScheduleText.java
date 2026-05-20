@@ -28,8 +28,8 @@ public final class RentScheduleText {
                 tierLine.append("（满套）");
             }
         }
-        return "凑齐 " + need + " 张为该色完整套；须完整套方可对该色收租。"
-                + " 平地整套基础租阶梯：" + tierLine
+        return "拥有该色至少 1 张即可按阶梯收租；凑齐 " + need + " 张为该色完整套。"
+                + " 平地基础租阶梯：" + tierLine
                 + "。多套同色时按「整段套数 + 余张」累计表上金额。"
                 + " 另：每间房屋 +3M，旅馆共 +7M（加在总租上）。"
                 + " 铁路与公共事业不可加盖房屋/旅馆。";

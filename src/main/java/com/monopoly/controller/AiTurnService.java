@@ -36,6 +36,9 @@ final class AiTurnService {
                 break;
             }
             played++;
+            if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
+                return;
+            }
         }
         controller.endTurn(ai);
     }

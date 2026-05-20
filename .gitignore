@@ -12,6 +12,11 @@ pom.xml.versionsBackup
 pom.xml.restoreBackup
 release.properties
 
+# --- Node / Vite frontend ---
+node_modules/
+web-client/node_modules/
+web-client/dist/
+
 # --- Gradle (如果你用 Gradle) ---
 .gradle/
 build/

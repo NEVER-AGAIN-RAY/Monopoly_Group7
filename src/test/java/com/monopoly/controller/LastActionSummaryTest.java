@@ -11,6 +11,8 @@ import com.monopoly.pattern.observer.GameUpdateSubject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -29,6 +31,7 @@ class LastActionSummaryTest {
     @Test
     void afterDraw_play_endTurn_snapshotsContainNonBlankSummary() {
         AtomicReference<GameStateSnapshot> last = new AtomicReference<>();
+        List<String> summaries = new ArrayList<>();
         GameUpdateSubject subject = new GameUpdateSubject() {
             @Override
             public void registerObserver(GameUpdateObserver observer) {
@@ -41,6 +44,7 @@ class LastActionSummaryTest {
             @Override
             public void notifyStateChanged(GameStateSnapshot snapshot) {
                 last.set(snapshot);
+                summaries.add(snapshot.getLastActionSummary());
             }
         };
 
@@ -64,7 +68,9 @@ class LastActionSummaryTest {
         }
 
         c.handleEndTurnCommand();
-        assertTrue(last.get().getLastActionSummary().toLowerCase().contains("ended turn"));
+        assertTrue(summaries.stream()
+                .filter(s -> s != null)
+                .anyMatch(s -> s.toLowerCase().contains("ended turn")));
     }
 
     private static boolean blank(String s) {

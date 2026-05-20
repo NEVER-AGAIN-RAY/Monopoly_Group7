@@ -328,14 +328,21 @@ public class GameServer implements GameUpdateObserver {
             String mementoJson = gameController.exportSessionJson();
             String path = dispatcher.getString(payload, "path", null);
             if (path != null && !path.isBlank()) {
-                String filename = Path.of(path.trim()).getFileName().toString();
-                if (filename.contains("..") || filename.startsWith(".")) {
+                Path requested = Path.of(path.trim()).normalize();
+                Path filenamePath = requested.getFileName();
+                String filename = filenamePath == null ? "" : filenamePath.toString();
+                if (filename.isBlank() || filename.contains("..") || filename.startsWith(".")) {
                     throw new SecurityException("Invalid save filename: " + filename);
                 }
-                Files.createDirectories(SAVE_DIR);
-                Path p = SAVE_DIR.resolve(filename).normalize();
-                if (!p.startsWith(SAVE_DIR)) {
+                Path p = requested.isAbsolute()
+                        ? requested
+                        : SAVE_DIR.resolve(requested).normalize();
+                if (!requested.isAbsolute() && !p.startsWith(SAVE_DIR)) {
                     throw new SecurityException("Path traversal blocked");
+                }
+                Path parent = p.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
                 }
                 String out = SaveEncryption.encodeForStorage(mementoJson);
                 Files.writeString(p, out, StandardCharsets.UTF_8);

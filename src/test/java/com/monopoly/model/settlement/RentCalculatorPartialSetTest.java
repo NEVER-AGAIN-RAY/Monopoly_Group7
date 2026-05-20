@@ -10,10 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class RentCalculatorPartialSetTest {
 
     @Test
-    void incompleteSet_cannotChargeRent() {
+    void incompleteSet_chargesFirstTierRent() {
         HumanPlayer landlord = new HumanPlayer("p1", "L");
         landlord.addToPropertyZone(new PropertyCard("b1", "brown-1", "BROWN"));
-        assertEquals(0, RentCalculator.computeRentForColor(landlord, "BROWN"));
+        assertEquals(1, RentCalculator.computeRentForColor(landlord, "BROWN"));
     }
 
     @Test

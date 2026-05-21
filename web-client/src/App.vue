@@ -24,6 +24,58 @@ const busyCardId = ref('')
 const gameOverDismissed = ref(false)
 let socket = null
 
+const CARD_IMAGE_BASE = '/cards/'
+const PROPERTY_CARD_IMAGES = {
+  BROWN: ['05-Property Card - Brown.jpg', '06-Property Card - Brown.jpg'],
+  LIGHT_BLUE: ['01-Property Card - Light Blue.jpg', '02-Property Card - Light Blue.jpg', '03-Property Card - Light Blue.jpg'],
+  PINK: ['17-Property Card - Pink.jpg', '18-Property Card - Pink.jpg', '19-Property Card - Pink.jpg'],
+  ORANGE: ['25-Property Card - Orange.jpg', '26-Property Card - Orange.jpg', '27-Property Card - Orange.jpg'],
+  RED: ['35-Property Card - Red.jpg', '36-Property Card - Red.jpg', '37-Property Card - Red.jpg'],
+  YELLOW: ['32-Property Card - Yellow.jpg', '33-Property Card - Yellow.jpg', '34-Property Card - Yellow.jpg'],
+  GREEN: ['43-Property Card - Green.jpg', '44-Property Card - Green.jpg', '45-Property Card - Green.jpg'],
+  DARK_BLUE: ['48-Property Card - Blue.jpg', '49-Property Card - Blue.jpg'],
+  RAILROAD: ['28-Property Card - Railroad.jpg', '29-Property Card - Railroad.jpg', '30-Property Card - Railroad.jpg', '31-Property Card - Railroad.jpg'],
+  UTILITY: ['22-Property Card - Utility.jpg', '23-Property Card - Utility.jpg']
+}
+const WILD_CARD_IMAGES = {
+  ANY: ['53-Property Wild Card - Multi-Color.jpg', '54-Property Wild Card - Multi-Color.jpg'],
+  'LIGHT_BLUE|BROWN': ['04-Property Wild Card - Light Blue Brown.jpg'],
+  'LIGHT_BLUE|RAILROAD': ['50-Property Wild Card - Light Blue Railroad.jpg'],
+  'PINK|ORANGE': ['20-Property Wild Card - Pink Orange.jpg', '21-Property Wild Card - Pink Orange.jpg'],
+  'RED|YELLOW': ['38-Property Wild Card - Red Yellow.jpg', '39-Property Wild Card - Red Yellow.jpg'],
+  'DARK_BLUE|GREEN': ['47-Property Wild Card - Dark Blue Green.jpg'],
+  'GREEN|RAILROAD': ['46-Property Wild Card - Green Railroad.jpg'],
+  'RAILROAD|UTILITY': ['24-Property Wild Card - Railroad Utility.jpg']
+}
+const RENT_CARD_IMAGES = {
+  ANY: ['40-Rent Card - Any Rent.jpg', '41-Rent Card - Any Rent.jpg', '42-Rent Card - Any Rent.jpg'],
+  'LIGHT_BLUE|BROWN': ['11-Rent Card - Light Blue Brown.jpg', '12-Rent Card - Light Blue Brown.jpg'],
+  'PINK|ORANGE': ['09-Rent Card - Pink Orange.jpg', '10-Rent Card - Pink Orange.jpg'],
+  'RED|YELLOW': ['15-Rent Card - Red Yellow.jpg', '16-Rent Card - Red Yellow.jpg'],
+  'DARK_BLUE|GREEN': ['13-Rent Card - Dark Blue Green.jpg', '14-Rent Card - Dark Blue Green.jpg'],
+  'RAILROAD|UTILITY': ['07-Rent Card - Railroad Utility.jpg', '08-Rent Card - Railroad Utility.jpg']
+}
+const MONEY_CARD_IMAGES = {
+  1: ['55-Money Card - 1M.jpg', '56-Money Card - 1M.jpg', '57-Money Card - 1M.jpg', '58-Money Card - 1M.jpg', '59-Money Card - 1M.jpg', '60-Money Card - 1M.jpg'],
+  2: ['73-Money Card - 2M.jpg', '74-Money Card - 2M.jpg', '75-Money Card - 2M.jpg', '76-Money Card - 2M.jpg', '77-Money Card - 2M.jpg'],
+  3: ['81-Money Card - 3M.jpg', '82-Money Card - 3M.jpg', '83-Money Card - 3M.jpg'],
+  4: ['96-Money Card - 4M.jpg', '97-Money Card - 4M.jpg', '98-Money Card - 4M.jpg'],
+  5: ['104-Money Card - 5M.jpg', '105-Money Card - 5M.jpg'],
+  10: ['108-Money Card - 10M.jpg']
+}
+const ACTION_CARD_IMAGES = {
+  PASS_GO: ['61-Action Card - Pass Go.jpg', '62-Action Card - Pass Go.jpg', '63-Action Card - Pass Go.jpg', '64-Action Card - Pass Go.jpg', '65-Action Card - Pass Go.jpg', '66-Action Card - Pass Go.jpg', '67-Action Card - Pass Go.jpg', '68-Action Card - Pass Go.jpg', '69-Action Card - Pass Go.jpg', '70-Action Card - Pass Go.jpg'],
+  DOUBLE_RENT: ['71-Action Card - Double The Rent.jpg', '72-Action Card - Double The Rent.jpg'],
+  BIRTHDAY: ['78-Action Card - Its My Birthday.jpg', '79-Action Card - Its My Birthday.jpg', '80-Action Card - Its My Birthday.jpg'],
+  DEBT_COLLECTOR: ['84-Action Card - Debt Collector.jpg', '85-Action Card - Debt Collector.jpg', '86-Action Card - Debt Collector.jpg'],
+  STEAL_PROPERTY: ['87-Action Card - Sly Deal.jpg', '88-Action Card - Sly Deal.jpg', '89-Action Card - Sly Deal.jpg'],
+  HOUSE: ['90-Action Card - House.jpg', '91-Action Card - House.jpg', '92-Action Card - House.jpg'],
+  FORCED_DEAL: ['93-Action Card - Forced Deal.jpg', '94-Action Card - Forced Deal.jpg', '95-Action Card - Forced Deal.jpg'],
+  RENT_WAIVER: ['99-Action Card - Just Say No.jpg', '100-Action Card - Just Say No (2).jpg', '101-Action Card - Just Say No (1).jpg'],
+  HOTEL: ['102-Action Card - Hotel.jpg', '103-Action Card - Hotel.jpg'],
+  DEAL_BREAKER: ['106-Action Card - Deal Breaker.jpg', '107-Action Card - Deal Breaker.jpg']
+}
+
 const currentPlayerId = computed(() => state.value?.currentPlayerId || '')
 const turnPhase = computed(() => state.value?.turnPhase || '')
 const selectedCard = computed(() => hand.value.find((c) => c.id === selectedCardId.value) || null)
@@ -408,6 +460,7 @@ function cardClass(card) {
     'game-card',
     'fan-card',
     `kind-${(card?.kind || 'UNKNOWN').toLowerCase()}`,
+    cardImageFile(card) ? 'has-image' : '',
     selectedCardId.value === card?.id ? 'selected' : '',
     actionBusy.value && busyCardId.value === card?.id ? 'processing' : ''
   ]
@@ -416,8 +469,53 @@ function cardClass(card) {
 function tableCardClass(card) {
   return [
     'table-card',
-    `kind-${(card?.kind || 'UNKNOWN').toLowerCase()}`
+    `kind-${(card?.kind || 'UNKNOWN').toLowerCase()}`,
+    cardImageFile(card) ? 'has-image' : ''
   ]
+}
+
+function cardImageFile(card) {
+  const files = cardImageFiles(card)
+  return pickImage(files, card?.id || cardTitle(card))
+}
+
+function cardImageUrl(card) {
+  const file = cardImageFile(card)
+  return file ? CARD_IMAGE_BASE + encodeURIComponent(file) : ''
+}
+
+function cardImageFiles(card) {
+  if (!card) return []
+  if (card.kind === 'PROPERTY') return PROPERTY_CARD_IMAGES[card.colorGroup] || []
+  if (card.kind === 'WILD') {
+    if (card.wildKind === 'ANY_COLOR') return WILD_CARD_IMAGES.ANY
+    return WILD_CARD_IMAGES[pairKey(card.printedColors)] || []
+  }
+  if (card.kind === 'MONEY') return MONEY_CARD_IMAGES[Number(card.valueM || 0)] || []
+  if (card.kind === 'ACTION') {
+    const effect = String(card.effectCode || '').toUpperCase()
+    if (effect === 'RENT') return RENT_CARD_IMAGES.ANY
+    if (effect === 'RENT_DUAL') return RENT_CARD_IMAGES[pairKey(card.rentPalette)] || []
+    return ACTION_CARD_IMAGES[effect] || []
+  }
+  return []
+}
+
+function pairKey(values) {
+  return Array.isArray(values) ? values.map((v) => String(v).toUpperCase()).join('|') : ''
+}
+
+function pickImage(files, seed) {
+  if (!files?.length) return ''
+  return files[stableIndex(seed, files.length)]
+}
+
+function stableIndex(seed, size) {
+  let hash = 0
+  for (const ch of String(seed || '')) {
+    hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0
+  }
+  return Math.abs(hash) % size
 }
 
 function cardIcon(card) {
@@ -599,6 +697,7 @@ function log(direction, text) {
                   <h3>银行 <b>{{ player.bankTotalValueM || 0 }}M</b></h3>
                   <div class="visible-card-row small-cards">
                     <article v-for="card in player.bankCards || []" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
+                      <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
                       <span class="color-band" :style="colorStyle(card)"></span>
                       <span class="card-art"><b>{{ cardIcon(card) }}</b></span>
                       <strong>{{ cardTitle(card) }}</strong>
@@ -611,6 +710,7 @@ function log(direction, text) {
                   <h3>房产 <b>{{ player.propertyCount || 0 }}</b></h3>
                   <div class="visible-card-row small-cards">
                     <article v-for="card in player.propertyZoneCards || []" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
+                      <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
                       <span class="color-band" :style="colorStyle(card)"></span>
                       <span class="card-art"><b>{{ cardIcon(card) }}</b></span>
                       <strong>{{ cardTitle(card) }}</strong>
@@ -653,6 +753,7 @@ function log(direction, text) {
                   <h3>银行 <b>{{ localBoard.bankTotalValueM || 0 }}M</b></h3>
                   <div class="visible-card-row">
                     <article v-for="card in localBoard.bankCards || []" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
+                      <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
                       <span class="color-band" :style="colorStyle(card)"></span>
                       <span class="card-type">{{ cardKindLabel(card) }}</span>
                       <span class="card-art"><b>{{ cardIcon(card) }}</b></span>
@@ -666,6 +767,7 @@ function log(direction, text) {
                   <h3>房产 <b>{{ localBoard.completePropertySets || 0 }}/3 套</b></h3>
                   <div class="visible-card-row">
                     <article v-for="card in localBoard.propertyZoneCards || []" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
+                      <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
                       <span class="color-band" :style="colorStyle(card)"></span>
                       <span class="card-type">{{ cardKindLabel(card) }}</span>
                       <span class="card-art"><b>{{ cardIcon(card) }}</b></span>
@@ -693,6 +795,7 @@ function log(direction, text) {
                   @click="selectedCardId = card.id"
                   @dblclick.prevent.stop="quickPlay(card)"
                 >
+                  <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
                   <span class="color-band" :style="colorStyle(card)"></span>
                   <span class="card-type">{{ cardKindLabel(card) }}</span>
                   <span class="card-art">

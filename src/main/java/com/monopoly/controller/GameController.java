@@ -121,7 +121,7 @@ public class GameController implements AiGameBridge {
     }
 
     /**
-     * 开始新会话：从工厂取得有序 108 张牌，{@linkplain Collections#shuffle 洗牌} 后装入抽牌堆并发初始手牌。
+     * 开始新会话：从工厂取得有序标准可游戏牌，{@linkplain Collections#shuffle 洗牌} 后装入抽牌堆并发初始手牌。
      * 读档恢复牌序走 {@link com.monopoly.persistence.GameSessionMemento}，不经过本方法的洗牌逻辑。
      */
     public void startNewSession(StartSessionRequest req) {

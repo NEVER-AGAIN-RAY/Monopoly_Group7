@@ -33,6 +33,7 @@ public final class AiHeuristics {
 
     private static final String[] ACTION_TRY_ORDER = {
             "RENT",
+            "RENT_DUAL",
             "DOUBLE_RENT",
             "DEBT_COLLECTOR",
             "FORCED_DEAL",
@@ -363,6 +364,7 @@ public final class AiHeuristics {
             Random rng) {
         return switch (wanted.toUpperCase(Locale.ROOT)) {
             case "RENT" -> buildRentLike(bot, context, ac, false, profile, rng);
+            case "RENT_DUAL" -> buildRentDual(bot, context, ac, profile, rng);
             case "DOUBLE_RENT" -> buildRentLike(bot, context, ac, true, profile, rng);
             case "DEBT_COLLECTOR" -> buildDebtCollector(bot, context, ac, profile, rng);
             case "FORCED_DEAL" -> buildForcedDeal(bot, context, ac, profile, rng);
@@ -424,6 +426,49 @@ public final class AiHeuristics {
                     if (payable < due) {
                         continue;
                     }
+                }
+                PlayActionRequest req = new PlayActionRequest();
+                req.setActionType("ACTION");
+                req.setCardId(ac.getId());
+                req.setTargetPlayerId(opp.getPlayerId());
+                req.setTargetColorKey(color);
+                return req;
+            }
+        }
+        return null;
+    }
+
+    private static PlayActionRequest buildRentDual(
+            AIPlayer bot,
+            GameContext context,
+            ActionCard ac,
+            AiStrategyProfile profile,
+            Random rng) {
+        List<String> colors = new ArrayList<>(ac.getRentPaletteView());
+        List<Player> opps = opponentsExcluding(bot, context);
+        if (colors.isEmpty() || opps.isEmpty()) {
+            return null;
+        }
+        if (profile == AiStrategyProfile.EASY) {
+            Collections.shuffle(colors, rng);
+            Collections.shuffle(opps, rng);
+        } else if (profile == AiStrategyProfile.NORMAL) {
+            opps.sort(Comparator.comparingInt(Player::totalBankValueM).reversed());
+        } else {
+            opps.sort(Comparator.comparingInt(AiHeuristics::threatScore).reversed());
+        }
+        for (Player opp : opps) {
+            for (String color : colors) {
+                ActionParamContext probe = new ActionParamContext(
+                        ac.getId(),
+                        null,
+                        opp.getPlayerId(),
+                        color,
+                        null,
+                        null,
+                        null);
+                if (!ac.canPlay(bot, probe, context)) {
+                    continue;
                 }
                 PlayActionRequest req = new PlayActionRequest();
                 req.setActionType("ACTION");
@@ -629,7 +674,7 @@ public final class AiHeuristics {
             if (!(c instanceof PropertyWildCard wild)) {
                 continue;
             }
-            String color = pickWildColor(bot, profile, rng);
+            String color = pickWildDeployColor(bot, wild, profile, rng);
             PlayActionRequest req = new PlayActionRequest();
             req.setActionType("DEPLOY");
             req.setCardId(wild.getId());
@@ -643,6 +688,34 @@ public final class AiHeuristics {
             }
         }
         return false;
+    }
+
+    private static String pickWildDeployColor(
+            AIPlayer bot,
+            PropertyWildCard wild,
+            AiStrategyProfile profile,
+            Random rng) {
+        List<String> printed = new ArrayList<>(wild.getPrintedColorPairView());
+        if (printed.isEmpty()) {
+            return pickWildColor(bot, profile, rng);
+        }
+        if (profile == AiStrategyProfile.EASY) {
+            Collections.shuffle(printed, rng);
+            return printed.get(0);
+        }
+        String best = printed.get(0);
+        int bestScore = -1;
+        for (String color : printed) {
+            String key = color == null ? "" : color.trim().toUpperCase(Locale.ROOT);
+            int eff = PropertySetCalculator.effectiveCountForColor(bot.getPropertyCardsView(), key);
+            int need = PropertySetCalculator.REQUIRED_BY_COLOR.getOrDefault(key, 3);
+            int score = eff * 100 / Math.max(1, need);
+            if (score > bestScore) {
+                bestScore = score;
+                best = key;
+            }
+        }
+        return best;
     }
 
     private static boolean tryDeployProperty(AIPlayer bot, AiGameBridge bridge, AiStrategyProfile profile, Random rng) {
@@ -680,7 +753,7 @@ public final class AiHeuristics {
 
     private static boolean tryDeposit(AIPlayer bot, AiGameBridge bridge) {
         for (Card c : bot.getHandCardsView()) {
-            if (c instanceof ActionCard || c instanceof PropertyCard) {
+            if (c instanceof PropertyCard) {
                 continue;
             }
             PlayActionRequest req = new PlayActionRequest();

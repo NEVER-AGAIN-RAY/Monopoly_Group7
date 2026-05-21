@@ -49,7 +49,7 @@ class SaveLoadIntegrationTest {
         restored.importSessionJson(sessionJson);
 
         int totalCards = GameEngineSingleton.getInstance().countAllCardsInPlay(restored.getSessionPlayersView());
-        assertEquals(GameConstants.STANDARD_DECK_SIZE, totalCards, "恢复后全场牌数应为 108");
+        assertEquals(GameConstants.STANDARD_DECK_SIZE, totalCards, "恢复后全场牌数应守恒");
         assertEquals(expectedCurrentPlayerId, restored.getCurrentPlayer().getPlayerId(), "恢复后当前玩家应一致");
     }
 }

@@ -1387,3 +1387,99 @@ select:focus {
   background: #fff9df;
   text-align: left;
 }
+
+.game-over-backdrop {
+  z-index: 20;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(255, 209, 102, 0.2), transparent 30%),
+    rgba(2, 7, 9, 0.82);
+}
+
+.game-over-modal {
+  width: min(560px, 92vw);
+  border: 8px solid #7b4b23;
+  border-radius: 18px;
+  padding: 26px;
+  color: #263238;
+  background: #f9f4dc;
+  text-align: center;
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.52);
+}
+
+.game-over-modal.result-win {
+  border-color: #d4a11d;
+}
+
+.game-over-modal.result-lose {
+  border-color: #8b2f2f;
+}
+
+.result-label {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: #1f2933;
+  background: #ffd166;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.result-lose .result-label {
+  color: #fff8d8;
+  background: #b32626;
+}
+
+.result-ended .result-label {
+  color: #fff8d8;
+  background: #315d42;
+}
+
+.game-over-modal h2 {
+  margin: 12px 0 8px;
+  color: #c62828;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.result-win h2 {
+  color: #1b7a3b;
+}
+
+.game-over-modal p {
+  margin: 0;
+  color: #3f3929;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.game-over-modal small {
+  display: block;
+  margin-top: 10px;
+  color: #5d5a4f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.result-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.result-stats span {
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #263238;
+  background: rgba(49, 93, 66, 0.12);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.result-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}

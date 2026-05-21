@@ -21,6 +21,7 @@ const paymentSelection = ref(new Set())
 const notice = ref('')
 const actionBusy = ref(false)
 const busyCardId = ref('')
+const gameOverDismissed = ref(false)
 let socket = null
 
 const currentPlayerId = computed(() => state.value?.currentPlayerId || '')
@@ -60,9 +61,63 @@ const eventLine = computed(() => {
   if (actionBusy.value) return notice.value || '处理中...'
   return notice.value || state.value?.lastActionSummary || '摸牌、出牌和房产变化会显示在这里'
 })
+const winnerPlayer = computed(() => {
+  return players.value.find((p) => Number(p.completePropertySets || 0) >= 3) || null
+})
+const gameResult = computed(() => {
+  if (!state.value?.gameOver) return null
+  if (state.value.forceEndReason) {
+    return {
+      tone: 'ended',
+      label: '对局结束',
+      title: '游戏结束',
+      detail: forceEndText(state.value.forceEndReason),
+      summary: state.value.lastActionSummary || ''
+    }
+  }
+  const winner = winnerPlayer.value
+  if (winner) {
+    const won = winner.playerId === playerId.value
+    return {
+      tone: won ? 'win' : 'lose',
+      label: won ? '胜利' : '失败',
+      title: won ? '你赢了' : '你输了',
+      detail: won
+        ? '你已经集齐 3 套完整房产。'
+        : `${winner.displayName || winner.playerId} 集齐了 3 套完整房产。`,
+      summary: state.value.lastActionSummary || ''
+    }
+  }
+  const summary = state.value.lastActionSummary || '对局已结束。'
+  const mine = localPlayer.value
+  const maybeWon = summary.includes(playerId.value) || (mine?.displayName && summary.includes(mine.displayName))
+  return {
+    tone: maybeWon ? 'win' : 'ended',
+    label: maybeWon ? '胜利' : '结束',
+    title: maybeWon ? '你赢了' : '游戏结束',
+    detail: summary,
+    summary
+  }
+})
 
 function modeChanged() {
   playerId.value = gameMode.value === 'HVM' ? 'human-1' : 'pvp-1'
+}
+
+function forceEndText(reason) {
+  return ({
+    TIMEOUT: '本局因时间限制结束。',
+    ALL_QUIT: '所有玩家已退出，本局结束。'
+  })[reason] || `本局已强制结束：${reason}`
+}
+
+function dismissGameOver() {
+  gameOverDismissed.value = true
+}
+
+function backToSetupAfterGameOver() {
+  gameOverDismissed.value = true
+  screen.value = 'start'
 }
 
 function connect(autoStart = false) {
@@ -139,6 +194,7 @@ function handleMessage(raw) {
       state.value = payload
       screen.value = 'game'
       if (!awaitingPayment.value) paymentSelection.value = new Set()
+      if (!payload.gameOver) gameOverDismissed.value = false
       clearBusy()
       break
     case 'MY_HAND':
@@ -690,6 +746,24 @@ function log(direction, text) {
         <button v-for="(option, index) in optionSheet.options" :key="index" @click="playWithOption(option)">
           {{ option.labelZh || option.targetPlayerId || option.targetColorKey || '直接打出' }}
         </button>
+      </section>
+    </div>
+
+    <div v-if="gameResult && !gameOverDismissed" class="modal-backdrop game-over-backdrop">
+      <section class="game-over-modal" :class="`result-${gameResult.tone}`">
+        <span class="result-label">{{ gameResult.label }}</span>
+        <h2>{{ gameResult.title }}</h2>
+        <p>{{ gameResult.detail }}</p>
+        <small v-if="gameResult.summary">{{ gameResult.summary }}</small>
+        <div class="result-stats">
+          <span v-for="player in players" :key="player.playerId">
+            {{ player.displayName || player.playerId }} · {{ player.completePropertySets || 0 }}/3 套
+          </span>
+        </div>
+        <div class="result-actions">
+          <button class="primary small" @click="backToSetupAfterGameOver">回设置</button>
+          <button class="secondary small" @click="dismissGameOver">关闭结果</button>
+        </div>
       </section>
     </div>
   </main>

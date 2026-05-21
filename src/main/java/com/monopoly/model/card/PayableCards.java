@@ -1,7 +1,7 @@
 package com.monopoly.model.card;
 
 /**
- * 从卡牌读取支付面值（M）的工具。
+ * Reads Payable face value from any card.
  */
 public final class PayableCards {
 

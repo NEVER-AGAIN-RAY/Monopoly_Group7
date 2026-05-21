@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@link RentChargeSequence} 的 Gson 快照字段。
+ * Gson DTO for RentChargeSequence.
  */
 public final class RentChargeSequenceMemento {
 

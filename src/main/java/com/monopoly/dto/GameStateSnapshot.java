@@ -7,7 +7,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 对外可序列化为 JSON 的游戏状态快照（骨架字段可逐步充实）。
+ * Broadcast snapshot for STATE_UPDATE (public zones only).
  */
 public class GameStateSnapshot {
 
@@ -33,7 +33,7 @@ public class GameStateSnapshot {
     private long lastErrorTimestampEpochMs;
     /** 是否已结束对局（自然胜利或强制结束） */
     private boolean gameOver;
-    /** 强制结束原因，如 {@code TIMEOUT}；非强制结束时为 null */
+    /** 强制结束原因，如 TIMEOUT；非强制结束时为 null */
     private String forceEndReason;
     /** 最近一次操作的简述（供客户端 / JSON 展示），如摸牌、出牌、结束回合 */
     private String lastActionSummary;

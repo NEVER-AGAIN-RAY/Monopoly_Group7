@@ -3,9 +3,7 @@ package com.monopoly.dto;
 import java.util.List;
 
 /**
- * WebSocket 出牌指令载荷：支持按卡牌 ID 与行动参数描述一次出牌；
- * {@code actionType} 含 DEPLOY、DEPOSIT、ACTION、DISCARD（出牌阶段弃入手牌至弃牌堆，计入每回合 3 次行动上限）。
- * 客户端 envelope 仍为 {@code { "type": "PLAY", "payload": { ... } }}，本类对应 payload 对象。
+ * PLAY message payload: card id, actionType, targets (max 3 plays per turn).
  */
 public class PlayActionRequest {
 
@@ -24,12 +22,11 @@ public class PlayActionRequest {
     /** 偷牌目标分区：PROPERTY（财产区）或 BANK（银行堆） */
     private String targetZone;
     /**
-     * 在 {@code WAITING_FOR_RESPONSE} 阶段打出免租等非当前回合行动时，指定行动玩家 id
-     *（当前回合仍为收租方，被收租方需凭此字段出牌）。
+     * actingPlayerId for RESPONSE_PASS or waiver during rent response window.
      */
     private String actingPlayerId;
     /**
-     * {@code RESPONSE_PASS} 且为承租人时可选：指定用于支付首笔应付租金的银行/财产牌 id（不找零）。
+     * Optional paymentCardIds when tenant passes without Just Say No.
      */
     private List<String> paymentCardIds;
 

@@ -1,7 +1,7 @@
 package com.monopoly.model.effects;
 
 /**
- * 效果栈响应窗口：当前轮到谁打出 Just Say No 或放弃。
+ * Who may respond with Just Say No or pass.
  */
 public final class StackResponseState {
 

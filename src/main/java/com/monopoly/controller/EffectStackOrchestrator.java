@@ -22,14 +22,11 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 效果栈编排器：管理行动牌响应窗口、免租连锁（Just Say No）、
- * 响应超时定时器等逻辑，从 {@link GameController} 抽出。
+ * Orchestrates rent/Just-Say-No response windows and 15s timeouts (extracted from GameController).
  * <p>
- * 持有单线程 {@link ScheduledExecutorService}；通过包级回调与
- * {@link TurnFlowService} 协作完成回合阶段切换。
+ * Uses a single-thread scheduler; cooperates with TurnFlowService for phase changes.
  * <p>
- * <b>并发安全</b>：{@code pendingResponseFuture} 为 {@code volatile}，定时器回调
- * 通过 {@code deadlineEpochMs} 校验确保过期任务不会与主线程响应操作竞争。
+ * Timeout tasks compare deadlineEpochMs so stale timers cannot race with live responses.
  */
 final class EffectStackOrchestrator {
 
@@ -52,7 +49,7 @@ final class EffectStackOrchestrator {
         this.turnFlow = turnFlow;
     }
 
-    // ─── 响应窗口 ──────────────────────────────────────────
+    // --- response window ---
 
     void enterRentResponseWindow(Player tenant) {
         if (tenant == null) {
@@ -72,7 +69,7 @@ final class EffectStackOrchestrator {
                 "RENT_AWAITING_RESPONSE", rentSummary);
     }
 
-    // ─── 定时器 ────────────────────────────────────────────
+    // --- timeout scheduler ---
 
     void scheduleResponseTimeout(long deadlineEpochMs) {
         cancelPendingResponseTimeout();
@@ -97,14 +94,14 @@ final class EffectStackOrchestrator {
         }
     }
 
-    // ─── 响应/放弃 ─────────────────────────────────────────
+    // --- pass / explicit payment ---
 
     void performResponsePass(String actingPlayerId) {
         performResponsePass(actingPlayerId, null);
     }
 
     /**
-     * @param paymentCardIds 非空时：承租人指定用于<strong>首笔</strong>应付租金的银行/财产牌 id（找零不退）；仅 {@link StackResponseState.Role#TENANT} 阶段允许。
+     * When non-empty, tenant picks bank/property card ids for the first rent due (no change returned); TENANT role only.
      */
     void performResponsePass(String actingPlayerId, List<String> paymentCardIds) {
         if (actingPlayerId == null || actingPlayerId.isBlank()) {
@@ -142,7 +139,7 @@ final class EffectStackOrchestrator {
         resolveEffectStackAndResume("RESPONSE_PASS", paymentCardIds, tenantExplicit);
     }
 
-    // ─── 免租牌（Just Say No）响应 ────────────────────────
+    // --- Just Say No (rent waiver) ---
 
     void handleWaiverPlay(PlayActionRequest req) {
         Player actor = controller.resolvePlayer(req.getActingPlayerId());
@@ -200,7 +197,7 @@ final class EffectStackOrchestrator {
         }
     }
 
-    // ─── 效果栈结算 ────────────────────────────────────────
+    // --- resolve effect stack ---
 
     void resolveEffectStackAndResume(String phaseHint) {
         resolveEffectStackAndResume(phaseHint, null, null);
@@ -257,7 +254,7 @@ final class EffectStackOrchestrator {
         System.out.println("[EFFECT_STACK] " + phaseHint + " " + pay.getMessage());
     }
 
-    // ─── 响应提示（静态工具） ──────────────────────────────
+    // --- UI hint text ---
 
     static String buildPendingResponseHint(StackResponseState st) {
         if (st == null) {

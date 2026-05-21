@@ -24,10 +24,7 @@ import java.util.Locale;
 import java.util.Random;
 
 /**
- * AI 出牌启发式：三档 {@link AiStrategyProfile} 在相同公开信息下使用不同阶段顺序与目标选择。
- * <p>
- * 系统属性：{@code -Dmonopoly.ai.seed=<long>} 固定随机种子（便于测试）；
- * {@code -Dmonopoly.ai.trace=true} 输出决策轨迹。
+ * Shared AI heuristics for EASY/NORMAL/HARD. Flags: -Dmonopoly.ai.seed, -Dmonopoly.ai.trace.
  */
 public final class AiHeuristics {
 

@@ -3,9 +3,7 @@ package com.monopoly.model.settlement;
 import java.util.Locale;
 
 /**
- * Monopoly Deal 实体房产牌租金表：按「该颜色在财产区内的张数」取整套基础租（不含房屋/旅馆加值）。
- * <p>
- * 数值与常见 Hasbro 版牌面一致（棕/浅蓝/粉/橙/红/黄/绿/深蓝/铁路/公共）；多套同色时按「若干整套 + 余张」分段相加。
+ * Base rent tiers per color and card count (Hasbro-style); house/hotel added separately.
  */
 public final class RentTierTable {
 
@@ -13,7 +11,7 @@ public final class RentTierTable {
     }
 
     /**
-     * {@code tiers[i]} 表示该色持有 {@code i + 1} 张时的<strong>整套</strong>基础租（M）。
+     * tiers[i] = base rent when holding i+1 cards of that color.
      */
     public static int[] tiersForColor(String colorKey) {
         if (colorKey == null || colorKey.isBlank()) {
@@ -35,7 +33,7 @@ public final class RentTierTable {
         };
     }
 
-    /** 持有 {@code propertyCount} 张该色房产时的<strong>基础租合计</strong>（未计房/旅馆）。 */
+    /** 持有 propertyCount 张该色房产时的<strong>基础租合计</strong>（未计房/旅馆）。 */
     public static int baseRentForPropertyCount(String colorKey, int propertyCount) {
         if (propertyCount <= 0) {
             return 0;

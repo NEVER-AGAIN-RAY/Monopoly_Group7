@@ -1,7 +1,7 @@
 package com.monopoly.dto;
 
 /**
- * 某颜色在财产区的凑套进度（公开信息，用于客户端展示）。
+ * Public set progress for one color.
  */
 public final class PropertyColorProgress {
 

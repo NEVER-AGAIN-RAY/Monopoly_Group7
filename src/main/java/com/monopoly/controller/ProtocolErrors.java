@@ -1,9 +1,7 @@
 package com.monopoly.controller;
 
 /**
- * 协议级错误码常量与校验异常，从 {@link GameController} 抽出以单一职责化。
- * <p>
- * 网络层在 {@code PLAY} 分支捕获 {@link ProtocolValidationException} 后可直接取 {@code code} 回传客户端。
+ * WebSocket error codes; GameServer maps ProtocolValidationException to ERROR envelope.
  */
 public final class ProtocolErrors {
 

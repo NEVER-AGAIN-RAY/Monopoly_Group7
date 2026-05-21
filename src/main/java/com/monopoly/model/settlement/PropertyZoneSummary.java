@@ -13,7 +13,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 财产区公开汇总（按颜色张数等）。
+ * Public property zone summary by color.
  */
 public final class PropertyZoneSummary {
 
@@ -24,8 +24,7 @@ public final class PropertyZoneSummary {
     }
 
     /**
-     * 按颜色键统计财产区张数：普通房产用 {@link PropertyCard#getColorGroup()}；
-     * {@link PropertyWildCard} 用 {@link PropertyWildCard#getAssignedColorKey()}，未分配则用占位键。
+     * Counts cards per color including assigned wilds.
      */
     public static List<PropertyColorCount> summarizeByColor(List<PropertyCard> propertyCards) {
         if (propertyCards == null || propertyCards.isEmpty()) {
@@ -61,7 +60,7 @@ public final class PropertyZoneSummary {
     }
 
     /**
-     * 标准各色凑套进度：仅包含有至少一张有效计入该色的牌，或该色在标准轨道中且曾可考虑展示。
+     * Per-color progress toward a complete set for the UI.
      */
     public static List<PropertyColorProgress> colorProgress(List<PropertyCard> propertyZone) {
         if (propertyZone == null || propertyZone.isEmpty()) {

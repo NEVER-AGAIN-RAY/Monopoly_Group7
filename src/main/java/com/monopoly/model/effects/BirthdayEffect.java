@@ -6,7 +6,7 @@ import com.monopoly.model.player.Player;
 import java.util.List;
 
 /**
- * It's My Birthday：每位其他玩家向行动方支付 2M（从银行堆结算，无力足额则尽力支付失败条目标记）。
+ * It's My Birthday: each other player pays 2M from bank (partial pay marks failed entries).
  */
 public final class BirthdayEffect implements ActionEffect {
 

@@ -3,7 +3,7 @@ package com.monopoly.model.settlement;
 import java.util.Locale;
 
 /**
- * 房屋 / 旅馆能否加在某一颜色轨道上（实体规则：铁路、公共事业不可加盖）。
+ * Whether house/hotel can be placed (not on railroad/utility).
  */
 public final class BuildingPlacementRules {
 

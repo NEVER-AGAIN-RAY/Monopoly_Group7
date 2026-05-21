@@ -9,9 +9,9 @@ import com.monopoly.pattern.singleton.GameEngineSingleton;
 import java.util.logging.Logger;
 
 /**
- * 租金结算，从 {@link GameController} 抽出。
+ * Rent collection and payment (extracted from GameController).
  * <p>
- * 不持有可变状态；通过 {@link GameController} 包级方法完成会话检查与快照推送。
+ * Stateless; uses controller for session checks and STATE_UPDATE snapshots.
  */
 final class RentSettlementService {
 

@@ -5,7 +5,7 @@ import com.monopoly.model.core.GameContext;
 import com.monopoly.model.player.Player;
 
 /**
- * 钱币卡：面值（M），可存入银行并用于支付租金。
+ * Money card with face value in M.
  */
 public class MoneyCard extends Card implements Payable {
 

@@ -75,8 +75,8 @@ public final class HandCardJson {
     );
 
     private static final Map<String, String> EFFECT_HINT = Map.ofEntries(
-            Map.entry("RENT", "须该色完整套；按牌面租金表收租。选颜色与对手。"),
-            Map.entry("RENT_DUAL", "卡面色组二选一（须该色完整套）；其余每名玩家依次付租，每人可打免租。"),
+            Map.entry("RENT", "拥有该色至少 1 张房产即可按牌面租金表收租。选颜色与对手。"),
+            Map.entry("RENT_DUAL", "卡面色组二选一；拥有所选颜色至少 1 张房产即可收租。"),
             Map.entry("DOUBLE_RENT", "下一张租金卡效果翻倍。"),
             Map.entry("STEAL_PROPERTY", "从一名对手财产区偷一张房产。"),
             Map.entry("FORCED_DEAL", "用你的财产与对手交换。"),
@@ -90,8 +90,8 @@ public final class HandCardJson {
     );
 
     private static final Map<String, String> EFFECT_HINT_EN = Map.ofEntries(
-            Map.entry("RENT", "Requires a complete set of that color; charge rent per the rent table. Pick color and opponent."),
-            Map.entry("RENT_DUAL", "Pick one of the two colors (requires complete set); all other players pay rent in turn, each may play Just Say No."),
+            Map.entry("RENT", "Own at least 1 property of that color to charge rent per the rent table. Pick color and opponent."),
+            Map.entry("RENT_DUAL", "Pick one of the two colors you own; all other players pay rent in turn, each may play Just Say No."),
             Map.entry("DOUBLE_RENT", "Doubles the next rent card played."),
             Map.entry("STEAL_PROPERTY", "Steal one property from an opponent."),
             Map.entry("FORCED_DEAL", "Swap one of your properties with an opponent's."),
@@ -160,10 +160,12 @@ public final class HandCardJson {
             o.addProperty("titleEn", ce + " Property");
             int bBonus = (ck == null || ck.isBlank()) ? 0 : RentCalculator.buildingBonusM(pc);
             o.addProperty("hintZh",
-                    "抵押价值 " + pc.getPaymentValue() + "M。凑齐 " + need + " 张为完整套后方可对该色收租（胜利条件同套数）。"
-                            + " 本张对收租的建筑加值 " + bBonus + "M（房屋 +3M；旅馆共 +7M）；整套基础租见下方阶梯。");
+                    "抵押价值 " + pc.getPaymentValue() + "M。拥有该色至少 1 张即可按阶梯收租；凑齐 "
+                            + need + " 张为完整套（胜利、加盖房屋和旅馆使用）。"
+                            + " 本张对收租的建筑加值 " + bBonus + "M（房屋 +3M；旅馆共 +7M）；基础租见下方阶梯。");
             o.addProperty("hintEn",
-                    "Mortgage value " + pc.getPaymentValue() + "M. Collect " + need + " cards for a complete set to charge rent."
+                    "Mortgage value " + pc.getPaymentValue() + "M. Own at least 1 card of this color to charge tiered rent; "
+                            + need + " cards make a complete set for victory and buildings."
                             + " Building bonus " + bBonus + "M (House +3M; Hotel +7M total). See rent tiers below.");
             if (ck != null && !ck.isBlank()) {
                 o.addProperty("rentDetailZh", RentScheduleText.forColorKey(ck));
@@ -195,14 +197,14 @@ public final class HandCardJson {
             String baseHint = EFFECT_HINT.getOrDefault(code, "打出后按提示选择目标。");
             String baseHintEn = EFFECT_HINT_EN.getOrDefault(code, "Play and follow prompts to pick a target.");
             if ("RENT".equals(code) && ac.isWildcardRentCard()) {
-                baseHint = "卡面多色；任选一种你已有完整套的颜色，向一名对手收租。";
-                baseHintEn = "Multi-color card; pick any color you have a complete set of to charge one opponent.";
+                baseHint = "卡面多色；任选一种你已拥有的颜色，向一名对手收租。";
+                baseHintEn = "Multi-color card; pick any color you own to charge one opponent.";
             } else if ("RENT_DUAL".equals(code) && ac.isRentDualChargesEachOtherPlayer()) {
-                baseHint = "卡面两色选一（须完整套）；其余每名玩家依次付租，每人可打免租。";
-                baseHintEn = "Pick one of two colors (requires complete set); all other players pay rent, each may play Just Say No.";
+                baseHint = "卡面两色选一；其余每名玩家依次付租，每人可打免租。";
+                baseHintEn = "Pick one of the two colors you own; all other players pay rent, each may play Just Say No.";
             } else if ("RENT_DUAL".equals(code)) {
-                baseHint = "卡面两色选一（须完整套）；向一名对手按该色收租。";
-                baseHintEn = "Pick one of two colors (requires complete set); charge one opponent rent.";
+                baseHint = "卡面两色选一；向一名对手按该色收租。";
+                baseHintEn = "Pick one of the two colors you own; charge one opponent rent.";
             }
             o.addProperty("hintZh", baseHint + " 存入银行作 " + ac.getBankValueM() + "M。");
             o.addProperty("hintEn", baseHintEn + " Bank value " + ac.getBankValueM() + "M.");

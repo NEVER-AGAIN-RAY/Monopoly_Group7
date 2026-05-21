@@ -522,7 +522,7 @@ final class TurnFlowService {
         String phase = result.isSuccess() ? "ACTION_SUCCESS"
                 : (result.getStatus() == ActionEffectResult.Status.COUNTERED
                         ? "ACTION_COUNTERED" : "ACTION_FAILED");
-        String actionSummary = actor.getDisplayName() + " action " + card.getEffectCode()
+        String actionSummary = actor.getDisplayName() + " played ACTION (" + card.getName() + ")"
                 + ": " + (result.getMessage() != null ? result.getMessage() : phase);
         controller.pushSnapshot(controller.getCurrentSessionId(), phase, actionSummary);
 

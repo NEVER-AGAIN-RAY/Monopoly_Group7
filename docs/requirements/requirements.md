@@ -29,7 +29,7 @@
 
 #### 2.1.3 Core Mechanics
 
-- The system calculates rent based on completed property sets and applies payment rules.
+- The system calculates rent from the selected color's property-count rent tier and applies payment rules.
 - Rent payment uses bank cards and/or property cards; hand cards cannot be used for direct payment.
 - Overpayment returns no change.
 - Wild property cards can be reassigned by color and are included in property-set completion checks.

@@ -1099,6 +1099,8 @@ public class MainController {
                 return;
             }
             JsonArray cards = payload.getAsJsonArray("cards");
+            int visibleIndex = 0;
+            int totalCards = cards.size();
             for (JsonElement el : cards) {
                 if (!el.isJsonObject()) {
                     continue;
@@ -1113,7 +1115,11 @@ public class MainController {
                 };
                 CardView cv = new CardView(data, kindClass);
                 cv.setToggleGroup(handToggleGroup);
+                double angle = Math.max(-7.0, Math.min(7.0, (visibleIndex - (totalCards - 1) / 2.0) * 1.15));
+                cv.setRotate(angle);
+                cv.setTranslateY(Math.abs(angle) * 0.55);
                 handStrip.getChildren().add(cv);
+                visibleIndex++;
             }
             handStrip.layout();
             handScroll.layout();

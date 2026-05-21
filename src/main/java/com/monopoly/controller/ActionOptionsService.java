@@ -102,7 +102,7 @@ public final class ActionOptionsService {
         }
         String paletteLabel = String.join(" / ", card.getRentPaletteView());
         for (String color : card.getRentPaletteView()) {
-            if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), color)) {
+            if (PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), color) <= 0) {
                 continue;
             }
             ActionEffectContext ctx = ActionEffectContext
@@ -121,7 +121,7 @@ public final class ActionOptionsService {
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("卡面色组中暂无你已凑齐完整套的颜色。");
+            out.setError("卡面色组中暂无你拥有的颜色。");
         }
     }
 
@@ -140,7 +140,7 @@ public final class ActionOptionsService {
         }
         String paletteLabel = String.join(" / ", card.getRentPaletteView());
         for (String color : card.getRentPaletteView()) {
-            if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), color)) {
+            if (PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), color) <= 0) {
                 continue;
             }
             for (Player tenant : others) {
@@ -161,7 +161,7 @@ public final class ActionOptionsService {
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("卡面色组中暂无你已凑齐完整套的颜色与对手组合。");
+            out.setError("卡面色组中暂无你拥有的颜色与对手组合。");
         }
     }
 
@@ -173,7 +173,7 @@ public final class ActionOptionsService {
             ActionOptionsResult out,
             boolean doubled) {
         for (String color : PropertySetCalculator.REQUIRED_BY_COLOR.keySet()) {
-            if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), color)) {
+            if (PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), color) <= 0) {
                 continue;
             }
             for (Player tenant : others) {

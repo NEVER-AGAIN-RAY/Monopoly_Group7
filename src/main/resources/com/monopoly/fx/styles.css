@@ -1,160 +1,541 @@
-/* Monopoly Deal 风格桌面客户端（原创扁平样式，非官方美术） */
+/* Original Monopoly Deal-inspired tabletop UI. No official artwork is used. */
 
 .root {
-    -fx-font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-    -fx-background-color: #eceff1;
+    -fx-font-family: "SF Pro Text", "Segoe UI", "Microsoft YaHei", sans-serif;
+    -fx-background-color: #101418;
+    -fx-font-size: 13px;
 }
 
-.tab-pane .tab-header-area .tab {
-    -fx-background-radius: 6 6 0 0;
+.root-tabs {
+    -fx-background-color: #101418;
 }
 
-/* ---------- 快速开始卡片 ---------- */
-.quick-start-card {
-    -fx-background-color: #ffffff;
-    -fx-background-radius: 14;
-    -fx-border-color: #bbdefb;
-    -fx-border-radius: 14;
+.tab-pane .tab-header-area {
+    -fx-padding: 6 10 0 10;
+}
+
+.tab-pane .tab-header-background {
+    -fx-background-color: #101418;
+}
+
+.tab-pane .tab {
+    -fx-background-color: #222a31;
+    -fx-background-radius: 8 8 0 0;
+    -fx-padding: 6 16 7 16;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: #f7f0d5;
+}
+
+.tab-pane .tab .tab-label {
+    -fx-text-fill: #d8dee6;
+    -fx-font-weight: bold;
+}
+
+.tab-pane .tab:selected .tab-label {
+    -fx-text-fill: #192026;
+}
+
+.game-screen {
+    -fx-background-color:
+        radial-gradient(center 50% 35%, radius 85%, rgba(46, 125, 86, 0.48), rgba(10, 17, 20, 0.98)),
+        linear-gradient(to bottom, #172126, #0c1014);
+}
+
+.game-shell {
+    -fx-padding: 12 16 14 16;
+}
+
+.hud-wrap {
+    -fx-padding: 0 0 8 0;
+}
+
+.game-hud {
+    -fx-background-color: rgba(247, 240, 213, 0.94);
+    -fx-background-radius: 10;
+    -fx-border-color: rgba(52, 39, 20, 0.25);
+    -fx-border-radius: 10;
+    -fx-padding: 10 12 10 14;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.28), 14, 0.25, 0, 4);
+}
+
+.hud-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #c62828;
+}
+
+.hud-subtitle {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #315d42;
+}
+
+.hud-summary {
+    -fx-text-fill: #263238;
+    -fx-font-size: 12px;
+}
+
+.table-error,
+.setup-error {
+    -fx-background-color: #ffebee;
+    -fx-background-radius: 8;
+    -fx-border-color: #ef9a9a;
+    -fx-border-radius: 8;
+    -fx-text-fill: #b71c1c;
+    -fx-font-weight: bold;
+    -fx-padding: 8 12 8 12;
+}
+
+.table-layout {
+    -fx-padding: 0;
+}
+
+.felt-table {
+    -fx-background-color:
+        radial-gradient(center 50% 45%, radius 78%, #2f8a5f, #155236 68%, #0d3023 100%);
+    -fx-background-radius: 34;
+    -fx-border-color: #7b4b23, rgba(255, 255, 255, 0.18);
+    -fx-border-width: 14, 1;
+    -fx-border-radius: 38, 27;
+    -fx-padding: 18 20 20 20;
+    -fx-effect: innershadow(gaussian, rgba(0, 0, 0, 0.52), 28, 0.2, 0, 0),
+                dropshadow(gaussian, rgba(0, 0, 0, 0.42), 18, 0.28, 0, 6);
+}
+
+.section-title {
+    -fx-font-size: 13px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #ffe9a7;
+}
+
+.boards-scroll,
+.hand-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-padding: 0;
+}
+
+.boards-scroll > .viewport,
+.hand-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.boards-scroll .scroll-bar:horizontal,
+.hand-scroll .scroll-bar:horizontal {
+    -fx-background-color: rgba(0, 0, 0, 0.18);
+}
+
+.player-board-row {
+    -fx-alignment: center;
+}
+
+.center-table-row {
+    -fx-padding: 2 0 2 0;
+}
+
+.deck-pile {
+    -fx-min-width: 112px;
+    -fx-pref-width: 112px;
+}
+
+.deck-card-back,
+.discard-card-face {
+    -fx-min-width: 88px;
+    -fx-min-height: 126px;
+    -fx-pref-width: 88px;
+    -fx-pref-height: 126px;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
     -fx-border-width: 2;
-    -fx-padding: 24 32 24 32;
-    -fx-effect: dropshadow(gaussian, rgba(25, 118, 210, 0.12), 12, 0, 0, 3);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.32), 10, 0.24, 0, 4);
+}
+
+.deck-card-back {
+    -fx-background-color:
+        linear-gradient(from 0% 0% to 100% 100%, #bd1f2d 0%, #bd1f2d 42%, #e7cc63 43%, #e7cc63 56%, #8f1621 57%, #8f1621 100%),
+        #c62828;
+    -fx-border-color: #fff6cf;
+}
+
+.discard-card-face {
+    -fx-background-color: linear-gradient(to bottom, #f9f4dc, #e9dba9);
+    -fx-border-color: #6d5534;
+}
+
+.deck-card-text,
+.discard-card-text {
+    -fx-font-size: 12px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #fff8d5;
+}
+
+.discard-card-text {
+    -fx-text-fill: #69532f;
+}
+
+.deck-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #d7e8d0;
+}
+
+.action-guide {
+    -fx-min-width: 360px;
+    -fx-pref-width: 430px;
+    -fx-max-width: 520px;
+    -fx-background-color: rgba(248, 240, 206, 0.96);
+    -fx-background-radius: 14;
+    -fx-border-color: rgba(89, 65, 31, 0.28);
+    -fx-border-radius: 14;
+    -fx-border-width: 1;
+    -fx-padding: 18 22 18 22;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 12, 0.18, 0, 4);
+}
+
+.action-guide-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #1b5e3d;
+}
+
+.action-guide-step {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4b3d25;
+    -fx-wrap-text: true;
+}
+
+.action-guide-wait {
+    -fx-background-color: rgba(222, 229, 224, 0.95);
+    -fx-border-color: rgba(255, 255, 255, 0.45);
+}
+
+.action-guide-wait .action-guide-title {
+    -fx-text-fill: #546e7a;
+}
+
+.rent-payment-panel {
+    -fx-max-width: 760px;
+    -fx-background-color: rgba(34, 42, 49, 0.94);
+    -fx-background-radius: 14;
+    -fx-border-color: #ffd166;
+    -fx-border-radius: 14;
+    -fx-padding: 14 16 14 16;
+}
+
+.rent-title {
+    -fx-font-weight: 900;
+    -fx-text-fill: #ffe082;
+}
+
+.rent-sum {
+    -fx-text-fill: #d8dee6;
+}
+
+.hand-dock {
+    -fx-background-color: rgba(10, 14, 18, 0.80);
+    -fx-background-radius: 18;
+    -fx-border-color: rgba(255, 255, 255, 0.10);
+    -fx-border-radius: 18;
+    -fx-padding: 12 14 10 14;
+}
+
+.selected-card-label {
+    -fx-text-fill: #d7e8d0;
+    -fx-font-size: 12px;
+}
+
+.action-bar {
+    -fx-background-color: rgba(14, 20, 24, 0.96);
+    -fx-background-radius: 14;
+    -fx-border-color: rgba(255, 255, 255, 0.10);
+    -fx-border-radius: 14;
+    -fx-padding: 12 14 12 14;
+}
+
+.action-hint {
+    -fx-text-fill: #d8dee6;
+    -fx-font-weight: bold;
+}
+
+.quick-start-card {
+    -fx-background-color: rgba(249, 244, 220, 0.98);
+    -fx-background-radius: 18;
+    -fx-border-color: #7b4b23, rgba(255, 255, 255, 0.65);
+    -fx-border-width: 6, 1;
+    -fx-border-radius: 22, 15;
+    -fx-padding: 28 34 30 34;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 28, 0.28, 0, 10);
 }
 
 .quick-start-title {
-    -fx-font-size: 28px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #0d47a1;
+    -fx-font-size: 42px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #c62828;
 }
 
 .quick-start-subtitle {
     -fx-font-size: 14px;
-    -fx-text-fill: #546e7a;
+    -fx-font-weight: bold;
+    -fx-text-fill: #315d42;
+}
+
+.setup-row {
+    -fx-padding: 4 0 2 0;
+}
+
+.setup-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #4b3d25;
+}
+
+.setup-hint {
+    -fx-text-fill: #4c5b4c;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-max-width: 560px;
+    -fx-alignment: center;
+}
+
+.advanced-pane {
+    -fx-max-width: 650px;
+}
+
+.advanced-content {
+    -fx-background-color: #f6edcf;
+    -fx-padding: 10 12 12 12;
+}
+
+.connection-status {
+    -fx-text-fill: #315d42;
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+}
+
+.button {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-cursor: hand;
+    -fx-font-weight: 900;
+    -fx-padding: 8 13 8 13;
+}
+
+.button:disabled {
+    -fx-opacity: 0.42;
+    -fx-cursor: default;
 }
 
 .btn-start-game {
-    -fx-background-color: linear-gradient(to bottom, #1e88e5, #1565c0);
+    -fx-background-color: linear-gradient(to bottom, #d32f2f, #b71c1c);
     -fx-text-fill: white;
-    -fx-font-size: 18px;
-    -fx-font-weight: bold;
-    -fx-padding: 12 48 12 48;
-    -fx-background-radius: 8;
-    -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, rgba(21, 101, 192, 0.3), 6, 0, 0, 2);
+    -fx-font-size: 20px;
+    -fx-padding: 13 54 13 54;
+    -fx-effect: dropshadow(gaussian, rgba(183, 28, 28, 0.34), 9, 0.24, 0, 3);
 }
 
 .btn-start-game:hover {
-    -fx-background-color: linear-gradient(to bottom, #1565c0, #0d47a1);
+    -fx-background-color: linear-gradient(to bottom, #e53935, #c62828);
 }
 
-.btn-start-game:pressed {
-    -fx-background-color: #0d47a1;
+.btn-guide-link {
+    -fx-background-color: transparent;
+    -fx-text-fill: #1565c0;
+    -fx-font-size: 12px;
+    -fx-underline: true;
+    -fx-padding: 2 0 2 0;
+}
+
+.btn-secondary,
+.btn-quiet {
+    -fx-background-color: #e7dcc0;
+    -fx-text-fill: #3f301b;
+    -fx-border-color: rgba(63, 48, 27, 0.18);
+}
+
+.btn-secondary:hover,
+.btn-quiet:hover {
+    -fx-background-color: #f2e5c5;
 }
 
 .btn-disconnect {
-    -fx-background-color: #ef5350;
+    -fx-background-color: #7f1d1d;
     -fx-text-fill: white;
 }
 
-.btn-disconnect:hover {
-    -fx-background-color: #c62828;
+.btn-draw {
+    -fx-background-color: linear-gradient(to bottom, #ffd166, #f9a825);
+    -fx-text-fill: #372809;
 }
 
-/* ---------- 卡牌 ---------- */
+.btn-end-turn {
+    -fx-background-color: #f8f0ce;
+    -fx-text-fill: #263238;
+}
+
+.btn-deposit {
+    -fx-background-color: #2e7d32;
+    -fx-text-fill: white;
+}
+
+.btn-deploy {
+    -fx-background-color: #1565c0;
+    -fx-text-fill: white;
+}
+
+.btn-action {
+    -fx-background-color: #6a1b9a;
+    -fx-text-fill: white;
+}
+
+.btn-discard {
+    -fx-background-color: #607d8b;
+    -fx-text-fill: white;
+}
+
+.btn-confirm {
+    -fx-background-color: #1b5e20;
+    -fx-text-fill: white;
+}
+
+.btn-auto {
+    -fx-background-color: #0d47a1;
+    -fx-text-fill: white;
+}
+
+.info-page,
+.debug-page {
+    -fx-background-color: #111820;
+}
+
+.debug-top {
+    -fx-padding: 10;
+    -fx-background-color: #172126;
+}
+
+.debug-grid {
+    -fx-background-color: #f6edcf;
+}
+
+.traffic-area {
+    -fx-font-family: "Menlo", "Consolas", monospace;
+    -fx-control-inner-background: #0b1116;
+    -fx-text-fill: #d8dee6;
+}
+
+/* Cards in hand */
 .card {
-    -fx-pref-width: 118px;
-    -fx-pref-height: 176px;
-    -fx-min-width: 118px;
-    -fx-min-height: 176px;
-    -fx-max-width: 118px;
-    -fx-max-height: 176px;
-    -fx-background-radius: 10;
-    -fx-border-radius: 10;
-    -fx-border-color: rgba(0, 0, 0, 0.18);
-    -fx-border-width: 1;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 6, 0.2, 0, 2);
-    -fx-cursor: hand;
+    -fx-pref-width: 134px;
+    -fx-pref-height: 196px;
+    -fx-min-width: 134px;
+    -fx-min-height: 196px;
+    -fx-max-width: 134px;
+    -fx-max-height: 196px;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-border-color: rgba(35, 24, 12, 0.58);
+    -fx-border-width: 1.4;
+    -fx-padding: 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.35), 12, 0.22, 0, 5);
 }
 
 .card:hover {
-    -fx-border-color: #1976d2;
-    -fx-effect: dropshadow(gaussian, rgba(25, 118, 210, 0.35), 10, 0.2, 0, 3);
+    -fx-translate-y: -8;
+    -fx-border-color: #fff2a8;
+    -fx-effect: dropshadow(gaussian, rgba(255, 226, 106, 0.38), 18, 0.28, 0, 7);
 }
 
 .card-selected {
-    -fx-border-color: #0d47a1;
-    -fx-border-width: 2;
-    -fx-effect: dropshadow(gaussian, rgba(13, 71, 161, 0.45), 12, 0.25, 0, 3);
+    -fx-translate-y: -12;
+    -fx-border-color: #ffd166;
+    -fx-border-width: 3;
+}
+
+.card:selected {
+    -fx-translate-y: -12;
+    -fx-border-color: #ffd166;
+    -fx-border-width: 3;
 }
 
 .card-money {
-    -fx-background-color: linear-gradient(to bottom, #fffde7, #fff9c4);
+    -fx-background-color: linear-gradient(to bottom, #fff8c5, #f7c948);
 }
 
 .card-property {
-    -fx-background-color: linear-gradient(to bottom, #fafafa, #eeeeee);
+    -fx-background-color: linear-gradient(to bottom, #fffdf4, #e8dfc7);
 }
 
 .card-wild {
-    -fx-background-color: linear-gradient(to bottom right, #e1bee7, #b3e5fc, #c8e6c9);
+    -fx-background-color: linear-gradient(to bottom right, #fff6d5, #e1bee7, #b3e5fc, #c8e6c9);
 }
 
 .card-action {
-    -fx-background-color: linear-gradient(to bottom, #e3f2fd, #bbdefb);
+    -fx-background-color: linear-gradient(to bottom, #f7fbff, #b7d7ff);
 }
 
 .card-unknown {
-    -fx-background-color: linear-gradient(to bottom, #eeeeee, #e0e0e0);
+    -fx-background-color: linear-gradient(to bottom, #f4f4f4, #d7d7d7);
+}
+
+.color-bar {
+    -fx-pref-height: 18px;
+    -fx-max-height: 18px;
+    -fx-min-height: 18px;
+    -fx-background-radius: 12 12 0 0;
 }
 
 .card-title {
-    -fx-font-size: 12px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #212121;
+    -fx-font-size: 13px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #1b1f23;
     -fx-wrap-text: true;
     -fx-text-alignment: center;
 }
 
 .card-hint {
     -fx-font-size: 10px;
-    -fx-text-fill: #424242;
+    -fx-font-weight: bold;
+    -fx-text-fill: #3f4a43;
     -fx-wrap-text: true;
-    -fx-opacity: 0.92;
+    -fx-text-alignment: center;
 }
 
 .card-rent-detail {
     -fx-font-size: 8px;
-    -fx-text-fill: #37474f;
+    -fx-text-fill: #455a64;
     -fx-wrap-text: true;
-    -fx-opacity: 0.88;
-    -fx-line-spacing: 1px;
+    -fx-text-alignment: center;
+}
+
+.card-meta {
+    -fx-font-size: 9px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #5c4b2c;
+    -fx-wrap-text: true;
 }
 
 .card-kind-badge {
     -fx-font-size: 9px;
-    -fx-text-fill: #546e7a;
-    -fx-padding: 2 6 2 6;
-    -fx-background-color: rgba(255, 255, 255, 0.65);
-    -fx-background-radius: 4;
+    -fx-font-weight: 900;
+    -fx-text-fill: #f8f0ce;
+    -fx-padding: 3 7 3 7;
+    -fx-background-color: rgba(24, 30, 36, 0.78);
+    -fx-background-radius: 7;
 }
 
 .card-value-corner {
-    -fx-font-size: 11px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #1565c0;
-    -fx-padding: 1 4 1 4;
-    -fx-background-color: rgba(255, 255, 255, 0.88);
-    -fx-background-radius: 4;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 2, 0, 0, 1);
+    -fx-font-size: 12px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #1f2933;
+    -fx-padding: 2 6 2 6;
+    -fx-background-color: rgba(255, 255, 255, 0.90);
+    -fx-background-radius: 7;
+    -fx-border-color: rgba(0, 0, 0, 0.12);
+    -fx-border-radius: 7;
 }
 
-.color-bar {
-    -fx-pref-height: 14px;
-    -fx-max-height: 14px;
-    -fx-min-height: 14px;
-    -fx-background-radius: 8 8 0 0;
-}
-
-/* 与后端 colorGroup 一致 */
 .color-BROWN { -fx-background-color: #795548; }
 .color-LIGHT_BLUE { -fx-background-color: #4fc3f7; }
 .color-PINK { -fx-background-color: #f06292; }
@@ -162,205 +543,108 @@
 .color-RED { -fx-background-color: #e53935; }
 .color-YELLOW { -fx-background-color: #ffeb3b; }
 .color-GREEN { -fx-background-color: #43a047; }
-.color-DARK_BLUE { -fx-background-color: #1e88e5; }
+.color-DARK_BLUE { -fx-background-color: #1e3a8a; }
 .color-RAILROAD { -fx-background-color: #5d4037; }
 .color-UTILITY { -fx-background-color: #90a4ae; }
 .color-WILD_BAR {
-    -fx-background-color: linear-gradient(to right, #e91e63, #9c27b0, #3f51b5, #009688);
+    -fx-background-color: linear-gradient(to right, #c62828, #ffb300, #2e7d32, #1565c0, #6a1b9a);
 }
 
-.color-WILD_UNASSIGNED {
-    -fx-background-color: #9e9e9e;
-}
-
-/* ---------- 玩家桌面块 ---------- */
+/* Player mats */
 .player-panel {
-    -fx-background-color: #ffffff;
-    -fx-background-radius: 8;
-    -fx-border-color: rgba(0, 0, 0, 0.08);
-    -fx-border-radius: 8;
-    -fx-padding: 10;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 4, 0, 0, 1);
+    -fx-min-width: 302px;
+    -fx-pref-width: 302px;
+    -fx-max-width: 302px;
+    -fx-background-color: rgba(247, 240, 213, 0.96);
+    -fx-background-radius: 14;
+    -fx-border-color: rgba(34, 24, 12, 0.35);
+    -fx-border-radius: 14;
+    -fx-padding: 10 12 12 12;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.30), 12, 0.22, 0, 5);
 }
 
 .player-panel-active {
-    -fx-border-color: #1976d2;
-    -fx-border-width: 2;
+    -fx-border-color: #ffd166;
+    -fx-border-width: 3;
+    -fx-effect: dropshadow(gaussian, rgba(255, 209, 102, 0.45), 18, 0.25, 0, 6);
 }
 
 .player-title {
-    -fx-font-size: 14px;
+    -fx-font-size: 15px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #192026;
+}
+
+.player-id {
+    -fx-font-size: 10px;
+    -fx-text-fill: #607d8b;
     -fx-font-weight: bold;
+}
+
+.player-avatar {
+    -fx-min-width: 34px;
+    -fx-min-height: 34px;
+    -fx-pref-width: 34px;
+    -fx-pref-height: 34px;
+    -fx-background-radius: 17;
+    -fx-background-color: #c62828;
+    -fx-alignment: center;
+    -fx-text-fill: white;
+    -fx-font-weight: 900;
 }
 
 .player-stats {
-    -fx-font-size: 11px;
+    -fx-font-size: 10px;
     -fx-text-fill: #455a64;
+    -fx-font-weight: bold;
+    -fx-wrap-text: true;
 }
 
 .zone-section-title {
-    -fx-font-size: 11px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #546e7a;
+    -fx-font-size: 10px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #5d4037;
+    -fx-padding: 4 0 0 0;
 }
 
 .zone-mini-card {
-    -fx-font-size: 10px;
-    -fx-text-fill: #263238;
-    -fx-padding: 4 6 4 6;
-    -fx-background-color: rgba(255, 255, 255, 0.75);
-    -fx-background-radius: 6;
-    -fx-border-color: rgba(0, 0, 0, 0.08);
-    -fx-border-radius: 6;
+    -fx-min-width: 72px;
+    -fx-pref-width: 82px;
+    -fx-min-height: 46px;
+    -fx-padding: 6 6 6 6;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-border-color: rgba(0, 0, 0, 0.18);
+    -fx-font-size: 9px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1f2933;
+    -fx-wrap-text: true;
 }
 
+.mini-money { -fx-background-color: #ffe082; }
+.mini-action { -fx-background-color: #bbdefb; }
+.mini-property { -fx-background-color: #fffaf0; }
+.mini-wild { -fx-background-color: linear-gradient(to right, #ffcdd2, #bbdefb, #c8e6c9); }
+
 .chip {
-    -fx-font-size: 10px;
+    -fx-font-size: 9px;
+    -fx-font-weight: 900;
     -fx-text-fill: #fff;
-    -fx-padding: 3 8 3 8;
+    -fx-padding: 4 8 4 8;
     -fx-background-radius: 12;
 }
 
 .chip.color-YELLOW {
-    -fx-text-fill: #333;
+    -fx-text-fill: #2d2206;
     -fx-background-color: #fbc02d;
 }
 
 .chip.color-BROWN { -fx-background-color: #795548; }
 .chip.color-LIGHT_BLUE { -fx-background-color: #039be5; }
 .chip.color-PINK { -fx-background-color: #d81b60; }
-.chip.color-ORANGE { -fx-background-color: #f57c00; }
+.chip.color-ORANGE { -fx-background-color: #ef6c00; }
 .chip.color-RED { -fx-background-color: #c62828; }
 .chip.color-GREEN { -fx-background-color: #2e7d32; }
-.chip.color-DARK_BLUE { -fx-background-color: #1565c0; }
+.chip.color-DARK_BLUE { -fx-background-color: #1e3a8a; }
 .chip.color-RAILROAD { -fx-background-color: #4e342e; }
 .chip.color-UTILITY { -fx-background-color: #546e7a; }
-
-.turn-guide {
-    -fx-font-size: 14px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #1565c0;
-    -fx-padding: 6 0 4 0;
-}
-
-.turn-guide-wait {
-    -fx-text-fill: #6d4c41;
-}
-
-/* ---------- 操作引导面板 ---------- */
-.action-guide {
-    -fx-background-color: #e3f2fd;
-    -fx-background-radius: 10;
-    -fx-border-color: #90caf9;
-    -fx-border-radius: 10;
-    -fx-border-width: 1;
-    -fx-padding: 12 16 12 16;
-}
-
-.action-guide-title {
-    -fx-font-size: 16px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #0d47a1;
-}
-
-.action-guide-step {
-    -fx-font-size: 13px;
-    -fx-text-fill: #1565c0;
-    -fx-padding: 2 0 2 12;
-}
-
-.action-guide-wait {
-    -fx-background-color: #eceff1;
-    -fx-border-color: #b0bec5;
-}
-
-.action-guide-wait .action-guide-title {
-    -fx-text-fill: #546e7a;
-}
-
-.action-guide-wait .action-guide-step {
-    -fx-text-fill: #78909c;
-}
-
-/* ---------- 连接面板 ---------- */
-.setup-panel {
-    -fx-background-color: #fafafa;
-    -fx-border-color: #e0e0e0;
-    -fx-border-radius: 6;
-    -fx-background-radius: 6;
-}
-
-/* ---------- 出牌按钮颜色 ---------- */
-.btn-deposit {
-    -fx-background-color: #43a047;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
-}
-
-.btn-deposit:hover {
-    -fx-background-color: #388e3c;
-}
-
-.btn-deploy {
-    -fx-background-color: #1e88e5;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
-}
-
-.btn-deploy:hover {
-    -fx-background-color: #1565c0;
-}
-
-.btn-action {
-    -fx-background-color: #7b1fa2;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
-}
-
-.btn-action:hover {
-    -fx-background-color: #6a1b9a;
-}
-
-.btn-discard {
-    -fx-background-color: #78909c;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
-}
-
-.btn-discard:hover {
-    -fx-background-color: #607d8b;
-}
-
-.btn-confirm {
-    -fx-background-color: #2e7d32;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
-}
-
-.btn-confirm:hover {
-    -fx-background-color: #1b5e20;
-}
-
-.btn-auto {
-    -fx-background-color: #1565c0;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
-}
-
-.btn-auto:hover {
-    -fx-background-color: #0d47a1;
-}
-
-/* ---------- 联机指南入口 ---------- */
-.btn-guide-link {
-    -fx-background-color: transparent;
-    -fx-text-fill: #1565c0;
-    -fx-font-size: 13px;
-    -fx-underline: true;
-    -fx-cursor: hand;
-    -fx-padding: 4 0 4 0;
-}
-
-.btn-guide-link:hover {
-    -fx-text-fill: #0d47a1;
-}

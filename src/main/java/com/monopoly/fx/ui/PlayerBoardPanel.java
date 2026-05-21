@@ -5,15 +5,17 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.monopoly.fx.I18n;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Label;
-import javafx.scene.control.TitledPane;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import java.util.Locale;
 
 /**
- * 单名玩家公开状态展示块（对局桌面）：银行/财产明细、凑套进度。
+ * A compact table mat for one player's public zones.
  */
 public final class PlayerBoardPanel extends VBox {
 
@@ -26,13 +28,21 @@ public final class PlayerBoardPanel extends VBox {
         if (activeTurn) {
             getStyleClass().add("player-panel-active");
         }
-        setSpacing(6);
-        setPadding(new Insets(10));
+        setSpacing(8);
+        setPadding(new Insets(10, 12, 12, 12));
 
-        String pid = jsonStr(playerObj, "playerId", "—");
+        String pid = jsonStr(playerObj, "playerId", "--");
         String pname = jsonStr(playerObj, "displayName", pid);
-        Label title = new Label(pname + "  (" + pid + ")");
+
+        Label avatar = new Label(initials(pname, pid));
+        avatar.getStyleClass().add("player-avatar");
+
+        Label title = new Label(pname);
         title.getStyleClass().add("player-title");
+        Label id = new Label(pid);
+        id.getStyleClass().add("player-id");
+        VBox names = new VBox(1, title, id);
+        HBox.setHgrow(names, Priority.ALWAYS);
 
         int hand = jsonInt(playerObj, "handCount", 0);
         int bank = jsonInt(playerObj, "bankCount", 0);
@@ -41,124 +51,113 @@ public final class PlayerBoardPanel extends VBox {
         int act = jsonInt(playerObj, "actionZoneCount", 0);
         int bankVal = jsonInt(playerObj, "bankTotalValueM", 0);
 
+        Label setsBadge = new Label(sets + "/3 SETS");
+        setsBadge.getStyleClass().addAll("chip", sets >= 3 ? "color-GREEN" : "color-RAILROAD");
+
+        HBox header = new HBox(9, avatar, names, setsBadge);
+        header.setAlignment(Pos.CENTER_LEFT);
+
         Label stats = new Label(I18n.get("board.stats", hand, bank, bankVal, prop, act, sets));
         stats.getStyleClass().add("player-stats");
 
-        FlowPane progressChips = new FlowPane();
-        progressChips.setHgap(6);
-        progressChips.setVgap(6);
-        if (playerObj.has("propertyColorProgress") && playerObj.get("propertyColorProgress").isJsonArray()) {
-            for (JsonElement el : playerObj.getAsJsonArray("propertyColorProgress")) {
-                if (!el.isJsonObject()) {
-                    continue;
-                }
-                JsonObject row = el.getAsJsonObject();
-                String ck = jsonStr(row, "colorKey", "");
-                int eff = jsonInt(row, "effectiveCount", 0);
-                int need = jsonInt(row, "need", 0);
-                int completeSets = jsonInt(row, "completeSets", 0);
-                if (ck.isEmpty()) {
-                    continue;
-                }
-                String cz = colorName(ck);
-                String txt = need > 0 ? (cz + " " + eff + "/" + need) : (cz + " x" + eff);
-                if (completeSets > 0) {
-                    txt += " " + I18n.get("board.complete", completeSets);
-                }
-                Label chip = new Label(txt);
-                chip.getStyleClass().addAll("chip", "color-" + ck);
-                progressChips.getChildren().add(chip);
-            }
-        }
-
-        TitledPane bankPane = new TitledPane();
-        bankPane.setText(I18n.get("board.bankCards"));
-        bankPane.setCollapsible(true);
-        bankPane.setExpanded(bank > 0 && bank <= 12);
+        FlowPane progressChips = progressChips(playerObj);
         FlowPane bankFlow = zoneCardFlow(playerObj.getAsJsonArray("bankCards"));
-        bankPane.setContent(wrapScroll(bankFlow));
-
-        TitledPane propPane = new TitledPane();
-        propPane.setText(I18n.get("board.propertyCards"));
-        propPane.setCollapsible(true);
-        propPane.setExpanded(prop > 0 && prop <= 10);
         FlowPane propFlow = zoneCardFlow(playerObj.getAsJsonArray("propertyZoneCards"));
-        propPane.setContent(wrapScroll(propFlow));
 
-        FlowPane legacyChips = new FlowPane();
-        legacyChips.setHgap(6);
-        legacyChips.setVgap(6);
-        if (playerObj.has("propertyCountsByColor") && playerObj.get("propertyCountsByColor").isJsonArray()) {
-            JsonArray arr = playerObj.getAsJsonArray("propertyCountsByColor");
-            for (JsonElement el : arr) {
-                if (!el.isJsonObject()) {
-                    continue;
-                }
-                JsonObject c = el.getAsJsonObject();
-                String ck = jsonStr(c, "colorKey", "");
-                int cnt = jsonInt(c, "count", 0);
-                if (cnt <= 0 || ck.isEmpty()) {
-                    continue;
-                }
-                Label chip = new Label(colorName(ck) + " x" + cnt);
-                chip.getStyleClass().addAll("chip", "color-" + ck);
-                legacyChips.getChildren().add(chip);
-            }
-        }
-
-        getChildren().addAll(title, stats);
+        getChildren().addAll(header, stats);
         if (!progressChips.getChildren().isEmpty()) {
-            Label pTitle = new Label(I18n.get("board.setProgress"));
-            pTitle.getStyleClass().add("zone-section-title");
-            getChildren().addAll(pTitle, progressChips);
+            getChildren().addAll(sectionTitle(I18n.get("board.setProgress")), progressChips);
         }
-        getChildren().addAll(bankPane, propPane);
-        if (!legacyChips.getChildren().isEmpty()) {
-            Label oTitle = new Label(I18n.get("board.colorCount"));
-            oTitle.getStyleClass().add("zone-section-title");
-            getChildren().addAll(oTitle, legacyChips);
-        }
+        getChildren().addAll(
+                sectionTitle(I18n.get("board.bankCards")), bankFlow,
+                sectionTitle(I18n.get("board.propertyCards")), propFlow
+        );
     }
 
-    private static VBox wrapScroll(FlowPane flow) {
-        VBox v = new VBox(flow);
-        v.setPadding(new Insets(4, 0, 4, 0));
-        return v;
+    private static Label sectionTitle(String text) {
+        Label label = new Label(text);
+        label.getStyleClass().add("zone-section-title");
+        return label;
+    }
+
+    private static FlowPane progressChips(JsonObject playerObj) {
+        FlowPane flow = new FlowPane();
+        flow.setHgap(6);
+        flow.setVgap(6);
+        if (!playerObj.has("propertyColorProgress") || !playerObj.get("propertyColorProgress").isJsonArray()) {
+            return flow;
+        }
+        for (JsonElement el : playerObj.getAsJsonArray("propertyColorProgress")) {
+            if (!el.isJsonObject()) {
+                continue;
+            }
+            JsonObject row = el.getAsJsonObject();
+            String ck = jsonStr(row, "colorKey", "");
+            int eff = jsonInt(row, "effectiveCount", 0);
+            int need = jsonInt(row, "need", 0);
+            int completeSets = jsonInt(row, "completeSets", 0);
+            if (ck.isEmpty()) {
+                continue;
+            }
+            String text = need > 0 ? colorName(ck) + " " + eff + "/" + need : colorName(ck) + " x" + eff;
+            if (completeSets > 0) {
+                text += " " + I18n.get("board.complete", completeSets);
+            }
+            Label chip = new Label(text);
+            chip.getStyleClass().addAll("chip", "color-" + ck);
+            flow.getChildren().add(chip);
+        }
+        return flow;
     }
 
     private static FlowPane zoneCardFlow(JsonArray arr) {
         FlowPane flow = new FlowPane();
         flow.setHgap(6);
         flow.setVgap(6);
-        if (arr == null) {
-            flow.getChildren().add(new Label(I18n.get("board.empty")));
+        if (arr == null || arr.isEmpty()) {
+            Label empty = new Label(I18n.get("board.empty"));
+            empty.getStyleClass().add("player-stats");
+            flow.getChildren().add(empty);
             return flow;
         }
-        boolean any = false;
         for (JsonElement el : arr) {
             if (!el.isJsonObject()) {
                 continue;
             }
             JsonObject c = el.getAsJsonObject();
-            any = true;
             Label lab = new Label(shortZoneLabel(c));
             lab.setWrapText(true);
-            lab.setMaxWidth(108);
-            lab.getStyleClass().add("zone-mini-card");
+            lab.getStyleClass().addAll("zone-mini-card", miniStyle(c));
             flow.getChildren().add(lab);
         }
-        if (!any) {
-            flow.getChildren().add(new Label(I18n.get("board.empty")));
+        if (flow.getChildren().isEmpty()) {
+            Label empty = new Label(I18n.get("board.empty"));
+            empty.getStyleClass().add("player-stats");
+            flow.getChildren().add(empty);
         }
         return flow;
+    }
+
+    private static String miniStyle(JsonObject c) {
+        String kind = jsonStr(c, "kind", "").toUpperCase(Locale.ROOT);
+        return switch (kind) {
+            case "MONEY" -> "mini-money";
+            case "ACTION" -> "mini-action";
+            case "PROPERTY" -> "mini-property";
+            case "WILD" -> "mini-wild";
+            default -> "mini-property";
+        };
     }
 
     private static String shortZoneLabel(JsonObject c) {
         String kind = jsonStr(c, "kind", "").toUpperCase(Locale.ROOT);
         int vm = jsonInt(c, "valueM", 0);
-        String title = jsonStr(c, "titleZh", "");
-        if (title.length() > 18) {
-            title = title.substring(0, 17) + "…";
+        String title = jsonStr(c, I18n.isChinese() ? "titleZh" : "titleEn", "");
+        if (title.isBlank()) {
+            title = jsonStr(c, "name", kind);
+        }
+        if (title.length() > 16) {
+            title = title.substring(0, 15) + "...";
         }
         String bl = jsonStr(c, "buildingLevel", "");
         String extra = "";
@@ -166,10 +165,19 @@ public final class PlayerBoardPanel extends VBox {
             extra = " " + bl;
         }
         return switch (kind) {
-            case "MONEY", "ACTION" -> (title.isBlank() ? kind : title) + " · " + vm + "M";
-            case "PROPERTY", "WILD" -> (title.isBlank() ? kind : title) + extra + " ·" + I18n.get("board.pledge") + vm + "M";
-            default -> title + " ·" + vm + "M";
+            case "MONEY", "ACTION" -> title + "\n" + vm + "M";
+            case "PROPERTY", "WILD" -> title + extra + "\n" + I18n.get("board.pledge") + " " + vm + "M";
+            default -> title + "\n" + vm + "M";
         };
+    }
+
+    private static String initials(String displayName, String playerId) {
+        String s = (displayName == null || displayName.isBlank()) ? playerId : displayName;
+        if (s == null || s.isBlank()) {
+            return "?";
+        }
+        String trimmed = s.trim();
+        return trimmed.substring(0, Math.min(2, trimmed.length())).toUpperCase(Locale.ROOT);
     }
 
     private static String jsonStr(JsonObject o, String k, String def) {

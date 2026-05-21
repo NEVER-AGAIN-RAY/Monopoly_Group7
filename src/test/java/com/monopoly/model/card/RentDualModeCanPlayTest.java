@@ -13,11 +13,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RentDualModeCanPlayTest {
 
     @Test
+    void rent_canPlayWithSinglePropertyInChosenColor() {
+        HumanPlayer actor = new HumanPlayer("a", "A");
+        actor.addToPropertyZone(new PropertyCard("p1", "n", "BROWN"));
+        ActionCard card = new ActionCard("r1", "r", "RENT");
+        HumanPlayer other = new HumanPlayer("b", "B");
+        GameContext ctx = new GameContext();
+        ctx.bindPlayers(List.of(actor, other));
+
+        ActionParamContext ok = new ActionParamContext(
+                "r1", null, "b", "BROWN", null, null, null);
+        assertTrue(card.canPlay(actor, ok, ctx));
+    }
+
+    @Test
     void rentDual1v1_requiresTargetPlayer() {
         HumanPlayer actor = new HumanPlayer("a", "A");
-        for (int i = 0; i < 3; i++) {
-            actor.addToPropertyZone(new PropertyCard("p" + i, "n", "BROWN"));
-        }
+        actor.addToPropertyZone(new PropertyCard("p1", "n", "BROWN"));
         ActionCard card = new ActionCard(
                 "r1", "r", "RENT_DUAL",
                 1,

@@ -187,7 +187,7 @@ public final class MonopolyDealRulesSummary {
         sb.append("<div class='card rent'>");
         sb.append("<div class='card-header'><div class='icon amber'>&#x1F4B3;</div><h2>").append(esc("收租规则")).append("</h2></div>");
         sb.append("<ul>");
-        sb.append("<li>").append(esc("须该颜色已形成")).append("<strong>").append(esc("完整套")).append("</strong>").append(esc("（含已声明该色的万能）")).append("</li>");
+        sb.append("<li>").append(esc("拥有该颜色至少 ")).append("<strong>1 ").append(esc("张房产")).append("</strong>").append(esc("（含已声明该色的万能）即可收租")).append("</li>");
         sb.append("<li>").append(esc("基础租按牌面阶梯计算，多套同色分段累计")).append("</li>");
         sb.append("<li>").append(esc("房屋 ")).append("<strong>+3M</strong>").append(esc("，旅馆 ")).append("<strong>+7M</strong></li>");
         sb.append("<li>").append(esc("铁路 / 公共事业不可加盖房 / 旅馆")).append("</li>");
@@ -318,7 +318,7 @@ public final class MonopolyDealRulesSummary {
         sb.append("<div class='card rent'>");
         sb.append("<div class='card-header'><div class='icon amber'>&#x1F4B3;</div><h2>Rent Rules</h2></div>");
         sb.append("<ul>");
-        sb.append("<li>Requires a <strong>complete set</strong> of that color (including wilds declared as that color)</li>");
+        sb.append("<li>Own at least <strong>1 property</strong> of that color (including declared wilds) to charge rent</li>");
         sb.append("<li>Base rent follows step table; multiple sets of same color accumulate in tiers</li>");
         sb.append("<li>House <strong>+3M</strong>, Hotel <strong>+7M</strong></li>");
         sb.append("<li>Railroad / Utility cannot have House / Hotel</li>");
@@ -381,8 +381,14 @@ public final class MonopolyDealRulesSummary {
             sb.append("  \u00B7 ").append(e.getKey()).append(" \u2192 ").append(e.getValue()).append("M\n");
         }
         sb.append("\n【房产抵押价值】棕色/深蓝/公共 2M；多数颜色 3M；铁路 4M。\n\n");
-        sb.append("【万能房产】作支付价值 0M。\n\n");
-        sb.append("【收租】须该颜色已形成完整套；房屋 +3M、旅馆 +7M。\n\n");
+        sb.append("【万能房产】作支付价值 0M。牌堆：2 张可声明任意标准色；9 张仅可声明为卡面印有的两色之一（见手牌 JSON wildKind / printedColors）。\n\n");
+
+        sb.append("【向导化出牌】出牌阶段可先发 `PLAY_OPTIONS`（playerId + cardId + actionType：DEPOSIT/DEPLOY/DISCARD/ACTION），")
+                .append("或仅用行动牌发 `ACTION_OPTIONS`；服务器返回选项后再 `PLAY`。\n\n");
+
+        sb.append("【收租】拥有该颜色至少 1 张房产（含已声明该色的万能）即可收租；基础租按实体 Monopoly Deal 牌面阶梯（见 RentTierTable），")
+                .append("多套同色分段累计；再加各张房屋 +3M、旅馆 +7M。铁路/公共事业不可加盖房/旅馆。")
+                .append(" 默认牌堆中 RENT_DUAL 为卡面两色选一向一名对手收租；房规可启用「全员依次」双色租（见代码标记）。\n\n");
         sb.append("【套数需求】");
         PropertySetCalculator.REQUIRED_BY_COLOR.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
@@ -404,8 +410,13 @@ public final class MonopolyDealRulesSummary {
             sb.append("  - ").append(e.getKey()).append(" -> ").append(e.getValue()).append("M\n");
         }
         sb.append("\n[PROPERTY VALUE] Brown/DarkBlue/Utility 2M; most colors 3M; Railroad 4M.\n\n");
-        sb.append("[WILD PROPERTY] Payment value 0M.\n\n");
-        sb.append("[RENT] Requires complete set; House +3M, Hotel +7M.\n\n");
+        sb.append("[WILD PROPERTY] Payment value 0M. Deck: 2 any-color wilds and 9 printed dual-color wilds.\n\n");
+        sb.append("[WIZARD PLAY] During play phase, send PLAY_OPTIONS (playerId + cardId + actionType: DEPOSIT/DEPLOY/DISCARD/ACTION), ")
+                .append("or ACTION_OPTIONS for action cards; send PLAY after the server returns options.\n\n");
+        sb.append("[RENT] Own at least 1 property of the chosen color (including declared wilds) to charge rent; ")
+                .append("base rent follows RentTierTable and multiple same-color sets accumulate by tiers. ")
+                .append("House +3M, Hotel +7M. Railroad/Utility cannot have House/Hotel. ")
+                .append("Default RENT_DUAL picks one of the two printed colors and targets one opponent.\n\n");
         sb.append("[SET SIZE] ");
         PropertySetCalculator.REQUIRED_BY_COLOR.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())

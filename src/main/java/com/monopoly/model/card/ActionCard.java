@@ -100,7 +100,7 @@ public class ActionCard extends Card implements Payable {
             if (color.isEmpty()) {
                 return false;
             }
-            return PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), color);
+            return PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), color) > 0;
         }
 
         if ("RENT_DUAL".equals(code)) {
@@ -112,7 +112,7 @@ public class ActionCard extends Card implements Payable {
             if (!inPalette) {
                 return false;
             }
-            if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), chosen)) {
+            if (PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), chosen) <= 0) {
                 return false;
             }
             if (!rentDualChargesEachOtherPlayer) {

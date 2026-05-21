@@ -7,7 +7,7 @@ import com.monopoly.model.player.Player;
 import java.util.Locale;
 
 /**
- * 收租金额：与实体 Monopoly Deal 一致——须该色<strong>完整套</strong>方可收租；
+ * 收租金额：与实体 Monopoly Deal 一致，只要拥有所选颜色至少 1 张房产即可收租；
  * 基础租来自 {@link RentTierTable}（按该色张数查表，多套同色分段累计），
  * 再叠加各张房产上的房屋 +3M / 旅馆 +7M（相对平地）。
  */
@@ -17,16 +17,13 @@ public final class RentCalculator {
     }
 
     /**
-     * @return 应付租金（M）；该色未形成完整套时为 0
+     * @return 应付租金（M）；该色没有任何有效房产时为 0
      */
     public static int computeRentForColor(Player landlord, String colorKey) {
         if (landlord == null || colorKey == null || colorKey.isBlank()) {
             return 0;
         }
         String key = colorKey.trim().toUpperCase(Locale.ROOT);
-        if (!PropertySetCalculator.hasCompleteSetForColor(landlord.getPropertyCardsView(), key)) {
-            return 0;
-        }
         int n = PropertySetCalculator.effectiveCountForColor(landlord.getPropertyCardsView(), key);
         if (n <= 0) {
             return 0;

@@ -3,7 +3,7 @@ package com.monopoly.persistence;
 import com.monopoly.model.effects.StackResponseState;
 
 /**
- * {@link StackResponseState} 的快照。
+ * Memento for StackResponseState.
  */
 public final class StackResponseStateMemento {
 

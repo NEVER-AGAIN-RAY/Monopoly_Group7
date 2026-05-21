@@ -10,15 +10,14 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 【Singleton 单例模式】
- * 全局唯一游戏引擎入口：集中持有牌堆引用与核心会话句柄，避免多处 new 导致状态分裂。
- * 骨架阶段仅保留结构与线程安全单例获取方式。
+ * [Singleton]
+ * Process-wide holder for draw pile and discard pile (Singleton).
  * <p>
- * 标准牌堆规模见 {@link com.monopoly.model.GameConstants#STANDARD_DECK_SIZE}。
+ * Deck size: GameConstants.STANDARD_DECK_SIZE.
  */
 public final class GameEngineSingleton {
 
-    /** 标准牌组总张数，与 {@link GameConstants#STANDARD_DECK_SIZE} 一致。 */
+    /** Standard deck size. */
     public static final int STANDARD_DECK_SIZE = GameConstants.STANDARD_DECK_SIZE;
 
     private static volatile GameEngineSingleton instance;
@@ -30,7 +29,7 @@ public final class GameEngineSingleton {
     }
 
     /**
-     * 双重检查锁定（骨架）：后续若需可替换为枚举单例或 IoC 注入。
+     * Double-checked locking for lazy init.
      */
     public static GameEngineSingleton getInstance() {
         if (instance == null) {
@@ -43,7 +42,7 @@ public final class GameEngineSingleton {
         return instance;
     }
 
-    /** 仅供测试或重置会话时清理单例（骨架占位，慎用） */
+    /** Test-only singleton reset */
     static void resetForTests() {
         synchronized (GameEngineSingleton.class) {
             instance = null;
@@ -58,7 +57,7 @@ public final class GameEngineSingleton {
         return Collections.unmodifiableList(discardPile);
     }
 
-    /** 初始化牌堆等逻辑由工厂与控制器协作完成，此处仅占位 */
+    /** Pile contents are set via attachDrawPile from the controller */
     public void attachDrawPile(List<Card> pile) {
         drawPile.clear();
         discardPile.clear();
@@ -68,9 +67,7 @@ public final class GameEngineSingleton {
     }
 
     /**
-     * 从抽牌堆摸一张并移除。
-     * 若抽牌堆已空，则按规则将弃牌堆全部洗牌后转为新抽牌堆，再继续摸牌。
-     * 若抽牌堆与弃牌堆皆空，则返回 {@code null}。
+     * Draw one card; reshuffle discard into draw when draw pile is empty; null if both empty.
      */
     public Card drawOne() {
         replenishDrawPileFromDiscardIfEmpty();
@@ -81,8 +78,7 @@ public final class GameEngineSingleton {
     }
 
     /**
-     * requirements：摸牌时若公共抽牌堆无牌，将弃牌堆所有牌随机洗牌后作为新抽牌堆。
-     * 仅在抽牌堆为空时调用；弃牌堆也为空时不做任何事。
+     * When draw pile is empty, shuffle all discard cards into a new draw pile.
      */
     public void replenishDrawPileFromDiscardIfEmpty() {
         if (!drawPile.isEmpty()) {
@@ -97,7 +93,7 @@ public final class GameEngineSingleton {
     }
 
     /**
-     * 最小闭环：将一张牌放入弃牌堆。
+     * Moves one card to the discard pile.
      */
     public void discard(Card card) {
         if (card != null) {
@@ -106,7 +102,7 @@ public final class GameEngineSingleton {
     }
 
     /**
-     * @return 当前抽牌堆剩余数量
+     * @return cards left in draw pile
      */
     public int remainingCount() {
         return drawPile.size();
@@ -117,7 +113,7 @@ public final class GameEngineSingleton {
     }
 
     /**
-     * 全场牌数：抽牌堆 + 弃牌堆 + 各玩家已占用分区（手牌/银行/财产/行动区）。
+     * Counts every card: piles plus all player zones (deck integrity check).
      */
     public int countAllCardsInPlay(List<Player> players) {
         int n = remainingCount() + discardCount();

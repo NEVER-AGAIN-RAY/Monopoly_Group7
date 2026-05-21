@@ -1,7 +1,7 @@
 package com.monopoly.dto;
 
 /**
- * 从 {@link PlayActionRequest} 解析出的行动参数，供控制器解析为 {@link com.monopoly.model.effects.ActionEffectContext}。
+ * Normalized play parameters for effect dispatch.
  */
 public final class ActionParamContext {
 

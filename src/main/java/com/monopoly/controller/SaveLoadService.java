@@ -12,10 +12,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * 存档 / 读档 / 自动保存，从 {@link GameController} 抽出。
+ * Save, load, and optional autosave (extracted from GameController).
  * <p>
- * 仅做数据序列化 / 反序列化 / 文件 IO；恢复后对控制器状态的重置
- * 通过 {@link GameController#resetStateAfterLoad(String)} 回调完成，避免双写。
+ * Handles JSON/file IO only; GameController.resetStateAfterLoad finishes runtime reset.
  */
 final class SaveLoadService {
 

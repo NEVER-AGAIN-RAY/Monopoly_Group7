@@ -4,9 +4,7 @@ import com.monopoly.model.settlement.PaymentSettlement;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.settlement.RentCalculator;
 
-/**
- * 双倍租金效果：所选颜色有至少 1 张房产即可收租；应付 = 该色应收基础租与建筑加值之和 × 2。
- */
+/** Double rent: base rent plus house/hotel bonus for a color, then multiplied by 2. */
 public class DoubleRentEffect implements ActionEffect {
 
     public static RentEffect.DueResult computeDue(ActionEffectContext ctx) {
@@ -18,10 +16,10 @@ public class DoubleRentEffect implements ActionEffect {
             return RentEffect.DueResult.error("房东无效。");
         }
         if (tenant == null) {
-            return RentEffect.DueResult.error("双倍租金需指定目标玩家。");
+            return RentEffect.DueResult.error("Double rent multiplier需指定目标玩家。");
         }
         if (colorKey == null || colorKey.isBlank()) {
-            return RentEffect.DueResult.error("双倍租金需指定颜色。");
+            return RentEffect.DueResult.error("Double rent multiplier需指定颜色。");
         }
 
         String ck = colorKey.trim().toUpperCase(java.util.Locale.ROOT);
@@ -47,10 +45,10 @@ public class DoubleRentEffect implements ActionEffect {
         if (result.isSuccess()) {
             int base = due / 2;
             return ActionEffectResult.success(
-                    "双倍租金成功：" + tenant.getDisplayName() + " 支付 " + result.getAmountPaid()
+                    "Double rent multiplier成功：" + tenant.getDisplayName() + " 支付 " + result.getAmountPaid()
                             + "M（基础 " + base + "M × 2）。");
         } else {
-            return ActionEffectResult.failed("双倍租金失败：" + result.getMessage());
+            return ActionEffectResult.failed("Double rent multiplier失败：" + result.getMessage());
         }
     }
 }

@@ -10,7 +10,7 @@ import com.monopoly.model.card.PropertyWildCard;
 import java.util.Locale;
 
 /**
- * House：在己方财产区指定房产上加盖房子（{@link BuildingLevel#HOUSE}），需该颜色已形成完整套且当前为基础建筑。
+ * House: add house on a complete set property (no house/hotel yet).
  */
 public final class HouseEffect implements ActionEffect {
 

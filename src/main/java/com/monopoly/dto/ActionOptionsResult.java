@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** {@code ACTION_OPTIONS} 查询结果。 */
+/** ACTION_OPTIONS 查询结果。 */
 public final class ActionOptionsResult {
 
     private boolean ok;

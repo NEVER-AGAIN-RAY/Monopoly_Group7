@@ -13,15 +13,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 租金支付：仅允许使用银行堆中的可支付牌 + 财产区房产（退回弃牌堆），禁止用手牌支付。
- * <p>
- * 规则（requirements）：
- * <ul>
- *   <li>找零不退：所选牌总面值可以大于应付额，全部按约定转移</li>
- *   <li>银行牌归收租方银行；房产牌进入公共弃牌堆</li>
- *   <li>若银行与财产区可凑出的最大面值仍小于应付额，则本次支付失败，不发生任何转移</li>
- * </ul>
- * 选牌策略：先按面值升序用尽银行牌，再按面值升序动用房产，直到累计面值不低于应付额（贪心凑足额）。
+ * Rent payment from bank + property only; no change; greedy card selection.
  */
 public final class PaymentSettlement {
 
@@ -110,7 +102,7 @@ public final class PaymentSettlement {
     }
 
     /**
-     * 玩家指定支付牌（须均在债务人银行或财产区；总面值 ≥ 应付；找零不退）。
+     * Explicit card ids for payment (tenant pass).
      */
     public static Result settleWithExplicitCards(
             Player debtor,
@@ -156,7 +148,7 @@ public final class PaymentSettlement {
     }
 
     /**
-     * 在修改状态前校验承租人选择的支付牌是否足以支付首笔租金（效果栈结算前调用）。
+     * Validates tenant payment choice before stack resolution.
      */
     public static void validateExplicitChoice(Player debtor, int amountDue, List<String> cardIds) {
         if (debtor == null || amountDue <= 0 || cardIds == null || cardIds.isEmpty()) {

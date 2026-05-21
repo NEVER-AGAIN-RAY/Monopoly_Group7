@@ -9,7 +9,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 基于 JDK {@link HttpClient} 的最小 WebSocket 客户端，回调在 HttpClient 工作线程上触发；
+ * 基于 JDK HttpClient 的最小 WebSocket 客户端，回调在 HttpClient 工作线程上触发；
  * UI 层需自行切到 JavaFX 线程。
  */
 public final class FxWebSocketClient {

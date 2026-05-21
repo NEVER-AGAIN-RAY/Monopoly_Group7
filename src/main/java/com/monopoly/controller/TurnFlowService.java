@@ -24,19 +24,17 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 回合流程核心逻辑：摸牌、出牌、弃牌、结束回合、行动卡效果调度，
- * 从 {@link GameController} 抽出。
+ * Turn lifecycle: draw, play, discard, end turn, action cards (extracted from GameController).
  * <p>
- * 持有回合级可变状态（{@code currentTurnPlayerId}、{@code currentTurnPhase}、
- * {@code currentTurnActionCount}）；通过 {@link GameController} 包级方法完成
- * 会话检查、快照推送与错误记录。
+ * Holds per-turn state（currentTurnPlayerId、currentTurnPhase、
+ * currentTurnActionCount）；Uses GameController for session checks, snapshots, and errors.
  */
 final class TurnFlowService {
 
     enum TurnPhase {
         DRAW,
         PLAY,
-        /** 收租/免租连锁：等待特定玩家打出 Just Say No 或放弃 */
+        /** Rent/waiver chain: wait for Just Say No or pass */
         WAITING_FOR_RESPONSE,
         END_TURN
     }
@@ -68,7 +66,7 @@ final class TurnFlowService {
         this.currentTurnPhase = TurnPhase.DRAW;
     }
 
-    // ─── 摸牌 ──────────────────────────────────────────────
+    // --- draw ---
 
     void drawCards(Player player, int count) {
         if (player == null) {
@@ -110,7 +108,7 @@ final class TurnFlowService {
                 player.getDisplayName() + " drew " + drawn + " card(s).");
     }
 
-    // ─── 出牌 ──────────────────────────────────────────────
+    // --- play ---
 
     void playCard(Player player, Card card, String actionType, ActionParamContext params) {
         if (player == null || card == null) {
@@ -168,7 +166,7 @@ final class TurnFlowService {
                 player.getDisplayName() + " played " + normalizedActionType + " (" + card.getName() + ").");
     }
 
-    // ─── 弃牌 ──────────────────────────────────────────────
+    // --- discard ---
 
     void discardFromHand(Player player, Card card) {
         if (player == null || card == null) {
@@ -201,7 +199,7 @@ final class TurnFlowService {
                 player.getDisplayName() + " discarded a card (" + card.getName() + ").");
     }
 
-    // ─── 万能房产重新分配颜色 ──────────────────────────────
+    // --- reassign wild property color ---
 
     void reassignWildProperty(Player player, String wildPropertyCardId, String newColorKey) {
         if (player == null) {
@@ -237,14 +235,13 @@ final class TurnFlowService {
                 player.getDisplayName() + " reassigned wild property to " + normalizedColor + ".");
     }
 
-    // ─── 结束回合 ──────────────────────────────────────────
+    // --- end turn ---
 
     /**
-     * 结束回合：弃牌限制、胜负判定、轮转。
-     * <p>
-     * 不触发 AI 回合——AI 触发由 {@link GameController#endTurn} 负责。
+     * Ends the turn: trim hand to 7, check win, advance turn order.
+     * AI is started by GameController.endTurn, not here.
      *
-     * @return 下一位玩家，供外层判断是否触发 AI 回合；若 game over 则返回 {@code null}
+     * @return next player, or null if the game ended
      */
     Player endTurn(Player player) {
         if (player == null) {
@@ -290,7 +287,7 @@ final class TurnFlowService {
         return next;
     }
 
-    // ─── 行动卡 ──────────────────────────────────────────
+    // --- action cards ---
 
     ActionEffectResult handleActionCardCommand(
             int handIndex, String targetPlayerId, String colorKey,
@@ -530,7 +527,7 @@ final class TurnFlowService {
         return result;
     }
 
-    // ─── 内部工具方法 ──────────────────────────────────────
+    // --- helpers ---
 
     void ensureTurnContext(Player player) {
         String pid = player.getPlayerId();

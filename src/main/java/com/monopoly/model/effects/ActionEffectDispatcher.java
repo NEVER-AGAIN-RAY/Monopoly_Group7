@@ -4,23 +4,22 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 行动卡效果分派器：将 {@link com.monopoly.model.ActionCard} 的 effectCode 映射到对应的
- * {@link ActionEffect} 实现，实现"数据驱动"的效果调度。
+ * Maps action card effectCode strings to ActionEffect implementations.
  * <p>
- * effectCode 规范（大写）：
+ * effectCode registry (uppercase):
  * <ul>
- *   <li>{@code RENT}           – 按颜色向目标收租</li>
- *   <li>{@code RENT_DUAL}      – 双色收租（默认 1v1；{@code rentDualChargesEachOtherPlayer} 时为全员依次，由 TurnFlowService 入栈）</li>
- *   <li>{@code DOUBLE_RENT}    – 双倍租金</li>
- *   <li>{@code STEAL_PROPERTY} – 偷牌（Sly Deal，财产区/银行见 {@link StealCardEffect}）</li>
- *   <li>{@code FORCED_DEAL}    – 强制交换房产</li>
- *   <li>{@code DEBT_COLLECTOR} – 债务催缴（固定 5M）</li>
- *   <li>{@code RENT_WAIVER}    – 免租（Just Say No）</li>
- *   <li>{@code PASS_GO}       – 额外摸 2 张牌</li>
- *   <li>{@code HOUSE} / {@code HOTEL} – 财产区建筑升级</li>
- *   <li>{@code BIRTHDAY}      – 每位其他玩家支付 2M</li>
- *   <li>{@code DEAL_BREAKER}  – 夺取完整套（占位实现）</li>
- *   <li>{@code EFFECT_PLACEHOLDER} – 旧版占位牌，无效果</li>
+ *   <li>RENT           – Collect rent for a color from a target</li>
+ *   <li>RENT_DUAL      – Dual-color rent (1v1 by default; rentDualChargesEachOtherPlayer charges each opponent in turn via effect stack)</li>
+ *   <li>DOUBLE_RENT    – Double rent multiplier</li>
+ *   <li>STEAL_PROPERTY – Steal property/bank card (Sly Deal)</li>
+ *   <li>FORCED_DEAL    – Forced property swap</li>
+ *   <li>DEBT_COLLECTOR – Debt collector (flat 5M)</li>
+ *   <li>RENT_WAIVER    – Rent waiver (Just Say No)</li>
+ *   <li>PASS_GO       – Draw 2 extra cards (Pass Go)</li>
+ *   <li>HOUSE / HOTEL – House/hotel on property set</li>
+ *   <li>BIRTHDAY      – Each opponent pays 2M (Birthday)</li>
+ *   <li>DEAL_BREAKER  – Steal complete set (Deal Breaker)</li>
+ *   <li>EFFECT_PLACEHOLDER – Legacy placeholder, no effect</li>
  * </ul>
  */
 public final class ActionEffectDispatcher {
@@ -48,9 +47,9 @@ public final class ActionEffectDispatcher {
     }
 
     /**
-     * 根据 effectCode 执行对应效果。
+     * Dispatches by effectCode.
      *
-     * @return 效果结果；effectCode 未知则返回 FAILED
+     * @return result, or FAILED if unknown code
      */
     public static ActionEffectResult dispatch(String effectCode, ActionEffectContext ctx) {
         if (effectCode == null || effectCode.isBlank()) {

@@ -9,8 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 与 {@code rules.md} 附录 A 及 {@link com.monopoly.model.card.MonopolyDealCardFactory} 同源的中文说明，
- * 供 JavaFX 规则面板等使用；与正文意译冲突时以附录 A + 工厂为准。
+ * Embedded Chinese rules text for the client panel; factory/deck is authoritative.
  */
 public final class MonopolyDealRulesSummary {
 

@@ -7,9 +7,7 @@ import com.monopoly.model.player.Player;
 import java.util.Locale;
 
 /**
- * 收租金额：与实体 Monopoly Deal 一致，只要拥有所选颜色至少 1 张房产即可收租；
- * 基础租来自 {@link RentTierTable}（按该色张数查表，多套同色分段累计），
- * 再叠加各张房产上的房屋 +3M / 旅馆 +7M（相对平地）。
+ * Rent due: tier table by color count plus +3M per house and +7M per hotel.
  */
 public final class RentCalculator {
 
@@ -17,7 +15,7 @@ public final class RentCalculator {
     }
 
     /**
-     * @return 应付租金（M）；该色没有任何有效房产时为 0
+     * @return rent in M, or 0 if no cards in color
      */
     public static int computeRentForColor(Player landlord, String colorKey) {
         if (landlord == null || colorKey == null || colorKey.isBlank()) {
@@ -51,7 +49,7 @@ public final class RentCalculator {
     }
 
     /**
-     * 单张房产对收租的<strong>建筑加值</strong>（房屋 +3M；旅馆共 +7M），不含基础租表。
+     * Building bonus for one property (+3M house, +7M hotel).
      */
     public static int buildingBonusM(PropertyCard card) {
         if (card == null) {
@@ -65,7 +63,7 @@ public final class RentCalculator {
     }
 
     /**
-     * 兼容旧调用：返回「建筑加值」（基础租改由套内总表计算，不再按张加基础）。
+     * Legacy helper: building bonus only.
      */
     public static int rentForOneProperty(PropertyCard card, String rentColorKey) {
         return buildingBonusM(card);
@@ -76,7 +74,7 @@ public final class RentCalculator {
     }
 
     /**
-     * 该色仅 1 张时的表上基础租，供协议/UI。
+     * Base rent for a single card in color (UI preview).
      */
     public static int baseRentOnlyForColor(String colorGroup) {
         if (colorGroup == null || colorGroup.isBlank()) {

@@ -1,8 +1,7 @@
 package com.monopoly.model.rules;
 
 /**
- * 局域网多人对战操作指南 — 提供 HTML 富文本版本供 WebView 渲染，
- * 以及纯文本版本供降级场景使用。
+ * LAN multiplayer guide HTML/plain text for the rules panel.
  */
 public final class MultiplayerGuideSummary {
 

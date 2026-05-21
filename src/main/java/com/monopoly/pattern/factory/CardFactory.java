@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * 【Factory Method 工厂方法模式】
  * 抽象创建者：声明用于生成单张/整套牌的工厂方法，由具体工厂子类决定
- * {@link GameConstants#STANDARD_DECK_SIZE} 张标准牌的实例化细节。
+ * {@link GameConstants#STANDARD_DECK_SIZE} 张标准可游戏牌的实例化细节。
  */
 public abstract class CardFactory {
 
@@ -18,7 +18,7 @@ public abstract class CardFactory {
     protected abstract Card createCard(String specKey);
 
     /**
-     * 模板流程：组合工厂方法产出完整牌堆（洗牌等不在此实现）。
+     * 模板流程：组合工厂方法产出完整可游戏牌堆（洗牌等不在此实现）。
      */
     public abstract List<Card> createStandardDeck108();
 }

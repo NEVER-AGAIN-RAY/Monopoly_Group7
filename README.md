@@ -60,7 +60,7 @@ Monopoly Deal: Java WebSocket server plus a **JavaFX + FXML** desktop client (`m
 
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
-| `-Dmonopoly.verifyDeck=true/false` | `false` | 开启后在关键流程校验全场牌数守恒（108），用于开发期排查。 |
+| `-Dmonopoly.verifyDeck=true/false` | `false` | 开启后在关键流程校验全场可游戏牌数守恒（106），用于开发期排查。 |
 | `-Dmonopoly.autosave=true/false` | `false` | 开启后每 3 个整轮自动写入 `~/.monopoly-deal/autosave.json`。 |
 | `-Dmonopoly.saveKey=...` | 未设置 | 设置后存档使用 AES-GCM 加密；未设置时按明文 JSON 存储。 |
 | `-Dmonopoly.sessionLimitMs=...` | `GameConstants.DEFAULT_SESSION_LIMIT_MS` | 覆盖单局超时上限（毫秒）。 |

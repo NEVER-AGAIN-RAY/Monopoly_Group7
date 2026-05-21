@@ -115,12 +115,13 @@ public final class MonopolyDealRulesSummary {
         // Deck
         sb.append("<div class='card'>");
         sb.append("<div class='card-header'><div class='icon blue'>&#x1F0CF;</div><h2>").append(esc("牌堆组成")).append("</h2></div>");
-        sb.append("<p>").append(esc("本客户端使用 ")).append("<strong>").append(GameConstants.STANDARD_DECK_SIZE).append(" ").append(esc("张")).append("</strong>").append(esc("牌：")).append("</p>");
+        sb.append("<p>").append(esc("本客户端使用 ")).append("<strong>").append(GameConstants.STANDARD_DECK_SIZE).append(" ").append(esc("张可游戏牌")).append("</strong>").append(esc("（108 张清单中 2 张规则卡不入牌堆）：")).append("</p>");
         sb.append("<table><tr><th>").append(esc("类型")).append("</th><th>").append(esc("数量")).append("</th><th>").append(esc("说明")).append("</th></tr>");
         sb.append("<tr><td>").append(esc("房产")).append("</td><td>28</td><td>").append(esc("各色基本房产牌")).append("</td></tr>");
         sb.append("<tr><td>").append(esc("万能")).append("</td><td>11</td><td>2 ").append(esc("张任意色 + 9 张印定双色")).append("</td></tr>");
         sb.append("<tr><td>").append(esc("钱币")).append("</td><td>20</td><td>").append(esc("各面额现金牌")).append("</td></tr>");
-        sb.append("<tr><td>").append(esc("行动")).append("</td><td>49</td><td>").append(esc("租金 13、PASS_GO 12、其他行动 24")).append("</td></tr>");
+        sb.append("<tr><td>").append(esc("行动")).append("</td><td>34</td><td>").append(esc("PASS_GO 10、交易/讨债/房屋/旅馆等 24")).append("</td></tr>");
+        sb.append("<tr><td>").append(esc("租金")).append("</td><td>13</td><td>").append(esc("任意色 3、双色 1v1 共 10")).append("</td></tr>");
         sb.append("</table></div>");
 
         // Victory
@@ -246,12 +247,13 @@ public final class MonopolyDealRulesSummary {
         // Deck
         sb.append("<div class='card'>");
         sb.append("<div class='card-header'><div class='icon blue'>&#x1F0CF;</div><h2>Deck Composition</h2></div>");
-        sb.append("<p>This client uses <strong>").append(GameConstants.STANDARD_DECK_SIZE).append(" cards</strong>:</p>");
+        sb.append("<p>This client uses <strong>").append(GameConstants.STANDARD_DECK_SIZE).append(" playable cards</strong> (the 108-card list includes 2 rule cards that are not shuffled):</p>");
         sb.append("<table><tr><th>Type</th><th>Count</th><th>Details</th></tr>");
         sb.append("<tr><td>Property</td><td>28</td><td>Basic property cards of each color</td></tr>");
         sb.append("<tr><td>Wild</td><td>11</td><td>2 any-color + 9 dual-color</td></tr>");
         sb.append("<tr><td>Money</td><td>20</td><td>Various denomination cash cards</td></tr>");
-        sb.append("<tr><td>Action</td><td>49</td><td>Rent 13, Pass Go 12, other actions 24</td></tr>");
+        sb.append("<tr><td>Action</td><td>34</td><td>Pass Go 10, other actions 24</td></tr>");
+        sb.append("<tr><td>Rent</td><td>13</td><td>Any Rent 3, dual-color rent 10</td></tr>");
         sb.append("</table></div>");
 
         // Victory
@@ -370,7 +372,7 @@ public final class MonopolyDealRulesSummary {
     public static String buildPlainTextChinese() {
         StringBuilder sb = new StringBuilder();
         sb.append("【牌堆】本客户端使用 ").append(GameConstants.STANDARD_DECK_SIZE)
-                .append(" 张：房产 28、万能 11（2 任意色 + 9 印定双色）、钱币 20、行动 49。\n\n");
+                .append(" 张可游戏牌（108 张清单中 2 张规则卡不入牌堆）：房产 28、万能 11（2 任意色 + 9 印定双色）、钱币 20、行动 34、租金 13。\n\n");
         sb.append("【胜利】先凑齐 3 套不同颜色的完整房产集。\n\n");
         sb.append("【回合】摸 2 张（手牌为空则摸 5）；最多打出 3 张；手牌超过 7 张须弃至 7。\n\n");
         sb.append("【支付】仅能从银行区与财产区支付，不能从手牌直接支付；多付不退。\n\n");
@@ -399,7 +401,8 @@ public final class MonopolyDealRulesSummary {
 
     public static String buildPlainTextEnglish() {
         StringBuilder sb = new StringBuilder();
-        sb.append("[DECK] This client uses ").append(GameConstants.STANDARD_DECK_SIZE).append(" cards.\n\n");
+        sb.append("[DECK] This client uses ").append(GameConstants.STANDARD_DECK_SIZE)
+                .append(" playable cards; the 108-card list includes 2 rule cards that are not shuffled.\n\n");
         sb.append("[VICTORY] First to collect 3 complete property sets of different colors wins.\n\n");
         sb.append("[TURN] Draw 2 (draw 5 if hand is empty); play up to 3 cards; discard down to 7 if over.\n\n");
         sb.append("[PAYMENT] Pay only from bank and property zones; overpayment is not refunded.\n\n");

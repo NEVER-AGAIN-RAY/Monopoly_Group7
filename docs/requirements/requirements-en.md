@@ -40,7 +40,7 @@ User requirements describe goals and experience expectations from the player’s
 - Provide **human-vs-machine** and **player-vs-player** modes.
 - In human-vs-machine mode, AI difficulty levels: **Easy**, **Normal**, and **Hard**.
 - Support sessions with **2–5 players** and **random first-player** selection.
-- On start: build a **standard 108-card deck**, deal **5 cards** to each player, and initialize **draw** and **discard** piles.
+- On start: build a **standard 106-playable-card deck** (108-card list minus 2 rule cards), deal **5 cards** to each player, and initialize **draw** and **discard** piles.
 - Provide an **in-game rules** panel.
 
 #### FR-2 — Turn and Action Control

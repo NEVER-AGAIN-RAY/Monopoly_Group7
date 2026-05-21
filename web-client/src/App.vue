@@ -19,6 +19,8 @@ const optionSheet = ref(null)
 const pendingPlay = ref(null)
 const paymentSelection = ref(new Set())
 const notice = ref('')
+const actionBusy = ref(false)
+const busyCardId = ref('')
 let socket = null
 
 const currentPlayerId = computed(() => state.value?.currentPlayerId || '')
@@ -55,6 +57,7 @@ const tableStatus = computed(() => {
   return '牌桌就绪'
 })
 const eventLine = computed(() => {
+  if (actionBusy.value) return notice.value || '处理中...'
   return notice.value || state.value?.lastActionSummary || '摸牌、出牌和房产变化会显示在这里'
 })
 
@@ -98,11 +101,13 @@ function disconnect() {
 function send(type, payload = {}) {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     notice.value = '还没连接后端'
-    return
+    clearBusy()
+    return false
   }
   const body = JSON.stringify({ type, payload })
   socket.send(body)
   log('out', body)
+  return true
 }
 
 function authAndStart() {
@@ -134,6 +139,7 @@ function handleMessage(raw) {
       state.value = payload
       screen.value = 'game'
       if (!awaitingPayment.value) paymentSelection.value = new Set()
+      clearBusy()
       break
     case 'MY_HAND':
       hand.value = payload.cards || []
@@ -147,6 +153,8 @@ function handleMessage(raw) {
       break
     case 'ERROR':
       notice.value = payload.message || payload.error || '服务器返回错误'
+      pendingPlay.value = null
+      clearBusy()
       break
     default:
       if (payload.error) notice.value = payload.error
@@ -158,6 +166,7 @@ function handleOptions(payload) {
   if (!payload.ok) {
     notice.value = payload.error || '当前牌没有可用操作'
     pendingPlay.value = null
+    clearBusy()
     return
   }
   const options = payload.options || []
@@ -169,14 +178,22 @@ function handleOptions(payload) {
     title: selectedCard.value?.titleZh || selectedCard.value?.name || '选择目标',
     options
   }
+  clearBusy()
 }
 
 function queryPlay(actionType) {
+  if (actionBusy.value) return
   if (!selectedCard.value) {
     notice.value = '先点一张手牌'
     return
   }
+  const directPayload = directPlayPayload(selectedCard.value, actionType)
+  if (directPayload) {
+    playDirect(directPayload, selectedCard.value, actionType)
+    return
+  }
   pendingPlay.value = { actionType, cardId: selectedCard.value.id }
+  markBusy(selectedCard.value.id, '正在查询可选目标...')
   send('PLAY_OPTIONS', {
     playerId: playerId.value,
     cardId: selectedCard.value.id,
@@ -193,11 +210,17 @@ function defaultActionForCard(card) {
 }
 
 function quickPlay(card) {
+  if (actionBusy.value) return
   if (!card?.id) return
   const actionType = defaultActionForCard(card)
   selectedCardId.value = card.id
+  const directPayload = directPlayPayload(card, actionType)
+  if (directPayload) {
+    playDirect(directPayload, card, actionType)
+    return
+  }
   pendingPlay.value = { actionType, cardId: card.id, autoDefault: true }
-  notice.value = `默认${({ DEPOSIT: '存入银行', DEPLOY: '部署房产', ACTION: '打出行动牌' })[actionType] || '出牌'}：${cardTitle(card)}`
+  markBusy(card.id, `默认${actionLabel(actionType)}：${cardTitle(card)}`)
   send('PLAY_OPTIONS', {
     playerId: playerId.value,
     cardId: card.id,
@@ -216,20 +239,79 @@ function playWithOption(row = {}) {
     actorCardId: row.actorCardId,
     targetZone: row.targetZone
   }
+  const cardId = pendingPlay.value.cardId
+  const actionType = pendingPlay.value.actionType
   optionSheet.value = null
   pendingPlay.value = null
+  markBusy(cardId, `正在${actionLabel(actionType)}...`)
+  send('PLAY', compact(payload))
+}
+
+function actionLabel(actionType) {
+  return ({
+    DEPOSIT: '存入银行',
+    DEPLOY: '部署房产',
+    ACTION: '打出行动牌',
+    DISCARD: '弃牌'
+  })[actionType] || '出牌'
+}
+
+function markBusy(cardId, text) {
+  actionBusy.value = true
+  busyCardId.value = cardId || ''
+  notice.value = text
+}
+
+function clearBusy() {
+  actionBusy.value = false
+  busyCardId.value = ''
+}
+
+function directPlayPayload(card, actionType) {
+  if (!card?.id) return null
+  if (actionType === 'DEPOSIT' || actionType === 'DISCARD') {
+    return { actionType, cardId: card.id }
+  }
+  if (actionType === 'DEPLOY') {
+    if (card.kind === 'PROPERTY') return { actionType, cardId: card.id }
+    if (card.kind === 'WILD') {
+      const color = defaultWildDeployColor(card)
+      if (color) return { actionType, cardId: card.id, targetColorKey: color }
+    }
+  }
+  return null
+}
+
+function defaultWildDeployColor(card) {
+  if (Array.isArray(card?.printedColors) && card.printedColors.length) {
+    return card.printedColors[0]
+  }
+  return card?.colorGroup || 'BROWN'
+}
+
+function playDirect(payload, card, actionType) {
+  selectedCardId.value = card.id
+  pendingPlay.value = null
+  optionSheet.value = null
+  markBusy(card.id, `正在${actionLabel(actionType)}：${cardTitle(card)}`)
   send('PLAY', compact(payload))
 }
 
 function draw() {
+  if (actionBusy.value) return
+  notice.value = '正在摸牌...'
   send('DRAW', { count: 2 })
 }
 
 function endTurn() {
+  if (actionBusy.value) return
+  notice.value = '正在结束回合...'
   send('END_TURN', {})
 }
 
 function autoPayRent() {
+  if (actionBusy.value) return
+  markBusy('', '正在自动支付租金...')
   send('PLAY', {
     actionType: 'RESPONSE_PASS',
     actingPlayerId: playerId.value
@@ -237,10 +319,12 @@ function autoPayRent() {
 }
 
 function confirmPayRent() {
+  if (actionBusy.value) return
   if (selectedPaymentTotal.value < paymentDue.value) {
     notice.value = `已选 ${selectedPaymentTotal.value}M，不足 ${paymentDue.value}M`
     return
   }
+  markBusy('', '正在按所选牌支付租金...')
   send('PLAY', {
     actionType: 'RESPONSE_PASS',
     actingPlayerId: playerId.value,
@@ -268,7 +352,8 @@ function cardClass(card) {
     'game-card',
     'fan-card',
     `kind-${(card?.kind || 'UNKNOWN').toLowerCase()}`,
-    selectedCardId.value === card?.id ? 'selected' : ''
+    selectedCardId.value === card?.id ? 'selected' : '',
+    actionBusy.value && busyCardId.value === card?.id ? 'processing' : ''
   ]
 }
 
@@ -484,7 +569,7 @@ function log(direction, text) {
           </section>
 
           <div class="center-play">
-            <button class="deck draw-deck" @click="draw">
+            <button class="deck draw-deck" @click="draw" :disabled="actionBusy">
               <strong>DRAW</strong>
               <span>{{ playerId === currentPlayerId ? '摸 2' : '牌堆' }}</span>
             </button>
@@ -572,12 +657,12 @@ function log(direction, text) {
 
             <section class="action-pad">
               <h2>操作区</h2>
-              <button class="primary small" @click="draw">摸 2 张</button>
-              <button class="secondary small" @click="endTurn">结束回合</button>
-              <button class="green small" @click="queryPlay('DEPOSIT')" :disabled="!selectedCard">存入银行</button>
-              <button class="blue small" @click="queryPlay('DEPLOY')" :disabled="!selectedCard">部署房产</button>
-              <button class="purple small" @click="queryPlay('ACTION')" :disabled="!selectedCard">打出行动牌</button>
-              <button class="gray small" @click="queryPlay('DISCARD')" :disabled="!selectedCard">弃牌</button>
+              <button class="primary small" @click="draw" :disabled="actionBusy">摸 2 张</button>
+              <button class="secondary small" @click="endTurn" :disabled="actionBusy">结束回合</button>
+              <button class="green small" @click="queryPlay('DEPOSIT')" :disabled="!selectedCard || actionBusy">存入银行</button>
+              <button class="blue small" @click="queryPlay('DEPLOY')" :disabled="!selectedCard || actionBusy">部署房产</button>
+              <button class="purple small" @click="queryPlay('ACTION')" :disabled="!selectedCard || actionBusy">打出行动牌</button>
+              <button class="gray small" @click="queryPlay('DISCARD')" :disabled="!selectedCard || actionBusy">弃牌</button>
             </section>
           </section>
 
@@ -590,8 +675,8 @@ function log(direction, text) {
               </button>
             </div>
             <div class="payment-actions">
-              <button class="primary small" @click="autoPayRent">自动支付</button>
-              <button class="secondary small" @click="confirmPayRent">按所选支付</button>
+              <button class="primary small" @click="autoPayRent" :disabled="actionBusy">自动支付</button>
+              <button class="secondary small" @click="confirmPayRent" :disabled="actionBusy">按所选支付</button>
             </div>
           </div>
         </div>

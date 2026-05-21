@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Deal Breaker：夺取目标玩家的一整套完整颜色地产。
+ * Deal Breaker: steal one complete color set from a target.
  */
 public final class DealBreakerEffect implements ActionEffect {
 

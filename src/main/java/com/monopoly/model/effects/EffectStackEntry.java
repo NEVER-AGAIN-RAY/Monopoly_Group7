@@ -3,7 +3,7 @@ package com.monopoly.model.effects;
 import java.util.UUID;
 
 /**
- * 效果结算栈中的单条记录：收租（待结算）或免租（指向被取消的栈条目 id）。
+ * One pending rent or waiver entry on the effect stack.
  */
 public final class EffectStackEntry {
 

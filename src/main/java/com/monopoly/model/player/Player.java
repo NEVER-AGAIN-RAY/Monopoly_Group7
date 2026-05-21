@@ -13,13 +13,13 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 玩家抽象父类：维护手牌引用与身份；人类/AI 由子类区分行为。
+ * Base player: hand, bank, property, and action zones; Human vs AI in subclasses.
  */
 public abstract class Player {
 
     protected final String playerId;
     protected final String displayName;
-    // 牌区：后续由控制器/网络层驱动状态推进，本类只负责维护分区数据结构
+    // Card zones; controller drives rules, this class only stores partitions
     protected final List<Card> handCards = new ArrayList<>();
     protected final List<PropertyCard> propertyCards = new ArrayList<>();
     protected final List<Card> bankCards = new ArrayList<>();
@@ -66,9 +66,7 @@ public abstract class Player {
         return propertyCards.size();
     }
 
-    /**
-     * 财产区已完成的完整地产集<strong>总套数</strong>（各色分别计套后相加；胜利条件为 {@code >= 3}，见 {@code docs/REQ_TRACE.md}）。
-     */
+    /** Number of complete color sets on the board (win at 3+). */
     public int countCompletePropertySets() {
         return PropertySetCalculator.countCompletePropertySets(propertyCards);
     }
@@ -77,26 +75,24 @@ public abstract class Player {
         return actionZoneCards.size();
     }
 
-    /** 该玩家当前持有的全部牌张数：手牌 + 银行 + 财产区 + 行动区（用于全场牌数守恒校验）。 */
+    /** Total cards owned (hand + bank + property + action zone) for deck integrity checks. */
     public int countOwnedCardsTotal() {
         return handCards.size() + bankCards.size() + propertyCards.size() + actionZoneCards.size();
     }
 
-    /** 摸牌/发牌时由控制器调用（把牌放入手牌区） */
+    /** Called when dealing or drawing into hand. */
     public void receiveCardToHand(Card card) {
         if (card != null) {
             handCards.add(card);
         }
     }
 
-    /** 弃牌/处理后由控制器调用（从手牌区移除） */
+    /** Removes a card from hand after play or discard. */
     public void removeCardFromHand(Card card) {
         handCards.remove(card);
     }
 
-    /**
-     * 从手牌区弃置一张卡，并返回是否成功。
-     */
+    /** Discards one card from hand; returns whether it was present. */
     public boolean discardFromHand(Card card) {
         if (card == null) {
             return false;
@@ -105,10 +101,9 @@ public abstract class Player {
     }
 
     /**
-     * 超过手牌上限时自动弃牌到指定上限（骨架：从手牌尾部依次弃置）。
+     * Discards from the tail of hand until size &lt;= limit (end-of-turn rule: 7).
      *
-     * @param limit 手牌上限（例如 7）
-     * @return 本次被弃置的卡牌列表，供控制器放入弃牌堆
+     * @return cards removed so the controller can move them to the discard pile
      */
     public List<Card> discardOverflowTo(int limit) {
         List<Card> discarded = new ArrayList<>();
@@ -122,10 +117,7 @@ public abstract class Player {
         return discarded;
     }
 
-    /**
-     * 存入银行：把手牌卡牌转移到银行堆分区（骨架阶段：不做复杂合法性校验）。
-     * 规则细节（例如 ActionCard 存入后失去功能）由控制器/引擎在后续实现。
-     */
+    /** Moves a hand card into the bank pile (action cards lose effect when banked). */
     public void depositToBank(Card card) {
         if (card == null) {
             return;
@@ -148,14 +140,14 @@ public abstract class Player {
         return card != null && propertyCards.remove(card);
     }
 
-    /** 直接往财产区放一张房产（用于偷牌/交换到达己方时，不经过手牌区）。 */
+    /** Adds property directly to the zone (steal/swap), skipping hand. */
     public void addToPropertyZone(PropertyCard card) {
         if (card != null) {
             propertyCards.add(card);
         }
     }
 
-    /** 银行堆中所有可支付牌的总面值（M）。 */
+    /** Sum of bank card values in millions (M). */
     public int totalBankValueM() {
         int s = 0;
         for (Card c : bankCards) {
@@ -164,7 +156,7 @@ public abstract class Player {
         return s;
     }
 
-    /** 财产区房产用于支付时的可抵押总值（M，不含手牌）。 */
+    /** Property zone payment value in M (rent payments cannot use hand cards). */
     public int totalPropertyPaymentValueM() {
         int s = 0;
         for (PropertyCard p : propertyCards) {
@@ -173,9 +165,7 @@ public abstract class Player {
         return s;
     }
 
-    /**
-     * 部署房产：把手牌中的房产卡转移到财产区分区（骨架阶段：只做类型转移）。
-     */
+    /** Deploys a property card from hand to the property zone. */
     public void deployProperty(PropertyCard card) {
         if (card == null) {
             return;
@@ -184,10 +174,7 @@ public abstract class Player {
         propertyCards.add(card);
     }
 
-    /**
-     * 执行动作卡：把手牌中的行动卡转移到行动区分区。
-     * 注意：行动结算逻辑不在本类实现，仅维护分区数据。
-     */
+    /** Places an action card in the center zone; effect logic runs in the controller. */
     public void placeActionToCenter(ActionCard card) {
         if (card == null) {
             return;
@@ -196,9 +183,7 @@ public abstract class Player {
         actionZoneCards.add(card);
     }
 
-    /**
-     * 把"是否可出牌"的判断交给 Card 的 canPlay 实现；{@code params} 可为 null（非参数化出牌）。
-     */
+    /** Delegates playability to Card.canPlay. */
     public boolean canPlay(Card card, ActionParamContext params, GameContext context) {
         if (card == null) {
             return false;
@@ -210,9 +195,7 @@ public abstract class Player {
     }
 
     /**
-     * 轮到自己时请求"下一步可执行动作决策"。
-     * - HumanPlayer：等待客户端发来动作请求，后端骨架可为空实现
-     * - AIPlayer：由策略模式计算下一步动作（在子类实现）
+     * Hook for "what to do on my turn": empty for humans (client drives), AI uses strategy.
      */
     public abstract void requestPlayDecision(GameContext context);
 }

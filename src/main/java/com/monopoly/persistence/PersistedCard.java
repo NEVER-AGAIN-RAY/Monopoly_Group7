@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Gson 友好的卡牌快照：{@link #getId()} + 具体类型字段，用于存档往返，不依赖运行时单张实例引用。
+ * Gson card snapshot for save/load (by id + type fields).
  */
 public final class PersistedCard {
 
@@ -24,13 +24,13 @@ public final class PersistedCard {
     private String colorGroup;
     private String buildingLevel;
     private String effectCode;
-    /** RENT_DUAL 卡面色组，如 {@code LIGHT_BLUE|BROWN} */
+    /** RENT_DUAL 卡面色组，如 LIGHT_BLUE|BROWN */
     private String rentPalette;
     private Boolean rentDualChargesEachOtherPlayer;
     private Boolean wildcardRentCard;
-    /** {@link com.monopoly.model.card.PropertyWildCard.WildPropertyKind#name()} */
+    /** WildPropertyKind.name */
     private String wildKind;
-    /** 双色万能印色 {@code A|B} */
+    /** 双色万能印色 A|B */
     private String wildPrintedPair;
     private String assignedColorKey;
 

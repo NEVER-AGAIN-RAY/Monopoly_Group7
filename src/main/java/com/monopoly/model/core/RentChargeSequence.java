@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 双色全员收租（RENT_DUAL）：对多名承租人<strong>依次</strong>各压一条收租并进入响应窗口。
+ * RENT_DUAL sequence: charge each tenant one-by-one with response windows.
  */
 public final class RentChargeSequence {
 
@@ -25,7 +25,7 @@ public final class RentChargeSequence {
     }
 
     /**
-     * @param initialTenantIndex 当前应付承租人在 {@code tenantIdsOrdered} 中的下标（读档恢复用）
+     * @param initialTenantIndex resume index into tenantIdsOrdered
      */
     public RentChargeSequence(
             String landlordId,

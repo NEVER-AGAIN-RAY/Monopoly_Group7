@@ -4,9 +4,7 @@ import com.monopoly.model.card.Card;
 import com.monopoly.model.player.Player;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 
-/**
- * Pass Go：从抽牌堆额外摸 2 张牌加入当前玩家手牌。
- */
+/** Pass Go: draw two extra cards from the draw pile into the actor's hand. */
 public final class PassGoEffect implements ActionEffect {
 
     private static final int DRAW_COUNT = 2;

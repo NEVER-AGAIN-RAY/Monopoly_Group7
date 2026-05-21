@@ -1,7 +1,7 @@
 package com.monopoly.dto;
 
 /**
- * 财产区按颜色统计的公开信息（单条：某颜色键下张数）。
+ * One row: color key and card count.
  */
 public class PropertyColorCount {
 

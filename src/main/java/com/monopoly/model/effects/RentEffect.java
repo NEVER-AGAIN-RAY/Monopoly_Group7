@@ -5,7 +5,7 @@ import com.monopoly.model.player.Player;
 import com.monopoly.model.settlement.RentCalculator;
 
 /**
- * 收租效果：施效者拥有所选颜色至少 1 张房产即可收租；金额 = 牌面租金表 + 房/旅馆加值。
+ * Rent: landlord needs 1+ card in color; due = tier table + house/hotel bonus.
  */
 public class RentEffect implements ActionEffect {
 
@@ -34,7 +34,7 @@ public class RentEffect implements ActionEffect {
     }
 
     /**
-     * {@link com.monopoly.model.card.ActionCard} 的 RENT_DUAL：仅校验房东所选颜色有房产并计算金额（承租人由序列决定）。
+     * RENT_DUAL: validate landlord color and amount; tenants come from RentChargeSequence.
      */
     public static DueResult computeDueLandlordColorOnly(ActionEffectContext ctx) {
         Player landlord = ctx.getActor();

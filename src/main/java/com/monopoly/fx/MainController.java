@@ -26,6 +26,7 @@ import javafx.scene.Node;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.web.WebView;
 import javafx.stage.Window;
 
 import javafx.animation.PauseTransition;
@@ -62,7 +63,7 @@ public class MainController {
     private boolean autoStartAfterConnect;
     /** 连接超时定时器。 */
     private PauseTransition connectionTimeout;
-    /** 等待 {@code ACTION_OPTIONS_RESULT} / {@code PLAY_OPTIONS_RESULT} 时在 FX 线程上消费 payload。 */
+    /** 等待 ACTION_OPTIONS_RESULT / PLAY_OPTIONS_RESULT 时在 FX 线程上消费 payload。 */
     private Consumer<JsonObject> pendingOptionsResultHandler;
 
     @FXML
@@ -214,7 +215,7 @@ public class MainController {
     @FXML
     private TextArea trafficArea;
     @FXML
-    private javafx.scene.web.WebView rulesWebView;
+    private WebView rulesWebView;
     @FXML
     private javafx.scene.control.TabPane rootTabPane;
     @FXML
@@ -224,7 +225,7 @@ public class MainController {
     @FXML
     private javafx.scene.control.Tab guideTab;
     @FXML
-    private javafx.scene.web.WebView guideWebView;
+    private WebView guideWebView;
     @FXML
     private Button showGuideButton;
     @FXML
@@ -290,7 +291,7 @@ public class MainController {
         rootTabPane.getSelectionModel().select(guideTab);
     }
 
-    private static void loadHtmlToWebView(javafx.scene.web.WebView webView, String html) {
+    private static void loadHtmlToWebView(WebView webView, String html) {
         try {
             Path tmp = Files.createTempFile("monopoly-ui-", ".html");
             Files.writeString(tmp, html, StandardCharsets.UTF_8);
@@ -596,7 +597,7 @@ public class MainController {
     }
 
     /**
-     * 先发 {@code PLAY_OPTIONS}，在弹窗中选行后再 {@code PLAY}（与向导按钮、高级「按所选动作发送」共用）。
+     * 先发 PLAY_OPTIONS，在弹窗中选行后再 PLAY（与向导按钮、高级「按所选动作发送」共用）。
      */
     private void requestPlayOptionsThenPlay(String cardId, String actionType) {
         String me = playerIdField.getText().trim();
@@ -686,7 +687,7 @@ public class MainController {
         requestPlayOptionsThenPlay(cardId, action);
     }
 
-    /** 调试：不经过 {@code PLAY_OPTIONS}，直接用下方文本框构造 {@code PLAY}。 */
+    /** 调试：不经过 PLAY_OPTIONS，直接用下方文本框构造 PLAY。 */
     @FXML
     private void onPlayDirect() {
         String action = playActionCombo.getSelectionModel().getSelectedItem();

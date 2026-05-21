@@ -4,11 +4,10 @@ import com.monopoly.model.player.AIPlayer;
 import com.monopoly.pattern.strategy.AiPlayStrategy;
 
 /**
- * AI 回合执行，从 {@link GameController} 抽出。
+ * Runs AI turns after GameController.endTurn (HVM mode).
  * <p>
- * 人机模式下，回合推进到 AI 玩家时由 {@link GameController#endTurn} 自动触发。
- * AI 出牌通过 {@link AiPlayStrategy#tryPlayOneCard} 调用 {@link GameController}
- * （{@link com.monopoly.model.AiGameBridge} 接口），保证人机走同一套校验与效果链路。
+ * AiPlayStrategy plays via AiGameBridge
+ * so AI uses the same validation and effect pipeline as humans.
  */
 final class AiTurnService {
 

@@ -4,8 +4,7 @@ import com.monopoly.model.player.Player;
 import com.monopoly.model.card.PropertyCard;
 
 /**
- * 强制交换效果（Forced Deal）：以施效者财产区一张房产，强制换取目标玩家财产区一张房产。
- * requirements：目标需有已部署的房产。
+ * Forced Deal: swap one property with target (target must have a property).
  */
 public class ForcedDealEffect implements ActionEffect {
 
@@ -36,6 +35,6 @@ public class ForcedDealEffect implements ActionEffect {
 
         return ActionEffectResult.success(
                 actor.getDisplayName() + " 与 " + target.getDisplayName()
-                        + " 强制交换房产：" + actorProp.getName() + " <-> " + targetProp.getName() + "。");
+                        + " Forced property swap：" + actorProp.getName() + " <-> " + targetProp.getName() + "。");
     }
 }

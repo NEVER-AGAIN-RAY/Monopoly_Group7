@@ -29,8 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * WebSocket 服务端骨架：维护已连接客户端抽象，在状态更新时向所有连接广播 JSON。
- * 具体容器（Tyrus / Jetty / Netty）在 @ServerEndpoint 中把原生 Session 适配为 {@link com.monopoly.network.connection.ClientConnection}。
+ * WebSocket server: routes JSON to GameController and broadcasts state snapshots to all clients.
  */
 public class GameServer implements GameUpdateObserver {
 
@@ -47,7 +46,7 @@ public class GameServer implements GameUpdateObserver {
         this.gameController = controller;
     }
 
-    /** 新客户端连接时注册（由 WebSocket 端点回调调用） */
+    /** Called when a WebSocket session opens */
     public void onClientConnected(ClientConnection client) {
         clients.add(client);
     }
@@ -57,7 +56,7 @@ public class GameServer implements GameUpdateObserver {
         sessionRegistry.unregister(client);
     }
 
-    /** 收到客户端 JSON 文本：转交控制器（骨架） */
+    /** Inbound JSON dispatcher */
     public void onMessage(ClientConnection from, String json) {
         String type = dispatcher.extractMessageType(json);
         JsonObject root = dispatcher.parseObject(json);
@@ -74,7 +73,7 @@ public class GameServer implements GameUpdateObserver {
                 }
                 return;
             }
-            // sessionToken 预留给后续鉴权链路，当前阶段仅完成连接与玩家绑定。
+            // sessionToken reserved for future auth; we only bind playerId today.
             if (sessionToken != null && sessionToken.isBlank()) {
                 sessionToken = null;
             }
@@ -220,12 +219,12 @@ public class GameServer implements GameUpdateObserver {
             return;
         }
         if ("LOAD_VOTE".equals(type)) {
-            // 兼容旧客户端：映射到新协议 ACK
+            // legacy LOAD_VOTE -> LOAD_GAME_ACK
             handleLoadGameAck(from, payload);
             return;
         }
         if ("PING".equals(type)) {
-            // 保留联通性探测占位
+            // PING: connectivity probe
         }
     }
 
@@ -381,7 +380,7 @@ public class GameServer implements GameUpdateObserver {
             }
             Set<String> eligibleVoters = resolveEligibleLoadVoters();
             if (eligibleVoters.isEmpty()) {
-                // 兼容无人身份绑定场景（例如旧测试/脚本）
+                // no AUTH: load immediately (tests/scripts)
                 gameController.importSessionJson(raw);
                 from.sendText(dispatcher.toJsonEnvelope("LOAD_GAME_RESULT", dispatcher.operationResult(true, null)));
                 return;
@@ -504,7 +503,7 @@ public class GameServer implements GameUpdateObserver {
         pushPrivateHands();
     }
 
-    /** 将本服务器注册为观察者，复用 GameUpdateSubject */
+    /** Registers as GameUpdateObserver */
     public void attachTo(GameUpdateSubject subject) {
         subject.registerObserver(this);
     }

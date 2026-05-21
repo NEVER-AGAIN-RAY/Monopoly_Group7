@@ -1,7 +1,7 @@
 package com.monopoly.model.effects;
 
 /**
- * 行动卡效果执行结果：统一返回给控制器，用于广播提示与合法性汇报。
+ * Effect outcome returned to the controller (SUCCESS/FAILED/COUNTERED).
  */
 public final class ActionEffectResult {
 

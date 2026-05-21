@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * 默认主题实现：线程安全的观察者列表（适合 WebSocket 多连接场景）。
+ * Thread-safe DefaultGameUpdateSubject for many clients.
  */
 public class DefaultGameUpdateSubject implements GameUpdateSubject {
 

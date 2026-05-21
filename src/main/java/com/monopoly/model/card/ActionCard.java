@@ -12,19 +12,19 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 行动卡：打出后触发特殊效果（收租、偷牌等），效果链由控制器/引擎调度。
+ * Action card with effectCode; resolved by controller stack.
  */
 public class ActionCard extends Card implements Payable {
 
     private final String effectCode;
     private final int bankValueM;
-    /** 仅 {@code RENT_DUAL}：卡面两色键，其余类型为空列表。 */
+    /** 仅 RENT_DUAL：卡面两色键，其余类型为空列表。 */
     private final List<String> rentPalette;
     /**
-     * 仅 {@code RENT_DUAL}：true 时对除房东外每名玩家依次收租（房规/扩展）；实体默认 false（1 对 1）。
+     * RENT_DUAL flag: charge every opponent when true.
      */
     private final boolean rentDualChargesEachOtherPlayer;
-    /** 仅 {@code RENT}：卡面为「任意色」租金牌（展示用），规则同单色收租。 */
+    /** 仅 RENT：卡面为「任意色」租金牌（展示用），规则同单色收租。 */
     private final boolean wildcardRentCard;
 
     public ActionCard(String id, String name, String effectCode) {
@@ -73,7 +73,7 @@ public class ActionCard extends Card implements Payable {
     }
 
     /**
-     * 存入银行时可作现金的 M 数（实体牌角标）。
+     * Bank value when deposited (M).
      */
     public int getBankValueM() {
         return bankValueM;

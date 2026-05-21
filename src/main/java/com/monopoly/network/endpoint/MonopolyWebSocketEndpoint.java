@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Jakarta WebSocket 端点：把原生 Session 适配为 {@link com.monopoly.network.connection.ClientConnection} 并转交 {@link GameServer}。
+ * Jakarta @ServerEndpoint; adapts Session to ClientConnection for GameServer.
  */
 @ServerEndpoint("/ws")
 public class MonopolyWebSocketEndpoint {

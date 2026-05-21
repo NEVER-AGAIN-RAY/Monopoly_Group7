@@ -1,7 +1,7 @@
 package com.monopoly.dto;
 
 /**
- * 行动牌可选操作一行：展示文案 + 填入 {@link PlayActionRequest} 的字段。
+ * One selectable row in ACTION_OPTIONS_RESULT.
  */
 public final class ActionOptionRow {
 

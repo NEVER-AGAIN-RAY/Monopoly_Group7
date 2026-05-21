@@ -97,7 +97,7 @@ final class WsJson {
         return s != null && !s.trim().isEmpty();
     }
 
-    /** {@code PLAY} 载荷：放弃免租；可选 {@code paymentCardIds} 指定首笔租金支付用牌。 */
+    /** PLAY 载荷：放弃免租；可选 paymentCardIds 指定首笔租金支付用牌。 */
     static Map<String, Object> playResponsePass(String actingPlayerId, List<String> paymentCardIds) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("actionType", "RESPONSE_PASS");

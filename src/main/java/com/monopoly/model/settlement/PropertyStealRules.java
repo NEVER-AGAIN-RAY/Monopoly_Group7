@@ -7,7 +7,7 @@ import com.monopoly.model.player.Player;
 import java.util.Locale;
 
 /**
- * 暗中夺产：不可从对手已凑齐的完整颜色套中偷房产（常见 Monopoly Deal 规则）。
+ * Cannot steal from an opponent's complete color set.
  */
 public final class PropertyStealRules {
 

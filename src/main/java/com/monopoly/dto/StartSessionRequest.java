@@ -1,16 +1,16 @@
 package com.monopoly.dto;
 
 /**
- * 开局会话配置：2–5 人、人机/人人、AI 难度、是否随机先手（requirements §2.1.1a–b）。
+ * START_SESSION payload: players, HVM/PVP, AI difficulty, first player.
  */
 public class StartSessionRequest {
 
     private String sessionId;
     /** 2–5 */
     private int playerCount;
-    /** {@code HVM} 人机 / {@code PVP} 人人 */
+    /** HVM 人机 / PVP 人人 */
     private String gameMode;
-    /** {@code EASY} / {@code NORMAL} / {@code HARD}，仅 HVM 使用 */
+    /** EASY / NORMAL / HARD，仅 HVM 使用 */
     private String aiDifficulty;
     private boolean randomizeFirstPlayer;
 

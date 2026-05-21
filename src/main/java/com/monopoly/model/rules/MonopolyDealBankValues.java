@@ -4,10 +4,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Monopoly Deal 行动牌「存入银行时可作现金」的面值（M），与实体牌角标一致。
- * <p>
- * 数值依据常见英文版说明（Hasbro / <a href="https://monopoly.fandom.com/wiki/Monopoly_Deal">Monopoly Wiki</a> 等）。
- * 本项目的 {@code effectCode} 与工厂 {@link com.monopoly.pattern.factory.MonopolyDealCardFactory} 中的行动牌分布一一对应。
+ * Bank value (M) when action cards are deposited; matches physical card corners.
  */
 public final class MonopolyDealBankValues {
 
@@ -30,8 +27,8 @@ public final class MonopolyDealBankValues {
     }
 
     /**
-     * @param effectCode 行动效果码（大小写不敏感）
-     * @return 银行面值（M）；未知码返回 {@code 3} 作为保守缺省
+     * @param effectCode action effect code
+     * @return bank value in M, default 3
      */
     public static int bankValueForActionEffect(String effectCode) {
         if (effectCode == null || effectCode.isBlank()) {
@@ -42,7 +39,7 @@ public final class MonopolyDealBankValues {
     }
 
     /**
-     * 供规则面板等展示：效果码 → 面值，顺序稳定。
+     * Stable map for rules UI.
      */
     public static Map<String, Integer> actionBankValuesUnmodifiable() {
         return ACTION_BANK_M;

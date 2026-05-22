@@ -256,6 +256,16 @@ public class GameController implements AiGameBridge {
         }
     }
 
+    void resumeAiTurnIfNeeded() {
+        if (turnFlowService.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
+            return;
+        }
+        Player current = turnManager.getCurrentPlayer();
+        if (current instanceof AIPlayer ai) {
+            aiTurnService.continueAiTurn(ai);
+        }
+    }
+
     public ActionEffectResult handleActionCardCommand(
             int handIndex, String targetPlayerId, String colorKey,
             int targetPropIndex, int actorPropIndex) {

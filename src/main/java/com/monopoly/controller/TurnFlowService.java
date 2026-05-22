@@ -470,9 +470,7 @@ final class TurnFlowService {
             gameContext.pushEffect(rentEntry);
             effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
-                    "收租已入栈，等待对方在 "
-                            + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
-                            + " 秒内打出免租或放弃。");
+                    "收租已入栈，等待对方" + responseWindowPrompt() + "。");
             System.out.println("[ACTION] " + result.getMessage());
             return result;
         }
@@ -536,9 +534,7 @@ final class TurnFlowService {
                 ActionEffectResult result = ActionEffectResult.success(
                         "双色全员收租已入栈，将依次向每位其他玩家收租；当前等待 "
                                 + firstTenant.getDisplayName()
-                                + " 在 "
-                                + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
-                                + " 秒内打出免租或放弃。");
+                                + " " + responseWindowPrompt() + "。");
                 System.out.println("[ACTION] " + result.getMessage());
                 return result;
             }
@@ -557,9 +553,7 @@ final class TurnFlowService {
             gameContext.pushEffect(rentEntry);
             effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
-                    "双色收租已入栈，等待对方在 "
-                            + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
-                            + " 秒内打出免租或放弃。");
+                    "双色收租已入栈，等待对方" + responseWindowPrompt() + "。");
             System.out.println("[ACTION] " + result.getMessage());
             return result;
         }
@@ -591,9 +585,7 @@ final class TurnFlowService {
             ActionEffectResult result = ActionEffectResult.success(
                     "生日礼金已入栈，将依次向每位其他玩家收 2M；当前等待 "
                             + firstTenant.getDisplayName()
-                            + " 在 "
-                            + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
-                            + " 秒内打出免租或放弃。");
+                            + " " + responseWindowPrompt() + "。");
             System.out.println("[ACTION] " + result.getMessage());
             return result;
         }
@@ -610,8 +602,7 @@ final class TurnFlowService {
                     actionCountAfterPlay);
             ActionEffectResult result = ActionEffectResult.success(
                     card.getName() + " 已入栈，等待 " + ctx.getTarget().getDisplayName()
-                            + " 在 " + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
-                            + " 秒内打出免租或放弃。");
+                            + " " + responseWindowPrompt() + "。");
             System.out.println("[ACTION] " + result.getMessage());
             return result;
         }
@@ -662,6 +653,13 @@ final class TurnFlowService {
             return baseAmountDue * 2;
         }
         return baseAmountDue;
+    }
+
+    private String responseWindowPrompt() {
+        if (controller.isPvpMode()) {
+            return "在 " + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS + " 秒内打出免租或放弃";
+        }
+        return "打出免租或放弃";
     }
 
     // --- helpers ---

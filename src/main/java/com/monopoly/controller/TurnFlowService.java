@@ -510,8 +510,57 @@ final class TurnFlowService {
             return result;
         }
 
+        if ("BIRTHDAY".equals(effectCodeStr)) {
+            List<String> tenantIds = otherPlayerIds(actor);
+            if (tenantIds.isEmpty()) {
+                throw new IllegalStateException("没有其他玩家可收取生日礼金。");
+            }
+            currentTurnActionCount++;
+            actor.placeActionToCenter(card);
+            gameContext.clearRentChargeSequence();
+            gameContext.setRentChargeSequence(new RentChargeSequence(
+                    actor.getPlayerId(),
+                    "BIRTHDAY",
+                    2,
+                    tenantIds));
+            Player firstTenant = controller.resolvePlayer(tenantIds.get(0));
+            if (firstTenant == null) {
+                gameContext.clearRentChargeSequence();
+                throw new IllegalStateException("生日礼金目标玩家不存在。");
+            }
+            gameContext.pushEffect(EffectStackEntry.pendingRent(
+                    actor.getPlayerId(),
+                    firstTenant.getPlayerId(),
+                    "BIRTHDAY",
+                    2));
+            effectStack.enterRentResponseWindow(firstTenant);
+            ActionEffectResult result = ActionEffectResult.success(
+                    "生日礼金已入栈，将依次向每位其他玩家收 2M；当前等待 "
+                            + firstTenant.getDisplayName()
+                            + " 在 "
+                            + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
+                            + " 秒内打出免租或放弃。");
+            System.out.println("[ACTION] " + result.getMessage());
+            return result;
+        }
+
         currentTurnActionCount++;
         actor.placeActionToCenter(card);
+
+        if (isSingleTargetJustSayNoAction(effectCodeStr) && ctx.getTarget() != null) {
+            int actionCountAfterPlay = currentTurnActionCount;
+            effectStack.enterActionResponseWindow(
+                    ctx.getTarget(),
+                    card,
+                    () -> ActionEffectDispatcher.dispatch(card.getEffectCode(), ctx),
+                    actionCountAfterPlay);
+            ActionEffectResult result = ActionEffectResult.success(
+                    card.getName() + " 已入栈，等待 " + ctx.getTarget().getDisplayName()
+                            + " 在 " + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
+                            + " 秒内打出免租或放弃。");
+            System.out.println("[ACTION] " + result.getMessage());
+            return result;
+        }
 
         ActionEffectResult result = ActionEffectDispatcher.dispatch(card.getEffectCode(), ctx);
 
@@ -528,6 +577,23 @@ final class TurnFlowService {
 
         System.out.println("[ACTION] " + result.getMessage());
         return result;
+    }
+
+    private static boolean isSingleTargetJustSayNoAction(String effectCode) {
+        return switch (effectCode) {
+            case "STEAL_PROPERTY", "FORCED_DEAL", "DEBT_COLLECTOR", "DEAL_BREAKER" -> true;
+            default -> false;
+        };
+    }
+
+    private List<String> otherPlayerIds(Player actor) {
+        List<String> ids = new ArrayList<>();
+        for (Player p : controller.getSessionPlayersView()) {
+            if (p != null && actor != null && !p.getPlayerId().equals(actor.getPlayerId())) {
+                ids.add(p.getPlayerId());
+            }
+        }
+        return ids;
     }
 
     // ─── 内部工具方法 ──────────────────────────────────────

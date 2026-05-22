@@ -123,6 +123,9 @@ public final class HandCardJson {
             o.addProperty("valueM", w.getPaymentValue());
             o.addProperty("buildingLevel", w.getBuildingLevel().name());
             o.addProperty("wildKind", w.getWildPropertyKind().name());
+            if (w.getAssignedColorKey() != null && !w.getAssignedColorKey().isBlank()) {
+                o.addProperty("assignedColorKey", w.getAssignedColorKey().toUpperCase(Locale.ROOT));
+            }
             if (w.getWildPropertyKind() == PropertyWildCard.WildPropertyKind.DUAL_COLOR) {
                 JsonArray pc = new JsonArray();
                 for (String c : w.getPrintedColorPairView()) {

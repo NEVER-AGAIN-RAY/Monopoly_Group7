@@ -38,6 +38,15 @@ class HandCardJsonTest {
     }
 
     @Test
+    void wild_includesAssignedColorWhenDeclared() {
+        PropertyWildCard w = new PropertyWildCard(
+                "w2", "w", PropertyWildCard.WildPropertyKind.DUAL_COLOR, List.of("PINK", "ORANGE"));
+        w.setAssignedColorKey("orange");
+        JsonObject o = HandCardJson.toHandCardObject(w);
+        assertEquals("ORANGE", o.get("assignedColorKey").getAsString());
+    }
+
+    @Test
     void money_unchanged() {
         JsonObject o = HandCardJson.toHandCardObject(new MoneyCard("m1", "n", 5));
         assertEquals(5, o.get("valueM").getAsInt());

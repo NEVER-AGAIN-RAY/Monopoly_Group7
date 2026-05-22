@@ -9,7 +9,6 @@ import com.monopoly.model.card.Card;
 import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.card.PropertyWildCard;
 import com.monopoly.model.effects.ActionEffectContext;
-import com.monopoly.model.effects.DoubleRentEffect;
 import com.monopoly.model.effects.RentEffect;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.settlement.BuildingPlacementRules;
@@ -56,8 +55,9 @@ public final class ActionOptionsService {
         }
 
         switch (ec) {
-            case "RENT" -> buildRentOptions(actor, others, allPlayers, engine, out, false);
-            case "DOUBLE_RENT" -> buildRentOptions(actor, others, allPlayers, engine, out, true);
+            case "RENT" -> buildRentOptions(actor, others, allPlayers, engine, out);
+            case "DOUBLE_RENT" -> out.addOption(new ActionOptionRow(
+                    "打出后使你下一张租金牌金额翻倍", null, null, null, null, null));
             case "RENT_DUAL" -> buildRentDualOptions(actor, actionCard, others, allPlayers, engine, out);
             case "DEBT_COLLECTOR" -> buildDebtOptions(others, out);
             case "STEAL_PROPERTY" -> buildStealOptions(actor, others, out);
@@ -170,8 +170,7 @@ public final class ActionOptionsService {
             List<Player> others,
             List<Player> allPlayers,
             GameEngineSingleton engine,
-            ActionOptionsResult out,
-            boolean doubled) {
+            ActionOptionsResult out) {
         for (String color : PropertySetCalculator.REQUIRED_BY_COLOR.keySet()) {
             if (PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), color) <= 0) {
                 continue;
@@ -182,15 +181,13 @@ public final class ActionOptionsService {
                         .target(tenant)
                         .colorKey(color)
                         .build();
-                RentEffect.DueResult dueR = doubled
-                        ? DoubleRentEffect.computeDue(ctx)
-                        : RentEffect.computeDue(ctx);
+                RentEffect.DueResult dueR = RentEffect.computeDue(ctx);
                 if (!dueR.isOk()) {
                     continue;
                 }
                 int due = dueR.getAmountDue();
-                String label = (doubled ? "双倍收租 " : "收租 ")
-                        + color + " → " + tenant.getDisplayName() + "（应付约 " + due + "M）";
+                String label = "收租 " + color + " → " + tenant.getDisplayName()
+                        + "（应付约 " + due + "M）";
                 out.addOption(new ActionOptionRow(label, tenant.getPlayerId(), color, null, null, null));
             }
         }
@@ -221,18 +218,10 @@ public final class ActionOptionsService {
                 out.addOption(new ActionOptionRow(
                         label, t.getPlayerId(), null, prop.getId(), null, "PROPERTY"));
             }
-            for (Card bc : t.getBankCardsView()) {
-                if (bc == null) {
-                    continue;
-                }
-                String label = "偷银行：" + t.getDisplayName() + " · " + shortCardLabel(bc);
-                out.addOption(new ActionOptionRow(
-                        label, t.getPlayerId(), null, bc.getId(), null, "BANK"));
-            }
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("没有可偷的房产或银行牌。");
+            out.setError("没有可偷的房产。");
         }
     }
 
@@ -297,6 +286,9 @@ public final class ActionOptionsService {
             if (!BuildingPlacementRules.allowsHouseHotel(ck)) {
                 continue;
             }
+            if (BuildingPlacementRules.hasAnyBuildingForColor(actor.getPropertyCardsView(), ck)) {
+                continue;
+            }
             if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), ck)) {
                 continue;
             }
@@ -319,6 +311,9 @@ public final class ActionOptionsService {
                 continue;
             }
             if (!BuildingPlacementRules.allowsHouseHotel(ck)) {
+                continue;
+            }
+            if (BuildingPlacementRules.hasHotelForColor(actor.getPropertyCardsView(), ck)) {
                 continue;
             }
             if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), ck)) {

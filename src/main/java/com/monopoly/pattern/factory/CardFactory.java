@@ -7,7 +7,8 @@ import java.util.List;
 
 /**
  * [Factory Method]
- * Creator for card instances; concrete factories build the 108-card standard deck.
+ * Creator for card instances; concrete factories build the
+ * {@link GameConstants#STANDARD_DECK_SIZE}-card standard deck.
  */
 public abstract class CardFactory {
 

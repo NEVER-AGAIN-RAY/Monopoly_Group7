@@ -14,7 +14,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Builds the official 108-card Monopoly Deal deck (properties, wilds, money, actions).
+ * Builds the official {@link GameConstants#STANDARD_DECK_SIZE}-card Monopoly Deal deck.
+ * The playable deck is properties, wilds, money, action cards, and rent cards.
  */
 public class MonopolyDealCardFactory extends CardFactory {
 
@@ -42,7 +43,7 @@ public class MonopolyDealCardFactory extends CardFactory {
     /** 与 .ACTION_EFFECT_CYCLE 同下标；仅对效果码 RENT 有效。 */
     private static final boolean[] ACTION_RENT_IS_WILDCARD;
 
-    /** 实体 5 张「双色租金」1v1 的卡面色对（与双色万能色对可不完全相同）。 */
+    /** 实体 10 张「双色租金」1v1 的卡面色对（每组 2 张）。 */
     private static final String[][] RENT_DUAL_1V1_PALETTES = {
             {"LIGHT_BLUE", "BROWN"},
             {"PINK", "ORANGE"},
@@ -54,29 +55,28 @@ public class MonopolyDealCardFactory extends CardFactory {
     /** WILD_2..WILD_10 共 9 张印定双色万能。 */
     private static final String[][] WILD_DUAL_PAIRS = {
             {"LIGHT_BLUE", "BROWN"},
+            {"LIGHT_BLUE", "RAILROAD"},
+            {"PINK", "ORANGE"},
             {"PINK", "ORANGE"},
             {"RED", "YELLOW"},
+            {"RED", "YELLOW"},
             {"DARK_BLUE", "GREEN"},
-            {"RAILROAD", "UTILITY"},
-            {"ORANGE", "RED"},
-            {"YELLOW", "GREEN"},
-            {"PINK", "RAILROAD"},
-            {"UTILITY", "BROWN"}
+            {"GREEN", "RAILROAD"},
+            {"RAILROAD", "UTILITY"}
     };
 
     static {
-        if (ACTION_COUNT != 49) {
-            throw new IllegalStateException("行动牌槽位应为 49，当前=" + ACTION_COUNT);
+        if (ACTION_COUNT != 47) {
+            throw new IllegalStateException("行动/租金牌槽位应为 47，当前=" + ACTION_COUNT);
         }
         List<String> codes = new ArrayList<>();
         boolean[] rentWild = new boolean[ACTION_COUNT];
 
-        addN(codes, "RENT", 5);
         for (int i = 0; i < 3; i++) {
             rentWild[codes.size()] = true;
             codes.add("RENT");
         }
-        addN(codes, "RENT_DUAL", 5);
+        addN(codes, "RENT_DUAL", 10);
 
         addN(codes, "DOUBLE_RENT", 2);
         addN(codes, "STEAL_PROPERTY", 3);
@@ -87,7 +87,7 @@ public class MonopolyDealCardFactory extends CardFactory {
         addN(codes, "HOUSE", 3);
         addN(codes, "HOTEL", 2);
         addN(codes, "DEAL_BREAKER", 2);
-        addN(codes, "PASS_GO", 12);
+        addN(codes, "PASS_GO", 10);
 
         if (codes.size() != ACTION_COUNT) {
             throw new IllegalStateException(

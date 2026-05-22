@@ -17,7 +17,7 @@
 - The system provides both human-vs-machine and player-vs-player modes.
 - In human-vs-machine mode, AI difficulty supports Easy, Normal, and Hard.
 - The system supports creating a game with 2-5 players and assigns first turn order randomly.
-- At game start, the system generates a standard 108-card deck, deals 5 cards to each player, and initializes deck/discard piles.
+- At game start, the system generates a standard 106-playable-card deck (108-card list minus 2 rule cards), deals 5 cards to each player, and initializes deck/discard piles.
 - The system provides an in-game rule panel.
 
 #### 2.1.2 Turn and Action Control

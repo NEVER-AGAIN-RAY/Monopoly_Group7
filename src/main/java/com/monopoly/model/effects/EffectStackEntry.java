@@ -10,6 +10,7 @@ public final class EffectStackEntry {
     public enum Kind {
         RENT,
         DOUBLE_RENT,
+        ACTION,
         WAIVER
     }
 
@@ -58,6 +59,11 @@ public final class EffectStackEntry {
         return new EffectStackEntry(id, Kind.WAIVER, actorPlayerId, null, null, 0, targetEntryId);
     }
 
+    public static EffectStackEntry pendingAction(String actorPlayerId, String targetPlayerId) {
+        String id = UUID.randomUUID().toString();
+        return new EffectStackEntry(id, Kind.ACTION, actorPlayerId, targetPlayerId, null, 0, null);
+    }
+
     public String getId() {
         return id;
     }
@@ -88,5 +94,9 @@ public final class EffectStackEntry {
 
     public boolean isRentLike() {
         return kind == Kind.RENT || kind == Kind.DOUBLE_RENT;
+    }
+
+    public boolean isActionLike() {
+        return kind == Kind.ACTION;
     }
 }

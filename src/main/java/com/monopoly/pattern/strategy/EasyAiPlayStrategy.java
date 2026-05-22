@@ -5,7 +5,7 @@ import com.monopoly.model.core.AiGameBridge;
 import com.monopoly.model.core.GameContext;
 
 /**
- * 简单 AI：随机化候选顺序与部分目标，启发式较弱；实现见 {@link AiHeuristics}。
+ * Easy AI: weaker random heuristics via AiHeuristics.
  */
 public class EasyAiPlayStrategy implements AiPlayStrategy {
 

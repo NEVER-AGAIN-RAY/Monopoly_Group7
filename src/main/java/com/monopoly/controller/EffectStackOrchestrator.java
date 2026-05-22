@@ -24,14 +24,11 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 效果栈编排器：管理行动牌响应窗口、免租连锁（Just Say No）、
- * 响应超时定时器等逻辑，从 {@link GameController} 抽出。
+ * Orchestrates rent/Just-Say-No response windows and 15s timeouts (extracted from GameController).
  * <p>
- * 持有单线程 {@link ScheduledExecutorService}；通过包级回调与
- * {@link TurnFlowService} 协作完成回合阶段切换。
+ * Uses a single-thread scheduler; cooperates with TurnFlowService for phase changes.
  * <p>
- * <b>并发安全</b>：{@code pendingResponseFuture} 为 {@code volatile}，定时器回调
- * 通过 {@code deadlineEpochMs} 校验确保过期任务不会与主线程响应操作竞争。
+ * Timeout tasks compare deadlineEpochMs so stale timers cannot race with live responses.
  */
 final class EffectStackOrchestrator {
 
@@ -55,9 +52,13 @@ final class EffectStackOrchestrator {
         this.turnFlow = turnFlow;
     }
 
-    // ─── 响应窗口 ──────────────────────────────────────────
+    // --- response window ---
 
     void enterRentResponseWindow(Player tenant) {
+        enterRentResponseWindow(tenant, null, null);
+    }
+
+    void enterRentResponseWindow(Player tenant, Player playedBy, ActionCard playedCard) {
         if (tenant == null) {
             throw new IllegalStateException("收租目标无效。");
         }
@@ -72,7 +73,7 @@ final class EffectStackOrchestrator {
         String rentSummary = "Rent " + due + "M — awaiting response from "
                 + tenant.getDisplayName() + ".";
         controller.pushSnapshot(controller.getCurrentSessionId(),
-                "RENT_AWAITING_RESPONSE", rentSummary);
+                "RENT_AWAITING_RESPONSE", rentSummary, playedBy, playedCard, "ACTION");
     }
 
     void enterActionResponseWindow(
@@ -91,12 +92,18 @@ final class EffectStackOrchestrator {
         turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
         scheduleResponseTimeout(deadline);
         ctx.pushEffect(EffectStackEntry.pendingAction(turnFlow.currentTurnPlayerId, target.getPlayerId()));
+        Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
+        String actorName = actor != null ? actor.getDisplayName() : turnFlow.currentTurnPlayerId;
         controller.pushSnapshot(controller.getCurrentSessionId(),
                 "ACTION_AWAITING_RESPONSE",
-                card.getName() + " — awaiting Just Say No response from " + target.getDisplayName() + ".");
+                actorName + " played ACTION (" + card.getName()
+                        + ") — awaiting Just Say No response from " + target.getDisplayName() + ".",
+                actor,
+                card,
+                "ACTION");
     }
 
-    // ─── 定时器 ────────────────────────────────────────────
+    // --- timeout scheduler ---
 
     void scheduleResponseTimeout(long deadlineEpochMs) {
         cancelPendingResponseTimeout();
@@ -125,14 +132,14 @@ final class EffectStackOrchestrator {
         }
     }
 
-    // ─── 响应/放弃 ─────────────────────────────────────────
+    // --- pass / explicit payment ---
 
     void performResponsePass(String actingPlayerId) {
         performResponsePass(actingPlayerId, null);
     }
 
     /**
-     * @param paymentCardIds 非空时：承租人指定用于<strong>首笔</strong>应付租金的银行/财产牌 id（找零不退）；仅 {@link StackResponseState.Role#TENANT} 阶段允许。
+     * When non-empty, tenant picks bank/property card ids for the first rent due (no change returned); TENANT role only.
      */
     void performResponsePass(String actingPlayerId, List<String> paymentCardIds) {
         if (actingPlayerId == null || actingPlayerId.isBlank()) {
@@ -174,7 +181,7 @@ final class EffectStackOrchestrator {
         resolveEffectStackAndResume("RESPONSE_PASS", paymentCardIds, tenantExplicit);
     }
 
-    // ─── 免租牌（Just Say No）响应 ────────────────────────
+    // --- Just Say No (rent waiver) ---
 
     void handleWaiverPlay(PlayActionRequest req) {
         Player actor = controller.resolvePlayer(req.getActingPlayerId());
@@ -228,8 +235,16 @@ final class EffectStackOrchestrator {
                     StackResponseState.Role.LANDLORD_COUNTER, landlord.getPlayerId(), deadline));
             scheduleResponseTimeout(deadline);
             controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_AWAITING_COUNTER",
-                    actor.getDisplayName() + " played Just Say No; landlord may counter.");
+                    actor.getDisplayName() + " played Just Say No; landlord may counter.",
+                    actor,
+                    actionCard,
+                    "ACTION");
         } else {
+            controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_COUNTER_PLAYED",
+                    actor.getDisplayName() + " played Just Say No to counter.",
+                    actor,
+                    actionCard,
+                    "ACTION");
             if (pendingAction != null) {
                 resolvePendingActionAndResume("JSN_COUNTER_RESOLVED");
             } else {
@@ -238,7 +253,7 @@ final class EffectStackOrchestrator {
         }
     }
 
-    // ─── 效果栈结算 ────────────────────────────────────────
+    // --- resolve effect stack ---
 
     void resolveEffectStackAndResume(String phaseHint) {
         resolveEffectStackAndResume(phaseHint, null, null);
@@ -326,7 +341,7 @@ final class EffectStackOrchestrator {
         System.out.println("[EFFECT_STACK] " + phaseHint + " " + result.getMessage());
     }
 
-    // ─── 响应提示（静态工具） ──────────────────────────────
+    // --- UI hint text ---
 
     static String buildPendingResponseHint(StackResponseState st) {
         if (st == null) {

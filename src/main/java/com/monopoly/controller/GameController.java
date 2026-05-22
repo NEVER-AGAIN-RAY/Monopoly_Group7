@@ -45,18 +45,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * 【Facade 外观模式】
- * 对桌面客户端/网络层暴露统一的高层操作入口，隐藏摸牌、租金结算、
- * 回合推进、效果栈编排等协作细节。
+ * [Facade]
+ * Single entry point for the JavaFX client and WebSocket layer; hides turn flow and effect-stack details.
  * <p>
- * 核心逻辑已拆分至六个内聚服务：
+ * Core logic is split into six services:
  * <ul>
- *   <li>{@link TurnFlowService} — 回合流程（摸牌 / 出牌 / 弃牌 / 结束回合 / 行动卡）</li>
- *   <li>{@link EffectStackOrchestrator} — 效果栈 & 响应定时器</li>
- *   <li>{@link AiTurnService} — AI 回合执行</li>
- *   <li>{@link RentSettlementService} — 租金结算</li>
- *   <li>{@link PauseVoteService} — 暂停 / PVP 投票</li>
- *   <li>{@link SaveLoadService} — 存档 / 读档 / 自动保存</li>
+ *   <li>TurnFlowService — turn flow (draw, play, discard, end turn, action cards)</li>
+ *   <li>EffectStackOrchestrator — effect stack and response timers</li>
+ *   <li>AiTurnService — AI turn execution</li>
+ *   <li>RentSettlementService — rent settlement</li>
+ *   <li>PauseVoteService — pause and PVP voting</li>
+ *   <li>SaveLoadService — save, load, autosave</li>
  * </ul>
  */
 public class GameController implements AiGameBridge {
@@ -70,7 +69,7 @@ public class GameController implements AiGameBridge {
     private final CardFactory cardFactory = new MonopolyDealCardFactory();
     private final GameUpdateSubject gameUpdateSubject;
 
-    /* ── 六大内聚服务 ─────────────────────────────────── */
+    /* --- six services --- */
     private final TurnFlowService turnFlowService;
     private final EffectStackOrchestrator effectStackOrchestrator;
     private final AiTurnService aiTurnService;
@@ -78,7 +77,7 @@ public class GameController implements AiGameBridge {
     private final PauseVoteService pauseVoteService;
     private final RentSettlementService rentSettlementService;
 
-    /* ── 会话级状态 ───────────────────────────────────── */
+    /* --- session state --- */
     private final GameContext gameContext = new GameContext();
     private final List<Player> sessionPlayers = new ArrayList<>();
     private String currentSessionId = "unknown";
@@ -91,8 +90,9 @@ public class GameController implements AiGameBridge {
     private final Set<String> quitPlayerIds = new HashSet<>();
     private String sessionGameMode = "HVM";
     private int fullRoundsCompleted;
+    private long playEventSequence;
 
-    // ─── 构造 ────────────────────────────────────────────
+    // --- constructor ---
 
     public GameController(GameUpdateSubject gameUpdateSubject) {
         this.gameUpdateSubject = gameUpdateSubject;
@@ -107,7 +107,7 @@ public class GameController implements AiGameBridge {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  会话生命周期
+    //  Session lifecycle
     // ═══════════════════════════════════════════════════════
 
     public void startNewSession(String sessionId) {
@@ -121,8 +121,8 @@ public class GameController implements AiGameBridge {
     }
 
     /**
-     * 开始新会话：从工厂取得有序标准可游戏牌，{@linkplain Collections#shuffle 洗牌} 后装入抽牌堆并发初始手牌。
-     * 读档恢复牌序走 {@link com.monopoly.persistence.GameSessionMemento}，不经过本方法的洗牌逻辑。
+     * Starts a session: builds the standard deck, shuffles it into the draw pile,
+     * and deals opening hands. Loading restores deck order via GameSessionMemento.
      */
     public void startNewSession(StartSessionRequest req) {
         if (req == null) {
@@ -152,6 +152,7 @@ public class GameController implements AiGameBridge {
         sessionForceEnded = false;
         forceEndReason = null;
         quitPlayerIds.clear();
+        playEventSequence = 0L;
         List<Card> deck = new ArrayList<>(cardFactory.createStandardDeck108());
         Collections.shuffle(deck, ThreadLocalRandom.current());
         engine.attachDrawPile(deck);
@@ -217,7 +218,7 @@ public class GameController implements AiGameBridge {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  回合操作（委托 TurnFlowService）
+    //  Turn actions (TurnFlowService)
     // ═══════════════════════════════════════════════════════
 
     public void drawCards(Player player, int count) {
@@ -271,7 +272,7 @@ public class GameController implements AiGameBridge {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  网络层命令入口
+    //  WebSocket command handlers
     // ═══════════════════════════════════════════════════════
 
     public void handleDrawCommand(int count) {
@@ -335,7 +336,7 @@ public class GameController implements AiGameBridge {
     }
 
     /**
-     * 出牌阶段：为指定行动手牌生成可选目标/参数列表（供客户端点选后再 {@code PLAY}）。
+     * PLAY phase: legal targets/params for an action card (client sends PLAY after picking).
      */
     public ActionOptionsResult queryActionOptionsForHandCard(String playerId, String cardId) {
         try {
@@ -370,7 +371,7 @@ public class GameController implements AiGameBridge {
     }
 
     /**
-     * 出牌阶段：按动作类型（存入/部署/弃牌/行动）生成可选参数，供 {@code PLAY_OPTIONS} 向导使用。
+     * PLAY phase: options for DEPOSIT/DEPLOY/DISCARD/ACTION (PLAY_OPTIONS wizard).
      */
     public ActionOptionsResult queryPlayOptions(String playerId, String cardId, String actionType) {
         try {
@@ -512,7 +513,7 @@ public class GameController implements AiGameBridge {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  租金结算（委托 RentSettlementService）
+    //  Rent settlement (RentSettlementService)
     // ═══════════════════════════════════════════════════════
 
     public PaymentSettlement.Result requestRentPayment(
@@ -530,7 +531,7 @@ public class GameController implements AiGameBridge {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  暂停 / PVP 投票（委托 PauseVoteService）
+    //  Pause / PVP vote (PauseVoteService)
     // ═══════════════════════════════════════════════════════
 
     public boolean isPaused() {
@@ -566,7 +567,7 @@ public class GameController implements AiGameBridge {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  存档 / 读档（委托 SaveLoadService）
+    //  Save / load (SaveLoadService)
     // ═══════════════════════════════════════════════════════
 
     public String exportSessionJson() {
@@ -578,7 +579,7 @@ public class GameController implements AiGameBridge {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  查询 API
+    //  Query API
     // ═══════════════════════════════════════════════════════
 
     public TurnManager getTurnManager() {
@@ -614,7 +615,7 @@ public class GameController implements AiGameBridge {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  包级回调 / 内部状态访问（供服务类使用）
+    //  Package-private hooks for services
     // ═══════════════════════════════════════════════════════
 
     GameContext getGameContext() {
@@ -695,8 +696,7 @@ public class GameController implements AiGameBridge {
     }
 
     /**
-     * {@link SaveLoadService#importSessionJson} 回调：memento 已写入控制器私有字段后，
-     * 重置暂停/退出/轮次等运行时状态，并广播 INIT。
+     * After SaveLoadService.importSessionJson: reset runtime flags and broadcast INIT.
      */
     void resetStateAfterLoad(String gameMode) {
         effectStackOrchestrator.cancelPendingResponseTimeout();
@@ -705,18 +705,29 @@ public class GameController implements AiGameBridge {
         this.sessionGameMode = (gameMode != null && !gameMode.isBlank())
                 ? gameMode.trim().toUpperCase() : "HVM";
         this.fullRoundsCompleted = 0;
+        this.playEventSequence = 0L;
         quitPlayerIds.clear();
         assertDeckIntegrityOrLog();
         pushSnapshot(currentSessionId, "INIT", "Session loaded from save.");
     }
 
-    // ─── 快照推送 ──────────────────────────────────────────
+    // --- snapshot broadcast ---
 
     void pushSnapshot(String sessionId, String phase) {
         pushSnapshot(sessionId, phase, null);
     }
 
     void pushSnapshot(String sessionId, String phase, String actionSummary) {
+        pushSnapshot(sessionId, phase, actionSummary, null, null, null);
+    }
+
+    void pushSnapshot(
+            String sessionId,
+            String phase,
+            String actionSummary,
+            Player playedBy,
+            Card playedCard,
+            String playedActionType) {
         String originalPhase = phase;
         if (!sessionForceEnded && sessionStartEpochMs > 0) {
             long elapsed = System.currentTimeMillis() - sessionStartEpochMs;
@@ -773,6 +784,17 @@ public class GameController implements AiGameBridge {
         snap.setLastErrorTimestampEpochMs(lastErrorTimestampEpochMs);
         snap.setGameOver(sessionForceEnded || "GAME_OVER".equals(originalPhase));
         snap.setForceEndReason(sessionForceEnded ? forceEndReason : null);
+        if (playedCard != null) {
+            long seq = ++playEventSequence;
+            String actorId = playedBy != null ? playedBy.getPlayerId() : turnFlowService.currentTurnPlayerId;
+            snap.setLastPlayedSequence(seq);
+            snap.setLastPlayedPlayerId(actorId);
+            snap.setLastPlayedActionType(
+                    playedActionType != null && !playedActionType.isBlank()
+                            ? playedActionType.trim().toUpperCase(Locale.ROOT)
+                            : (phase != null ? phase : ""));
+            snap.setLastPlayedCard(HandCardJson.toHandCardObject(playedCard));
+        }
         for (Player p : sessionPlayers) {
             JsonArray bankArr = new JsonArray();
             for (Card c : p.getBankCardsView()) {
@@ -806,7 +828,7 @@ public class GameController implements AiGameBridge {
         gameUpdateSubject.notifyStateChanged(snap);
     }
 
-    // ─── 私有工具 ──────────────────────────────────────────
+    // --- private helpers ---
 
     private void recordErrorAndSnapshot(RuntimeException e) {
         recordError(e.getClass().getSimpleName(), runtimeExceptionDetail(e));

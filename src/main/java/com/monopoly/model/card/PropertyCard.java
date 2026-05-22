@@ -5,7 +5,7 @@ import com.monopoly.model.core.GameContext;
 import com.monopoly.model.player.Player;
 
 /**
- * 房产卡：可部署到财产区，参与收租计算（具体计算不在此实现）。
+ * Property card with color group and building level.
  */
 public class PropertyCard extends Card implements Payable {
 
@@ -31,7 +31,7 @@ public class PropertyCard extends Card implements Payable {
         }
     }
 
-    /** 是否为万能房产牌（可计入任意颜色套数，由 {@link com.monopoly.model.PropertySetCalculator} 分配）。 */
+    /** 是否为万能房产牌（可计入任意颜色套数，由 PropertySetCalculator 分配）。 */
     public boolean isWildProperty() {
         return false;
     }
@@ -42,7 +42,7 @@ public class PropertyCard extends Card implements Payable {
     }
 
     /**
-     * 抵押/支付价值：用于支付租金时从财产区退回弃牌堆的折算（M）。
+     * Value when surrendered from property zone to pay rent.
      */
     @Override
     public int getPaymentValue() {

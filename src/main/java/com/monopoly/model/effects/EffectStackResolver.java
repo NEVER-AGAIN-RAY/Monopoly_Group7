@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 从栈顶向下应用免租（后发先至），再对未被取消的收租条目执行支付。
+ * Apply waivers LIFO, then pay active rent entries.
  */
 public final class EffectStackResolver {
 
@@ -25,7 +25,7 @@ public final class EffectStackResolver {
     }
 
     /**
-     * @param explicitPaymentCardIds 非空时：仅对<strong>第一条</strong>应付租金且承租人等于 {@code actingTenantIdForExplicit} 的条目使用指定牌；其余条目仍自动贪心。
+     * @param explicitPaymentCardIds optional tenant-chosen cards for the first rent line only
      */
     public static PaymentSettlement.Result resolveRentPayments(
             List<EffectStackEntry> stackBottomToTop,

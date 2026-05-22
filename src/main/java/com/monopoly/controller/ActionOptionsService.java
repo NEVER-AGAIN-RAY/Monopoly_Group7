@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 为当前玩家打出的行动牌生成可选操作列表（供客户端点选，无需手填 id）。
+ * Builds ACTION_OPTIONS rows for an action card.
  */
 public final class ActionOptionsService {
 

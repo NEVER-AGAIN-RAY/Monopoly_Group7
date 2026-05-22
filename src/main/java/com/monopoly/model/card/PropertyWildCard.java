@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 万能房产牌：部署时声明 {@link #assignedColorKey}；实体近似为 2 张「任意色」+ 9 张「印定双色」。
+ * Wild property: assign a color on deploy (ANY_COLOR or dual-print variants).
  */
 public class PropertyWildCard extends PropertyCard {
 
@@ -51,13 +51,13 @@ public class PropertyWildCard extends PropertyCard {
         return wildKind;
     }
 
-    /** 仅 {@link WildPropertyKind#DUAL_COLOR} 非空，长度 2。 */
+    /** 仅 WildPropertyKind.DUAL_COLOR 非空，长度 2。 */
     public List<String> getPrintedColorPairView() {
         return Collections.unmodifiableList(printedColorPair);
     }
 
     /**
-     * 部署到财产区时调用，声明本万能牌计入的颜色键（与 {@link PropertySetCalculator} 一致，大写）。
+     * Assign color when wild is deployed.
      */
     public void setAssignedColorKey(String colorKey) {
         if (colorKey == null || colorKey.isBlank()) {
@@ -70,7 +70,7 @@ public class PropertyWildCard extends PropertyCard {
     }
 
     /**
-     * 校验声明色是否符合本张万能类型（部署 / 改色前调用）。
+     * Validates color for wild kind before deploy/reassign.
      */
     public void validateAssignableColorKey(String normalizedColorKey) {
         if (normalizedColorKey == null || normalizedColorKey.isBlank()) {
@@ -99,7 +99,7 @@ public class PropertyWildCard extends PropertyCard {
     }
 
     /**
-     * 作支付价值 0M（贴近实体万能房产不作现金支付）。
+     * Wild properties pay 0M when used as payment.
      */
     @Override
     public int getPaymentValue() {

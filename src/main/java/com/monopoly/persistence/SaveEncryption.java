@@ -14,8 +14,7 @@ import java.util.Arrays;
 import java.util.Base64;
 
 /**
- * 存档轻量加密（§2.2.3）：AES-256-GCM。密钥由 JVM 属性 {@link GameConstants#SAVE_KEY_PROPERTY} 提供；
- * 未设置时 {@link #encodeForStorage(String)} / {@link #decodeFromStorage(String)} 保持明文。
+ * Optional AES-256-GCM save encryption via -Dmonopoly.saveKey; plaintext when unset.
  */
 public final class SaveEncryption {
 
@@ -26,7 +25,7 @@ public final class SaveEncryption {
     private SaveEncryption() {
     }
 
-    /** @return 已 trim 的密钥，未配置则 {@code null} */
+    /** @return 已 trim 的密钥，未配置则 null */
     public static String getKeyOrNull() {
         String k = System.getProperty(GameConstants.SAVE_KEY_PROPERTY);
         if (k == null || k.isBlank()) {
@@ -36,7 +35,7 @@ public final class SaveEncryption {
     }
 
     /**
-     * AES-GCM：密文为 {@code IV(12) || ciphertext}。
+     * AES-GCM wire format: IV(12 bytes) || ciphertext.
      */
     public static byte[] encrypt(String plain, String key) {
         if (plain == null) {
@@ -85,7 +84,7 @@ public final class SaveEncryption {
     }
 
     /**
-     * 写盘用：有密钥则 {@code ENC1:} + Base64(encrypt)，否则原文。
+     * encodeForStorage: ENC1: prefix when key set.
      */
     public static String encodeForStorage(String plainJson) {
         String k = getKeyOrNull();
@@ -97,7 +96,7 @@ public final class SaveEncryption {
     }
 
     /**
-     * 读盘 / LOAD：无密钥或内容为明文 JSON（以 {@code '{' } 开头）则原样返回；否则解密。
+     * decodeFromStorage: pass through JSON or decrypt ENC1.
      */
     public static String decodeFromStorage(String stored) {
         if (stored == null) {

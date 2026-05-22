@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * 维护连接与玩家身份的双向索引，供路由与鉴权使用。
+ * Maps WebSocket connections to playerId (bidirectional).
  */
 public class SessionRegistry {
 

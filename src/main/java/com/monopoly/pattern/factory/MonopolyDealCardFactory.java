@@ -14,14 +14,12 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 具体工厂：生成 {@link GameConstants#STANDARD_DECK_SIZE} 张可游戏牌。
- * <p>
- * 盒装清单为 108 张，其中 2 张规则卡不进入游戏牌堆；实际牌堆为房产 28、万能 11、现金 20、
- * 行动 34、租金 13。
+ * Builds the official {@link GameConstants#STANDARD_DECK_SIZE}-card Monopoly Deal deck.
+ * The playable deck is properties, wilds, money, action cards, and rent cards.
  */
 public class MonopolyDealCardFactory extends CardFactory {
 
-    /** 与常见盒装一致的房产张数分布（合计 28）。 */
+    /** Property color distribution matching the retail box (28 total). */
     private static final String[] PROPERTY_DEAL_ORDER = {
             "BROWN", "BROWN",
             "LIGHT_BLUE", "LIGHT_BLUE", "LIGHT_BLUE",
@@ -42,7 +40,7 @@ public class MonopolyDealCardFactory extends CardFactory {
             - PROPERTY_DEAL_ORDER.length - PROPERTY_WILD_COUNT - MONEY_COUNT;
 
     private static final String[] ACTION_EFFECT_CYCLE;
-    /** 与 {@link #ACTION_EFFECT_CYCLE} 同下标；仅对效果码 {@code RENT} 有效。 */
+    /** 与 .ACTION_EFFECT_CYCLE 同下标；仅对效果码 RENT 有效。 */
     private static final boolean[] ACTION_RENT_IS_WILDCARD;
 
     /** 实体 10 张「双色租金」1v1 的卡面色对（每组 2 张）。 */
@@ -54,7 +52,7 @@ public class MonopolyDealCardFactory extends CardFactory {
             {"RAILROAD", "UTILITY"}
     };
 
-    /** {@code WILD_2}..{@code WILD_10} 共 9 张印定双色万能。 */
+    /** WILD_2..WILD_10 共 9 张印定双色万能。 */
     private static final String[][] WILD_DUAL_PAIRS = {
             {"LIGHT_BLUE", "BROWN"},
             {"LIGHT_BLUE", "RAILROAD"},
@@ -173,7 +171,7 @@ public class MonopolyDealCardFactory extends CardFactory {
     }
 
     /**
-     * 返回<strong>确定顺序</strong>的标准可游戏牌列表（房产→万能→现金→行动，便于测试与断言）。
+     * Deterministic 108-card list (property, wild, money, action) for tests.
      */
     @Override
     public List<Card> createStandardDeck108() {

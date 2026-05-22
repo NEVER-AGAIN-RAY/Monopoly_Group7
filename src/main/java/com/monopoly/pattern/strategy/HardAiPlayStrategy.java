@@ -5,7 +5,7 @@ import com.monopoly.model.core.AiGameBridge;
 import com.monopoly.model.core.GameContext;
 
 /**
- * 困难 AI：优先压制高威胁对手（完整套、银行、财产）；阶段顺序与目标选择见 {@link AiHeuristics}。
+ * Hard AI: block leaders; see AiHeuristics.
  */
 public class HardAiPlayStrategy implements AiPlayStrategy {
 

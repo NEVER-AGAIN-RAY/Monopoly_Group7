@@ -5,7 +5,7 @@ import com.monopoly.model.player.Player;
 import java.util.List;
 
 /**
- * 回合管理：顺时针轮转、当前行动玩家查询（具体随机先手等在后续实现）。
+ * Turn order list and current player pointer.
  */
 public class TurnManager {
 

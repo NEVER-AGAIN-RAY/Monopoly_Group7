@@ -3,7 +3,7 @@ package com.monopoly.pattern.observer;
 import com.monopoly.dto.GameStateSnapshot;
 
 /**
- * 【Observer 观察者模式】主题端：注册/移除观察者并在状态变更时广播。
+ * [Observer] Subject: register observers and notify on snapshot changes.
  */
 public interface GameUpdateSubject {
 

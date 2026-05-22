@@ -4,8 +4,7 @@ import com.monopoly.model.settlement.PaymentSettlement;
 import com.monopoly.model.player.Player;
 
 /**
- * 债务催缴效果（Debt Collector）：向目标玩家固定收取 5M。
- * requirements：目标若无力支付则本次失败。
+ * Debt Collector: charge target exactly 5M or fail if cannot pay.
  */
 public class DebtCollectorEffect implements ActionEffect {
 

@@ -191,7 +191,7 @@ Monopoly_Group7/
 
 | 子包 | 模式与类型 | 职责 |
 |------|------------|------|
-| `factory/` | Factory Method | `CardFactory`、`MonopolyDealCardFactory`：生成标准 108 张牌。 |
+| `factory/` | Factory Method | `CardFactory`、`MonopolyDealCardFactory`：生成标准 106 张可游戏牌。 |
 | `observer/` | Observer | `GameUpdateSubject`、`GameUpdateObserver`、`DefaultGameUpdateSubject`。 |
 | `singleton/` | Singleton | `GameEngineSingleton`：抽牌堆、弃牌堆、摸牌/洗牌/全场牌数统计。 |
 | `strategy/` | Strategy | `AiPlayStrategy` 及 Easy/Normal/Hard 实现；`AiStrategyProfile`、`AiHeuristics`（AI 决策管线）。 |
@@ -508,7 +508,7 @@ participant "GameUpdateSubject\n<<Observer>>" as Subject
 == 1. Game Initialization Phase (Start Session) ==
 Client -> Controller: startNewSession(sessionId)
 Controller -> Factory: createStandardDeck108()
-Factory --> Controller: List<Card> (108 cards)
+Factory --> Controller: List<Card> (106 playable cards)
 Controller -> Engine: attachDrawPile(deck)
 Engine --> Controller: void
 Controller -> Controller: pushSnapshot(sessionId, "INIT")

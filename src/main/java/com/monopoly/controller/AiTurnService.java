@@ -39,6 +39,7 @@ final class AiTurnService {
                 return;
             }
         }
+        turnFlow.forceDiscardOverflowToLimit(ai);
         controller.endTurn(ai);
     }
 }

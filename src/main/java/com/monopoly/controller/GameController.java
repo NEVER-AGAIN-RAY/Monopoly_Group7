@@ -90,6 +90,7 @@ public class GameController implements AiGameBridge {
     private final Set<String> quitPlayerIds = new HashSet<>();
     private String sessionGameMode = "HVM";
     private int fullRoundsCompleted;
+    private long playEventSequence;
 
     // --- constructor ---
 
@@ -120,8 +121,8 @@ public class GameController implements AiGameBridge {
     }
 
     /**
-     * Starts a session: builds the standard 108-card deck，Collections.shuffle shuffles into the draw pile and deals opening hands.
-     * Load restores deck order via GameSessionMemento (no shuffle here).
+     * Starts a session: builds the standard deck, shuffles it into the draw pile,
+     * and deals opening hands. Loading restores deck order via GameSessionMemento.
      */
     public void startNewSession(StartSessionRequest req) {
         if (req == null) {
@@ -151,6 +152,7 @@ public class GameController implements AiGameBridge {
         sessionForceEnded = false;
         forceEndReason = null;
         quitPlayerIds.clear();
+        playEventSequence = 0L;
         List<Card> deck = new ArrayList<>(cardFactory.createStandardDeck108());
         Collections.shuffle(deck, ThreadLocalRandom.current());
         engine.attachDrawPile(deck);
@@ -178,6 +180,7 @@ public class GameController implements AiGameBridge {
         turnManager.bindTurnOrder(sessionPlayers);
         gameContext.bindPlayers(sessionPlayers);
         gameContext.clearEffectStack();
+        gameContext.clearPendingDoubleRent();
         effectStackOrchestrator.cancelPendingResponseTimeout();
 
         int initialEach = TurnFlowService.INITIAL_HAND_SIZE;
@@ -196,7 +199,7 @@ public class GameController implements AiGameBridge {
         turnFlowService.initForSession(current);
         clearLastError();
         assertDeckIntegrityOrLog();
-        pushSnapshot(currentSessionId, "INIT", "新局已开始：牌堆已随机shuffles，起手按真人发牌方式轮流发 5 张。");
+        pushSnapshot(currentSessionId, "INIT", "新局已开始：牌堆已随机洗牌，起手按真人发牌方式轮流发 5 张。");
     }
 
     private static AiPlayStrategy resolveAiStrategy(String normalizedDifficulty) {
@@ -703,6 +706,7 @@ public class GameController implements AiGameBridge {
         this.sessionGameMode = (gameMode != null && !gameMode.isBlank())
                 ? gameMode.trim().toUpperCase() : "HVM";
         this.fullRoundsCompleted = 0;
+        this.playEventSequence = 0L;
         quitPlayerIds.clear();
         assertDeckIntegrityOrLog();
         pushSnapshot(currentSessionId, "INIT", "Session loaded from save.");
@@ -715,6 +719,16 @@ public class GameController implements AiGameBridge {
     }
 
     void pushSnapshot(String sessionId, String phase, String actionSummary) {
+        pushSnapshot(sessionId, phase, actionSummary, null, null, null);
+    }
+
+    void pushSnapshot(
+            String sessionId,
+            String phase,
+            String actionSummary,
+            Player playedBy,
+            Card playedCard,
+            String playedActionType) {
         String originalPhase = phase;
         if (!sessionForceEnded && sessionStartEpochMs > 0) {
             long elapsed = System.currentTimeMillis() - sessionStartEpochMs;
@@ -771,6 +785,17 @@ public class GameController implements AiGameBridge {
         snap.setLastErrorTimestampEpochMs(lastErrorTimestampEpochMs);
         snap.setGameOver(sessionForceEnded || "GAME_OVER".equals(originalPhase));
         snap.setForceEndReason(sessionForceEnded ? forceEndReason : null);
+        if (playedCard != null) {
+            long seq = ++playEventSequence;
+            String actorId = playedBy != null ? playedBy.getPlayerId() : turnFlowService.currentTurnPlayerId;
+            snap.setLastPlayedSequence(seq);
+            snap.setLastPlayedPlayerId(actorId);
+            snap.setLastPlayedActionType(
+                    playedActionType != null && !playedActionType.isBlank()
+                            ? playedActionType.trim().toUpperCase(Locale.ROOT)
+                            : (phase != null ? phase : ""));
+            snap.setLastPlayedCard(HandCardJson.toHandCardObject(playedCard));
+        }
         for (Player p : sessionPlayers) {
             JsonArray bankArr = new JsonArray();
             for (Card c : p.getBankCardsView()) {

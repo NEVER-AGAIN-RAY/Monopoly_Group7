@@ -6,6 +6,7 @@ import com.monopoly.model.effects.EffectStackEntry;
 import com.monopoly.model.effects.EffectStackResolver;
 import com.monopoly.model.core.GameContext;
 import com.monopoly.model.core.RentChargeSequence;
+import com.monopoly.model.effects.ActionEffectResult;
 import com.monopoly.model.settlement.PaymentSettlement;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.effects.StackResponseState;
@@ -16,6 +17,7 @@ import com.monopoly.pattern.singleton.GameEngineSingleton;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -35,6 +37,7 @@ final class EffectStackOrchestrator {
     private final GameController controller;
     private final TurnFlowService turnFlow;
     private final GameEngineSingleton engine = GameEngineSingleton.getInstance();
+    private PendingAction pendingAction;
 
     private final ScheduledExecutorService responseScheduler =
             Executors.newSingleThreadScheduledExecutor(r -> {
@@ -52,6 +55,10 @@ final class EffectStackOrchestrator {
     // --- response window ---
 
     void enterRentResponseWindow(Player tenant) {
+        enterRentResponseWindow(tenant, null, null);
+    }
+
+    void enterRentResponseWindow(Player tenant, Player playedBy, ActionCard playedCard) {
         if (tenant == null) {
             throw new IllegalStateException("收租目标无效。");
         }
@@ -66,7 +73,34 @@ final class EffectStackOrchestrator {
         String rentSummary = "Rent " + due + "M — awaiting response from "
                 + tenant.getDisplayName() + ".";
         controller.pushSnapshot(controller.getCurrentSessionId(),
-                "RENT_AWAITING_RESPONSE", rentSummary);
+                "RENT_AWAITING_RESPONSE", rentSummary, playedBy, playedCard, "ACTION");
+    }
+
+    void enterActionResponseWindow(
+            Player target,
+            ActionCard card,
+            Supplier<ActionEffectResult> resolver,
+            int actionCountAfterPlay) {
+        if (target == null || card == null || resolver == null) {
+            throw new IllegalStateException("行动响应目标无效。");
+        }
+        GameContext ctx = controller.getGameContext();
+        long deadline = System.currentTimeMillis() + RESPONSE_WINDOW_SECONDS * 1000L;
+        pendingAction = new PendingAction(card, resolver, actionCountAfterPlay);
+        ctx.setResponseState(
+                new StackResponseState(StackResponseState.Role.TENANT, target.getPlayerId(), deadline));
+        turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
+        scheduleResponseTimeout(deadline);
+        ctx.pushEffect(EffectStackEntry.pendingAction(turnFlow.currentTurnPlayerId, target.getPlayerId()));
+        Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
+        String actorName = actor != null ? actor.getDisplayName() : turnFlow.currentTurnPlayerId;
+        controller.pushSnapshot(controller.getCurrentSessionId(),
+                "ACTION_AWAITING_RESPONSE",
+                actorName + " played ACTION (" + card.getName()
+                        + ") — awaiting Just Say No response from " + target.getDisplayName() + ".",
+                actor,
+                card,
+                "ACTION");
     }
 
     // --- timeout scheduler ---
@@ -80,7 +114,11 @@ final class EffectStackOrchestrator {
             }
             try {
                 cancelPendingResponseTimeout();
-                resolveEffectStackAndResume("RESPONSE_TIMEOUT", null, null);
+                if (pendingAction != null) {
+                    resolvePendingActionAndResume("RESPONSE_TIMEOUT");
+                } else {
+                    resolveEffectStackAndResume("RESPONSE_TIMEOUT", null, null);
+                }
             } catch (RuntimeException ex) {
                 ex.printStackTrace();
             }
@@ -136,6 +174,10 @@ final class EffectStackOrchestrator {
         String tenantExplicit = (paymentCardIds != null && !paymentCardIds.isEmpty())
                 ? actingPlayerId
                 : null;
+        if (pendingAction != null) {
+            resolvePendingActionAndResume("RESPONSE_PASS");
+            return;
+        }
         resolveEffectStackAndResume("RESPONSE_PASS", paymentCardIds, tenantExplicit);
     }
 
@@ -168,7 +210,9 @@ final class EffectStackOrchestrator {
         }
         String targetId;
         if (st.getRole() == StackResponseState.Role.TENANT) {
-            targetId = ctx.findBottomRentEntryId();
+            targetId = pendingAction != null
+                    ? ctx.findBottomActionEntryId()
+                    : ctx.findBottomRentEntryId();
         } else {
             EffectStackEntry top = ctx.peekTopEffect();
             targetId = top != null ? top.getId() : null;
@@ -191,9 +235,21 @@ final class EffectStackOrchestrator {
                     StackResponseState.Role.LANDLORD_COUNTER, landlord.getPlayerId(), deadline));
             scheduleResponseTimeout(deadline);
             controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_AWAITING_COUNTER",
-                    actor.getDisplayName() + " played Just Say No; landlord may counter.");
+                    actor.getDisplayName() + " played Just Say No; landlord may counter.",
+                    actor,
+                    actionCard,
+                    "ACTION");
         } else {
-            resolveEffectStackAndResume("JSN_COUNTER_RESOLVED", null, null);
+            controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_COUNTER_PLAYED",
+                    actor.getDisplayName() + " played Just Say No to counter.",
+                    actor,
+                    actionCard,
+                    "ACTION");
+            if (pendingAction != null) {
+                resolvePendingActionAndResume("JSN_COUNTER_RESOLVED");
+            } else {
+                resolveEffectStackAndResume("JSN_COUNTER_RESOLVED", null, null);
+            }
         }
     }
 
@@ -213,6 +269,7 @@ final class EffectStackOrchestrator {
         GameContext ctx = controller.getGameContext();
         List<EffectStackEntry> copy = new ArrayList<>(ctx.getEffectStackView());
         RentChargeSequence rentSeq = ctx.getRentChargeSequence();
+        pendingAction = null;
         ctx.clearEffectStack();
 
         PaymentSettlement.Result pay = EffectStackResolver.resolveRentPayments(
@@ -254,6 +311,36 @@ final class EffectStackOrchestrator {
         System.out.println("[EFFECT_STACK] " + phaseHint + " " + pay.getMessage());
     }
 
+    private void resolvePendingActionAndResume(String phaseHint) {
+        PendingAction pending = pendingAction;
+        if (pending == null) {
+            resolveEffectStackAndResume(phaseHint, null, null);
+            return;
+        }
+        GameContext ctx = controller.getGameContext();
+        List<EffectStackEntry> copy = new ArrayList<>(ctx.getEffectStackView());
+        Set<String> cancelled = EffectStackResolver.computeCancelledEntryIds(copy);
+        boolean cancelledAction = copy.stream()
+                .filter(EffectStackEntry::isActionLike)
+                .anyMatch(e -> cancelled.contains(e.getId()));
+        pendingAction = null;
+        ctx.clearEffectStack();
+        turnFlow.currentTurnPhase = pending.actionCountAfterPlay >= TurnFlowService.MAX_ACTIONS_PER_TURN
+                ? TurnFlowService.TurnPhase.END_TURN
+                : TurnFlowService.TurnPhase.PLAY;
+        ActionEffectResult result = cancelledAction
+                ? ActionEffectResult.countered("Just Say No 抵消了 " + pending.card.getName() + "。")
+                : pending.resolver.get();
+        String phase = result.isSuccess() ? "ACTION_SUCCESS"
+                : (result.getStatus() == ActionEffectResult.Status.COUNTERED
+                        ? "ACTION_COUNTERED" : "ACTION_FAILED");
+        controller.pushSnapshot(controller.getCurrentSessionId(), phaseHint,
+                "Effect stack resolved: " + result.getMessage());
+        controller.pushSnapshot(controller.getCurrentSessionId(), phase,
+                "Action effect resolved: " + pending.card.getName() + " — " + result.getMessage());
+        System.out.println("[EFFECT_STACK] " + phaseHint + " " + result.getMessage());
+    }
+
     // --- UI hint text ---
 
     static String buildPendingResponseHint(StackResponseState st) {
@@ -261,12 +348,18 @@ final class EffectStackOrchestrator {
             return null;
         }
         if (st.getRole() == StackResponseState.Role.TENANT) {
-            return "有人向你收租，你有 "
+            return "有人对你打出收租或行动，你有 "
                     + RESPONSE_WINDOW_SECONDS
                     + " 秒打出 Just Say No，否则默认接受。";
         }
         return "对方打出免租，你有 "
                 + RESPONSE_WINDOW_SECONDS
                 + " 秒打出 Just Say No 反制，否则默认放弃反制。";
+    }
+
+    private record PendingAction(
+            ActionCard card,
+            Supplier<ActionEffectResult> resolver,
+            int actionCountAfterPlay) {
     }
 }

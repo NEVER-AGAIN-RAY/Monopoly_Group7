@@ -211,16 +211,16 @@ public final class PaymentSettlement {
                 if (!debtor.removePropertyCard(pc)) {
                     return new Result(Status.FAILED, amountDue, 0, "状态不一致：无法移除房产牌");
                 }
-                engine.discard(pc);
+                creditor.receiveCardToHand(pc);
             } else {
                 if (!debtor.removeFromBank(c)) {
                     return new Result(Status.FAILED, amountDue, 0, "状态不一致：无法移除银行牌");
                 }
-                creditor.addToBank(c);
+                creditor.receiveCardToHand(c);
             }
         }
 
         return new Result(Status.SUCCESS, amountDue, sum,
-                "支付成功：付出 " + sum + "M（应付 " + amountDue + "M，找零不退）");
+                "支付成功：付出 " + sum + "M（应付 " + amountDue + "M，找零不退），收款方收入手牌");
     }
 }

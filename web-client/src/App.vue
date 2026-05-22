@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 
 const wsUrl = ref('ws://localhost:8025/ws')
 const playerId = ref('human-1')
@@ -23,7 +23,14 @@ const notice = ref('')
 const actionBusy = ref(false)
 const busyCardId = ref('')
 const gameOverDismissed = ref(false)
+const centerReveal = ref(null)
+const playRevealQueue = ref([])
+const stagedPlayedCardIds = ref({})
+const pendingTurnFlush = ref(false)
+const AI_PLAY_REVEAL_MS = 1000
 let socket = null
+let revealTimer = null
+let lastHandledPlaySequence = 0
 
 const CARD_IMAGE_BASE = '/cards/'
 const PROPERTY_CARD_IMAGES = {
@@ -198,6 +205,10 @@ const gameResult = computed(() => {
     summary
   }
 })
+const aiAnimationActive = computed(() => {
+  return gameMode.value === 'HVM'
+    && Boolean(centerReveal.value?.isAi || playRevealQueue.value.some((event) => event.isAi))
+})
 
 function modeChanged() {
   playerId.value = gameMode.value === 'HVM' ? 'human-1' : 'pvp-1'
@@ -290,11 +301,21 @@ function handleMessage(raw) {
       notice.value = payload.ok ? '认证成功' : payload.error || '认证失败'
       break
     case 'STATE_UPDATE':
+      {
+        const previousSessionId = state.value?.sessionId || ''
+        const shouldResetAnimation = payload.phase === 'INIT'
+          || (previousSessionId && payload.sessionId && payload.sessionId !== previousSessionId)
+        if (shouldResetAnimation) resetPlayAnimation()
+      }
       state.value = payload
       screen.value = 'game'
       if (!awaitingPayment.value) paymentSelection.value = new Set()
       if (!payload.gameOver) gameOverDismissed.value = false
       wildReassignSheet.value = null
+      enqueuePlayRevealFromState(payload)
+      if (payload.phase === 'TURN_END' || payload.gameOver) {
+        markTurnFlush()
+      }
       clearBusy()
       break
     case 'MY_HAND':
@@ -315,6 +336,143 @@ function handleMessage(raw) {
     default:
       if (payload.error) notice.value = payload.error
   }
+}
+
+function enqueuePlayRevealFromState(payload) {
+  const sequence = Number(payload.lastPlayedSequence || 0)
+  const card = payload.lastPlayedCard
+  if (!sequence || sequence <= lastHandledPlaySequence || !card?.id) return
+  lastHandledPlaySequence = sequence
+  const playerIdForEvent = payload.lastPlayedPlayerId || payload.currentPlayerId || ''
+  const event = {
+    sequence,
+    playerId: playerIdForEvent,
+    playerName: displayNameForPlayer(playerIdForEvent),
+    actionType: normalizeActionType(payload.lastPlayedActionType || payload.phase),
+    card,
+    summary: payload.lastActionSummary || '',
+    isAi: isAiPlayerId(playerIdForEvent)
+  }
+  stagePlayedCard(event)
+  playRevealQueue.value = [...playRevealQueue.value, event]
+  if (!centerReveal.value || !centerReveal.value.isAi) {
+    showNextPlayReveal()
+  }
+}
+
+function showNextPlayReveal() {
+  clearRevealTimer()
+  const [next, ...rest] = playRevealQueue.value
+  playRevealQueue.value = rest
+  if (!next) {
+    centerReveal.value = null
+    maybeFlushAfterAnimations()
+    return
+  }
+  centerReveal.value = next
+  if (next.isAi) {
+    revealTimer = window.setTimeout(showNextPlayReveal, AI_PLAY_REVEAL_MS)
+  }
+}
+
+function skipAiPlayAnimation() {
+  if (!aiAnimationActive.value) return
+  clearRevealTimer()
+  playRevealQueue.value = playRevealQueue.value.filter((event) => !event.isAi)
+  if (centerReveal.value?.isAi) centerReveal.value = null
+  flushStagedCards()
+  if (playRevealQueue.value.length) showNextPlayReveal()
+}
+
+function markTurnFlush() {
+  pendingTurnFlush.value = true
+  const hasAiReveal = centerReveal.value?.isAi || playRevealQueue.value.some((event) => event.isAi)
+  if (!hasAiReveal) {
+    clearRevealTimer()
+    centerReveal.value = null
+    flushStagedCards()
+  }
+}
+
+function maybeFlushAfterAnimations() {
+  if (!pendingTurnFlush.value) return
+  if (centerReveal.value || playRevealQueue.value.length) return
+  flushStagedCards()
+}
+
+function resetPlayAnimation() {
+  clearRevealTimer()
+  centerReveal.value = null
+  playRevealQueue.value = []
+  stagedPlayedCardIds.value = {}
+  pendingTurnFlush.value = false
+  lastHandledPlaySequence = 0
+}
+
+function clearRevealTimer() {
+  if (revealTimer) {
+    window.clearTimeout(revealTimer)
+    revealTimer = null
+  }
+}
+
+function stagePlayedCard(event) {
+  if (!shouldHoldPlayedCard(event)) return
+  const id = event.card?.id
+  if (!event.playerId || !id) return
+  const next = { ...stagedPlayedCardIds.value }
+  const ids = new Set(next[event.playerId] || [])
+  ids.add(id)
+  next[event.playerId] = [...ids]
+  stagedPlayedCardIds.value = next
+}
+
+function shouldHoldPlayedCard(event) {
+  return ['DEPOSIT', 'DEPLOY'].includes(normalizeActionType(event?.actionType))
+}
+
+function flushStagedCards() {
+  stagedPlayedCardIds.value = {}
+  pendingTurnFlush.value = false
+}
+
+function visibleZoneCards(player, cards = []) {
+  const held = new Set(stagedPlayedCardIds.value[player?.playerId] || [])
+  return (cards || []).filter((card) => !held.has(card.id))
+}
+
+function visibleBankCards(player) {
+  return visibleZoneCards(player, player?.bankCards || [])
+}
+
+function visiblePropertyCards(player) {
+  return visibleZoneCards(player, player?.propertyZoneCards || [])
+}
+
+function visibleBankTotal(player) {
+  return visibleBankCards(player)
+    .reduce((sum, card) => sum + Number(card.valueM || 0), 0)
+}
+
+function visiblePropertyCount(player) {
+  return visiblePropertyCards(player).length
+}
+
+function visibleCompleteSets(player) {
+  return propertyStacks(visiblePropertyCards(player)).filter((stack) => stack.complete).length
+}
+
+function normalizeActionType(actionType) {
+  return String(actionType || '').trim().toUpperCase()
+}
+
+function isAiPlayerId(id) {
+  return String(id || '').toLowerCase().startsWith('ai-')
+}
+
+function displayNameForPlayer(id) {
+  const p = players.value.find((player) => player.playerId === id)
+  return p?.displayName || id || '玩家'
 }
 
 function handleOptions(payload) {
@@ -648,6 +806,16 @@ function cardKindLabel(card) {
   })[card?.kind] || '卡牌'
 }
 
+function playActionLabel(actionType) {
+  return ({
+    DEPOSIT: '存入银行',
+    DEPLOY: '部署房产',
+    ACTION: '打出行动牌',
+    DISCARD: '弃牌',
+    FORCE_DISCARD: '弃牌'
+  })[normalizeActionType(actionType)] || '出牌'
+}
+
 function colorStyle(card) {
   if (card?.kind === 'WILD') return { background: PROPERTY_COLOR_BG.WILD }
   return { background: PROPERTY_COLOR_BG[card?.colorGroup] || (card?.kind === 'MONEY' ? '#fbc02d' : '#1565c0') }
@@ -759,6 +927,10 @@ function log(direction, text) {
   messages.value.unshift({ direction, text, time: new Date().toLocaleTimeString() })
   messages.value = messages.value.slice(0, 80)
 }
+
+onBeforeUnmount(() => {
+  clearRevealTimer()
+})
 </script>
 
 <template>
@@ -843,29 +1015,29 @@ function log(direction, text) {
                 <div class="avatar">{{ (player.displayName || player.playerId).slice(0, 2).toUpperCase() }}</div>
                 <div>
                   <h2>{{ player.displayName || player.playerId }}</h2>
-                  <p>{{ player.handCount }} 张手牌 · {{ player.completePropertySets || 0 }}/3 套</p>
+                  <p>{{ player.handCount }} 张手牌 · {{ visibleCompleteSets(player) }}/3 套</p>
                 </div>
                 <span v-if="player.playerId === currentPlayerId">回合中</span>
               </header>
               <div class="revealed-zones">
                 <section class="revealed-zone">
-                  <h3>银行 <b>{{ player.bankTotalValueM || 0 }}M</b></h3>
+                  <h3>银行 <b>{{ visibleBankTotal(player) }}M</b></h3>
                   <div class="visible-card-row small-cards">
-                    <article v-for="card in player.bankCards || []" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
+                    <article v-for="card in visibleBankCards(player)" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
                       <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
                       <span class="color-band" :style="colorStyle(card)"></span>
                       <span class="card-art"><b>{{ cardIcon(card) }}</b></span>
                       <strong>{{ cardTitle(card) }}</strong>
                       <b class="value-badge" v-if="card.valueM !== undefined">{{ card.valueM }}M</b>
                     </article>
-                    <em v-if="!(player.bankCards || []).length">银行空</em>
+                    <em v-if="!visibleBankCards(player).length">银行空</em>
                   </div>
                 </section>
                 <section class="revealed-zone property-zone">
-                  <h3>房产 <b>{{ player.propertyCount || 0 }}</b></h3>
+                  <h3>房产 <b>{{ visiblePropertyCount(player) }}</b></h3>
                   <div class="property-stack-grid small-stacks">
                     <div
-                      v-for="stack in propertyStacks(player.propertyZoneCards || [])"
+                      v-for="stack in propertyStacks(visiblePropertyCards(player))"
                       :key="stack.key"
                       class="property-stack"
                       :class="{ complete: stack.complete }"
@@ -893,7 +1065,7 @@ function log(direction, text) {
                         </article>
                       </div>
                     </div>
-                    <em v-if="!(player.propertyZoneCards || []).length">还没有房产</em>
+                    <em v-if="!visiblePropertyCards(player).length">还没有房产</em>
                   </div>
                 </section>
               </div>
@@ -914,6 +1086,26 @@ function log(direction, text) {
               <strong>DISCARD</strong>
               <span>{{ state?.discardPileCount ?? 0 }}</span>
             </div>
+            <transition name="center-card">
+              <section v-if="centerReveal" :key="centerReveal.sequence" class="center-reveal" :class="{ ai: centerReveal.isAi }">
+                <div class="center-reveal-meta">
+                  <span>{{ centerReveal.playerName }}</span>
+                  <b>{{ playActionLabel(centerReveal.actionType) }}</b>
+                </div>
+                <article :class="['reveal-card', ...tableCardClass(centerReveal.card)]" :style="cardVars(centerReveal.card)">
+                  <img v-if="cardImageUrl(centerReveal.card)" class="card-face-img" :src="cardImageUrl(centerReveal.card)" :alt="cardTitle(centerReveal.card)" loading="eager" />
+                  <span class="color-band" :style="colorStyle(centerReveal.card)"></span>
+                  <span class="card-type">{{ cardKindLabel(centerReveal.card) }}</span>
+                  <span class="card-art"><b>{{ cardIcon(centerReveal.card) }}</b></span>
+                  <strong>{{ cardTitle(centerReveal.card) }}</strong>
+                  <small>{{ cardHint(centerReveal.card) }}</small>
+                  <b class="value-badge" v-if="centerReveal.card.valueM !== undefined">{{ centerReveal.card.valueM }}M</b>
+                </article>
+              </section>
+            </transition>
+            <button v-if="aiAnimationActive" class="skip-ai-button" @click="skipAiPlayAnimation">
+              跳过 AI 动画
+            </button>
           </div>
 
           <section class="lower-table">
@@ -922,14 +1114,14 @@ function log(direction, text) {
                 <div class="avatar">{{ (localBoard.displayName || localBoard.playerId).slice(0, 2).toUpperCase() }}</div>
                 <div>
                   <h2>我的置牌区</h2>
-                  <p>{{ localBoard.bankTotalValueM || 0 }}M 银行 · {{ localBoard.propertyCount || 0 }} 张房产</p>
+                  <p>{{ visibleBankTotal(localBoard) }}M 银行 · {{ visiblePropertyCount(localBoard) }} 张房产</p>
                 </div>
               </header>
               <div class="revealed-zones my-zones">
                 <section class="revealed-zone">
-                  <h3>银行 <b>{{ localBoard.bankTotalValueM || 0 }}M</b></h3>
+                  <h3>银行 <b>{{ visibleBankTotal(localBoard) }}M</b></h3>
                   <div class="visible-card-row">
-                    <article v-for="card in localBoard.bankCards || []" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
+                    <article v-for="card in visibleBankCards(localBoard)" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
                       <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
                       <span class="color-band" :style="colorStyle(card)"></span>
                       <span class="card-type">{{ cardKindLabel(card) }}</span>
@@ -937,14 +1129,14 @@ function log(direction, text) {
                       <strong>{{ cardTitle(card) }}</strong>
                       <b class="value-badge" v-if="card.valueM !== undefined">{{ card.valueM }}M</b>
                     </article>
-                    <em v-if="!(localBoard.bankCards || []).length">打出的现金 / 存入银行的行动牌会摊在这里</em>
+                    <em v-if="!visibleBankCards(localBoard).length">打出的现金 / 存入银行的行动牌会摊在这里</em>
                   </div>
                 </section>
                 <section class="revealed-zone property-zone">
-                  <h3>房产 <b>{{ localBoard.completePropertySets || 0 }}/3 套</b></h3>
+                  <h3>房产 <b>{{ visibleCompleteSets(localBoard) }}/3 套</b></h3>
                   <div class="property-stack-grid">
                     <div
-                      v-for="stack in propertyStacks(localBoard.propertyZoneCards || [])"
+                      v-for="stack in propertyStacks(visiblePropertyCards(localBoard))"
                       :key="stack.key"
                       class="property-stack"
                       :class="{ complete: stack.complete }"
@@ -973,7 +1165,7 @@ function log(direction, text) {
                         </article>
                       </div>
                     </div>
-                    <em v-if="!(localBoard.propertyZoneCards || []).length">部署后的房产会按颜色堆叠</em>
+                    <em v-if="!visiblePropertyCards(localBoard).length">部署后的房产会按颜色堆叠</em>
                   </div>
                 </section>
               </div>

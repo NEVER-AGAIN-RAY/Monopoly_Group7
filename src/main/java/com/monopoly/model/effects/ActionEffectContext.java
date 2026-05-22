@@ -66,7 +66,7 @@ public class ActionEffectContext {
         return actorProperty;
     }
 
-    /** 偷银行牌时指定的目标银行卡牌；财产区偷牌时为 null */
+    /** Target bank card for settlement-style actions; null for property-only actions. */
     public Card getTargetBankCard() {
         return targetBankCard;
     }

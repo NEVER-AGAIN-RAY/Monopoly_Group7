@@ -11,7 +11,7 @@ import java.util.Map;
  *   <li>RENT           – Collect rent for a color from a target</li>
  *   <li>RENT_DUAL      – Dual-color rent (1v1 by default; rentDualChargesEachOtherPlayer charges each opponent in turn via effect stack)</li>
  *   <li>DOUBLE_RENT    – Double rent multiplier</li>
- *   <li>STEAL_PROPERTY – Steal property/bank card (Sly Deal)</li>
+ *   <li>STEAL_PROPERTY – Steal one eligible property card (Sly Deal)</li>
  *   <li>FORCED_DEAL    – Forced property swap</li>
  *   <li>DEBT_COLLECTOR – Debt collector (flat 5M)</li>
  *   <li>RENT_WAIVER    – Rent waiver (Just Say No)</li>
@@ -30,7 +30,8 @@ public final class ActionEffectDispatcher {
         REGISTRY.put("RENT", new RentEffect());
         REGISTRY.put("RENT_DUAL", ctx -> ActionEffectResult.failed(
                 "RENT_DUAL 由回合流程入效果栈，请勿走通用 dispatch。"));
-        REGISTRY.put("DOUBLE_RENT", new DoubleRentEffect());
+        REGISTRY.put("DOUBLE_RENT", ctx -> ActionEffectResult.failed(
+                "DOUBLE_RENT 由回合流程记录为下一张租金牌翻倍，请勿走通用 dispatch。"));
         REGISTRY.put("STEAL_PROPERTY", new StealCardEffect());
         REGISTRY.put("FORCED_DEAL", new ForcedDealEffect());
         REGISTRY.put("DEBT_COLLECTOR", new DebtCollectorEffect());

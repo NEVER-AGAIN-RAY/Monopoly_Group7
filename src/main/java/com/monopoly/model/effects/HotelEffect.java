@@ -34,6 +34,9 @@ public final class HotelEffect implements ActionEffect {
         if (!BuildingPlacementRules.allowsHouseHotel(colorKey)) {
             return ActionEffectResult.failed("铁路与公共事业套不能加盖旅馆。");
         }
+        if (BuildingPlacementRules.hasHotelForColor(actor.getPropertyCardsView(), colorKey)) {
+            return ActionEffectResult.failed("该完整套已有旅馆。");
+        }
         if (target.getBuildingLevel() != BuildingLevel.HOUSE) {
             return ActionEffectResult.failed("必须先在该房产上加盖房子，才能再升级为酒店。");
         }

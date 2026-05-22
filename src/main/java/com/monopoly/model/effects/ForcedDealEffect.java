@@ -30,11 +30,12 @@ public class ForcedDealEffect implements ActionEffect {
 
         actor.removePropertyCard(actorProp);
         target.removePropertyCard(targetProp);
-        actor.addToPropertyZone(targetProp);
-        target.addToPropertyZone(actorProp);
+        actor.receiveCardToHand(targetProp);
+        target.receiveCardToHand(actorProp);
 
         return ActionEffectResult.success(
                 actor.getDisplayName() + " 与 " + target.getDisplayName()
-                        + " Forced property swap：" + actorProp.getName() + " <-> " + targetProp.getName() + "。");
+                        + " Forced property swap：" + actorProp.getName()
+                        + " <-> " + targetProp.getName() + "，双方收入手牌。");
     }
 }

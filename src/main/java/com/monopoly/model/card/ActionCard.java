@@ -5,6 +5,7 @@ import com.monopoly.model.core.GameContext;
 import com.monopoly.model.rules.MonopolyDealBankValues;
 import com.monopoly.model.settlement.BuildingPlacementRules;
 import com.monopoly.model.settlement.PropertySetCalculator;
+import com.monopoly.model.settlement.PropertyStealRules;
 import com.monopoly.model.settlement.StealTargetZone;
 import com.monopoly.model.player.Player;
 
@@ -93,7 +94,7 @@ public class ActionCard extends Card implements Payable {
         }
         String code = effectCode == null ? "" : effectCode.trim().toUpperCase();
 
-        if ("RENT".equals(code) || "DOUBLE_RENT".equals(code)) {
+        if ("RENT".equals(code)) {
             String color = (params != null && params.getTargetColorKey() != null)
                     ? params.getTargetColorKey().trim()
                     : "";
@@ -101,6 +102,10 @@ public class ActionCard extends Card implements Payable {
                 return false;
             }
             return PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), color) > 0;
+        }
+
+        if ("DOUBLE_RENT".equals(code)) {
+            return !context.hasPendingDoubleRentFor(actor.getPlayerId()) && hasAnyRentableProperty(actor);
         }
 
         if ("RENT_DUAL".equals(code)) {
@@ -201,6 +206,15 @@ public class ActionCard extends Card implements Payable {
         return null;
     }
 
+    private static boolean hasAnyRentableProperty(Player actor) {
+        for (String color : PropertySetCalculator.REQUIRED_BY_COLOR.keySet()) {
+            if (PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), color) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean canPlayHouse(Player actor, PropertyCard pc) {
         String key = resolveColorKeyForUpgrade(pc);
         if (key == null) {
@@ -210,6 +224,9 @@ public class ActionCard extends Card implements Payable {
             return false;
         }
         if (!BuildingPlacementRules.allowsHouseHotel(key)) {
+            return false;
+        }
+        if (BuildingPlacementRules.hasAnyBuildingForColor(actor.getPropertyCardsView(), key)) {
             return false;
         }
         return pc.getBuildingLevel() == BuildingLevel.BASE;
@@ -224,6 +241,9 @@ public class ActionCard extends Card implements Payable {
             return false;
         }
         if (!BuildingPlacementRules.allowsHouseHotel(key)) {
+            return false;
+        }
+        if (BuildingPlacementRules.hasHotelForColor(actor.getPropertyCardsView(), key)) {
             return false;
         }
         return pc.getBuildingLevel() == BuildingLevel.HOUSE;
@@ -254,9 +274,23 @@ public class ActionCard extends Card implements Payable {
         }
         StealTargetZone zone = StealTargetZone.fromParam(params != null ? params.getTargetZone() : null);
         if (zone == StealTargetZone.BANK) {
-            return target.getBankCardCount() > 0;
+            return false;
         }
-        return target.getPropertyCardCount() > 0;
+        String targetCardId = params.getTargetCardId();
+        if (targetCardId == null || targetCardId.isBlank()) {
+            for (PropertyCard property : target.getPropertyCardsView()) {
+                if (PropertyStealRules.mayStealPropertyFromTarget(target, property)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        for (PropertyCard property : target.getPropertyCardsView()) {
+            if (targetCardId.equals(property.getId())) {
+                return PropertyStealRules.mayStealPropertyFromTarget(target, property);
+            }
+        }
+        return false;
     }
 
     private static boolean blank(String s) {

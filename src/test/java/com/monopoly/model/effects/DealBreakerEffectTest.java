@@ -32,8 +32,10 @@ class DealBreakerEffectTest {
 
         ActionEffectResult result = new DealBreakerEffect().execute(ctx);
         assertTrue(result.isSuccess());
-        assertTrue(actor.getPropertyCardsView().contains(brown1));
-        assertTrue(actor.getPropertyCardsView().contains(wild));
+        assertTrue(actor.getHandCardsView().contains(brown1));
+        assertTrue(actor.getHandCardsView().contains(wild));
+        assertFalse(actor.getPropertyCardsView().contains(brown1));
+        assertFalse(actor.getPropertyCardsView().contains(wild));
         assertTrue(target.getPropertyCardsView().isEmpty());
     }
 

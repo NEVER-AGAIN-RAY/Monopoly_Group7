@@ -16,6 +16,7 @@ const state = ref(null)
 const hand = ref([])
 const selectedCardId = ref('')
 const optionSheet = ref(null)
+const wildReassignSheet = ref(null)
 const pendingPlay = ref(null)
 const paymentSelection = ref(new Set())
 const notice = ref('')
@@ -74,6 +75,35 @@ const ACTION_CARD_IMAGES = {
   RENT_WAIVER: ['99-Action Card - Just Say No.jpg', '100-Action Card - Just Say No (2).jpg', '101-Action Card - Just Say No (1).jpg'],
   HOTEL: ['102-Action Card - Hotel.jpg', '103-Action Card - Hotel.jpg'],
   DEAL_BREAKER: ['106-Action Card - Deal Breaker.jpg', '107-Action Card - Deal Breaker.jpg']
+}
+const PROPERTY_COLOR_ORDER = [
+  'BROWN', 'LIGHT_BLUE', 'PINK', 'ORANGE', 'RED',
+  'YELLOW', 'GREEN', 'DARK_BLUE', 'RAILROAD', 'UTILITY', 'WILD'
+]
+const PROPERTY_SET_NEEDS = {
+  BROWN: 2,
+  LIGHT_BLUE: 3,
+  PINK: 3,
+  ORANGE: 3,
+  RED: 3,
+  YELLOW: 3,
+  GREEN: 3,
+  DARK_BLUE: 2,
+  RAILROAD: 4,
+  UTILITY: 2
+}
+const PROPERTY_COLOR_BG = {
+  BROWN: '#795548',
+  LIGHT_BLUE: '#4fc3f7',
+  PINK: '#f06292',
+  ORANGE: '#ff9800',
+  RED: '#e53935',
+  YELLOW: '#ffeb3b',
+  GREEN: '#43a047',
+  DARK_BLUE: '#1e3a8a',
+  RAILROAD: '#5d4037',
+  UTILITY: '#90a4ae',
+  WILD: 'linear-gradient(90deg,#c62828,#f9a825,#2e7d32,#1565c0,#6a1b9a)'
 }
 
 const currentPlayerId = computed(() => state.value?.currentPlayerId || '')
@@ -247,6 +277,7 @@ function handleMessage(raw) {
       screen.value = 'game'
       if (!awaitingPayment.value) paymentSelection.value = new Set()
       if (!payload.gameOver) gameOverDismissed.value = false
+      wildReassignSheet.value = null
       clearBusy()
       break
     case 'MY_HAND':
@@ -327,8 +358,9 @@ function quickPlay(card) {
     playDirect(directPayload, card, actionType)
     return
   }
-  pendingPlay.value = { actionType, cardId: card.id, autoDefault: true }
-  markBusy(card.id, `默认${actionLabel(actionType)}：${cardTitle(card)}`)
+  const needsChoice = requiresExplicitOption(card, actionType)
+  pendingPlay.value = { actionType, cardId: card.id, autoDefault: !needsChoice }
+  markBusy(card.id, needsChoice ? `选择部署颜色：${cardTitle(card)}` : `默认${actionLabel(actionType)}：${cardTitle(card)}`)
   send('PLAY_OPTIONS', {
     playerId: playerId.value,
     cardId: card.id,
@@ -355,6 +387,43 @@ function playWithOption(row = {}) {
   send('PLAY', compact(payload))
 }
 
+function openWildReassign(card, ownerId) {
+  if (!canReassignWild(card, ownerId)) return
+  wildReassignSheet.value = {
+    title: cardTitle(card),
+    card,
+    current: effectivePropertyColor(card),
+    options: wildAssignableColors(card)
+  }
+}
+
+function canReassignWild(card, ownerId) {
+  return card?.kind === 'WILD'
+    && ownerId === playerId.value
+    && playerId.value === currentPlayerId.value
+    && turnPhase.value === 'PLAY'
+    && !actionBusy.value
+}
+
+function wildAssignableColors(card) {
+  if (Array.isArray(card?.printedColors) && card.printedColors.length) {
+    return card.printedColors.map(normalizeColorKey)
+  }
+  return PROPERTY_COLOR_ORDER.filter((key) => key !== 'WILD')
+}
+
+function reassignWildColor(colorKey) {
+  const sheet = wildReassignSheet.value
+  if (!sheet?.card?.id) return
+  const normalized = normalizeColorKey(colorKey)
+  wildReassignSheet.value = null
+  markBusy(sheet.card.id, `正在把万能房产改为${colorName(normalized)}色...`)
+  send('REASSIGN_WILD', {
+    wildPropertyCardId: sheet.card.id,
+    newColorKey: normalized
+  })
+}
+
 function actionLabel(actionType) {
   return ({
     DEPOSIT: '存入银行',
@@ -362,6 +431,13 @@ function actionLabel(actionType) {
     ACTION: '打出行动牌',
     DISCARD: '弃牌'
   })[actionType] || '出牌'
+}
+
+function optionLabel(option = {}) {
+  if (pendingPlay.value?.actionType === 'DEPLOY' && option.targetColorKey) {
+    return `作为${colorName(normalizeColorKey(option.targetColorKey))}色部署`
+  }
+  return option.labelZh || option.targetPlayerId || option.targetCardId || '直接打出'
 }
 
 function markBusy(cardId, text) {
@@ -382,19 +458,13 @@ function directPlayPayload(card, actionType) {
   }
   if (actionType === 'DEPLOY') {
     if (card.kind === 'PROPERTY') return { actionType, cardId: card.id }
-    if (card.kind === 'WILD') {
-      const color = defaultWildDeployColor(card)
-      if (color) return { actionType, cardId: card.id, targetColorKey: color }
-    }
+    if (card.kind === 'WILD') return null
   }
   return null
 }
 
-function defaultWildDeployColor(card) {
-  if (Array.isArray(card?.printedColors) && card.printedColors.length) {
-    return card.printedColors[0]
-  }
-  return card?.colorGroup || 'BROWN'
+function requiresExplicitOption(card, actionType) {
+  return actionType === 'DEPLOY' && card?.kind === 'WILD'
 }
 
 function playDirect(payload, card, actionType) {
@@ -552,20 +622,78 @@ function cardKindLabel(card) {
 }
 
 function colorStyle(card) {
-  if (card?.kind === 'WILD') return { background: 'linear-gradient(90deg,#c62828,#f9a825,#2e7d32,#1565c0,#6a1b9a)' }
-  const map = {
-    BROWN: '#795548',
-    LIGHT_BLUE: '#4fc3f7',
-    PINK: '#f06292',
-    ORANGE: '#ff9800',
-    RED: '#e53935',
-    YELLOW: '#ffeb3b',
-    GREEN: '#43a047',
-    DARK_BLUE: '#1e3a8a',
-    RAILROAD: '#5d4037',
-    UTILITY: '#90a4ae'
+  if (card?.kind === 'WILD') return { background: PROPERTY_COLOR_BG.WILD }
+  return { background: PROPERTY_COLOR_BG[card?.colorGroup] || (card?.kind === 'MONEY' ? '#fbc02d' : '#1565c0') }
+}
+
+function normalizeColorKey(key) {
+  return String(key || '').trim().toUpperCase() || 'WILD'
+}
+
+function effectivePropertyColor(card) {
+  if (card?.kind === 'PROPERTY') return normalizeColorKey(card.colorGroup)
+  if (card?.kind === 'WILD') {
+    return normalizeColorKey(card.assignedColorKey || card.colorGroup || card.printedColors?.[0] || 'WILD')
   }
-  return { background: map[card?.colorGroup] || (card?.kind === 'MONEY' ? '#fbc02d' : '#1565c0') }
+  return 'WILD'
+}
+
+function propertyStacks(cards = []) {
+  const groups = new Map()
+  for (const card of cards || []) {
+    const key = effectivePropertyColor(card)
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        label: colorName(key),
+        need: PROPERTY_SET_NEEDS[key] || Number(card?.setNeed || 3),
+        cards: []
+      })
+    }
+    groups.get(key).cards.push(card)
+  }
+  return Array.from(groups.values())
+    .map((stack) => ({
+      ...stack,
+      count: stack.cards.length,
+      complete: stack.cards.length >= stack.need
+    }))
+    .sort((a, b) => colorOrderIndex(a.key) - colorOrderIndex(b.key))
+}
+
+function colorOrderIndex(key) {
+  const index = PROPERTY_COLOR_ORDER.indexOf(key)
+  return index === -1 ? PROPERTY_COLOR_ORDER.length : index
+}
+
+function propertyStackStyle(stack) {
+  const accent = PROPERTY_COLOR_BG[stack.key] || PROPERTY_COLOR_BG.WILD
+  return {
+    '--stack-accent': String(accent).startsWith('linear-gradient') ? '#ffd166' : accent,
+    '--stack-count': stack.cards.length
+  }
+}
+
+function stackCardStyle(card, index) {
+  return {
+    ...cardVars(card),
+    '--stack-i': index
+  }
+}
+
+function stackCardClass(card, stack, ownerId) {
+  return [
+    ...tableCardClass(card),
+    'stacked-card',
+    card.kind === 'WILD' ? 'assigned-wild' : '',
+    canReassignWild(card, ownerId) ? 'reassignable-wild' : '',
+    isWildFlipped(card, stack?.key) ? 'wild-flipped' : ''
+  ]
+}
+
+function isWildFlipped(card, stackKey) {
+  const printed = (card?.printedColors || []).map(normalizeColorKey)
+  return card?.kind === 'WILD' && printed.length === 2 && normalizeColorKey(stackKey) === printed[1]
 }
 
 function cardVars(card) {
@@ -708,14 +836,36 @@ function log(direction, text) {
                 </section>
                 <section class="revealed-zone property-zone">
                   <h3>房产 <b>{{ player.propertyCount || 0 }}</b></h3>
-                  <div class="visible-card-row small-cards">
-                    <article v-for="card in player.propertyZoneCards || []" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
-                      <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
-                      <span class="color-band" :style="colorStyle(card)"></span>
-                      <span class="card-art"><b>{{ cardIcon(card) }}</b></span>
-                      <strong>{{ cardTitle(card) }}</strong>
-                      <b class="value-badge" v-if="card.valueM !== undefined">{{ card.valueM }}M</b>
-                    </article>
+                  <div class="property-stack-grid small-stacks">
+                    <div
+                      v-for="stack in propertyStacks(player.propertyZoneCards || [])"
+                      :key="stack.key"
+                      class="property-stack"
+                      :class="{ complete: stack.complete }"
+                      :style="propertyStackStyle(stack)"
+                    >
+                      <div class="property-stack-head">
+                        <span>{{ stack.label }}</span>
+                        <b>{{ stack.count }}/{{ stack.need }}</b>
+                      </div>
+                      <div class="stack-cards">
+                        <article
+                          v-for="(card, cardIndex) in stack.cards"
+                          :key="card.id"
+                          :class="stackCardClass(card, stack, player.playerId)"
+                          :style="stackCardStyle(card, cardIndex)"
+                          :title="card.kind === 'WILD' ? '万能房产' : cardTitle(card)"
+                          @click="openWildReassign(card, player.playerId)"
+                        >
+                          <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
+                          <span class="color-band" :style="colorStyle(card)"></span>
+                          <span class="card-art"><b>{{ cardIcon(card) }}</b></span>
+                          <strong>{{ cardTitle(card) }}</strong>
+                          <b class="value-badge" v-if="card.valueM !== undefined">{{ card.valueM }}M</b>
+                          <span v-if="card.kind === 'WILD'" class="assigned-chip">{{ colorName(effectivePropertyColor(card)) }}</span>
+                        </article>
+                      </div>
+                    </div>
                     <em v-if="!(player.propertyZoneCards || []).length">还没有房产</em>
                   </div>
                 </section>
@@ -765,16 +915,38 @@ function log(direction, text) {
                 </section>
                 <section class="revealed-zone property-zone">
                   <h3>房产 <b>{{ localBoard.completePropertySets || 0 }}/3 套</b></h3>
-                  <div class="visible-card-row">
-                    <article v-for="card in localBoard.propertyZoneCards || []" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
-                      <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
-                      <span class="color-band" :style="colorStyle(card)"></span>
-                      <span class="card-type">{{ cardKindLabel(card) }}</span>
-                      <span class="card-art"><b>{{ cardIcon(card) }}</b></span>
-                      <strong>{{ cardTitle(card) }}</strong>
-                      <b class="value-badge" v-if="card.valueM !== undefined">{{ card.valueM }}M</b>
-                    </article>
-                    <em v-if="!(localBoard.propertyZoneCards || []).length">部署后的房产会像真牌一样摊开</em>
+                  <div class="property-stack-grid">
+                    <div
+                      v-for="stack in propertyStacks(localBoard.propertyZoneCards || [])"
+                      :key="stack.key"
+                      class="property-stack"
+                      :class="{ complete: stack.complete }"
+                      :style="propertyStackStyle(stack)"
+                    >
+                      <div class="property-stack-head">
+                        <span>{{ stack.label }}</span>
+                        <b>{{ stack.count }}/{{ stack.need }}</b>
+                      </div>
+                      <div class="stack-cards">
+                        <article
+                          v-for="(card, cardIndex) in stack.cards"
+                          :key="card.id"
+                          :class="stackCardClass(card, stack, localBoard.playerId)"
+                          :style="stackCardStyle(card, cardIndex)"
+                          :title="card.kind === 'WILD' ? '点击切换声明颜色' : cardTitle(card)"
+                          @click="openWildReassign(card, localBoard.playerId)"
+                        >
+                          <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
+                          <span class="color-band" :style="colorStyle(card)"></span>
+                          <span class="card-type">{{ cardKindLabel(card) }}</span>
+                          <span class="card-art"><b>{{ cardIcon(card) }}</b></span>
+                          <strong>{{ cardTitle(card) }}</strong>
+                          <b class="value-badge" v-if="card.valueM !== undefined">{{ card.valueM }}M</b>
+                          <span v-if="card.kind === 'WILD'" class="assigned-chip">{{ colorName(effectivePropertyColor(card)) }}</span>
+                        </article>
+                      </div>
+                    </div>
+                    <em v-if="!(localBoard.propertyZoneCards || []).length">部署后的房产会按颜色堆叠</em>
                   </div>
                 </section>
               </div>
@@ -847,7 +1019,22 @@ function log(direction, text) {
         <h2>{{ optionSheet.title }}</h2>
         <p>选择一个合法目标 / 参数</p>
         <button v-for="(option, index) in optionSheet.options" :key="index" @click="playWithOption(option)">
-          {{ option.labelZh || option.targetPlayerId || option.targetColorKey || '直接打出' }}
+          {{ optionLabel(option) }}
+        </button>
+      </section>
+    </div>
+
+    <div v-if="wildReassignSheet" class="modal-backdrop" @click.self="wildReassignSheet = null">
+      <section class="option-modal">
+        <h2>{{ wildReassignSheet.title }}</h2>
+        <p>选择这张万能房产当前计入哪个颜色。</p>
+        <button
+          v-for="color in wildReassignSheet.options"
+          :key="color"
+          :class="{ picked: color === wildReassignSheet.current }"
+          @click="reassignWildColor(color)"
+        >
+          {{ colorName(color) }}{{ color === wildReassignSheet.current ? '（当前）' : '' }}
         </button>
       </section>
     </div>

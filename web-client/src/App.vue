@@ -120,6 +120,23 @@ const awaitingPayment = computed(() => {
     && state.value?.pendingResponseRole === 'TENANT'
     && paymentDue.value > 0
 })
+const awaitingResponse = computed(() => {
+  return state.value?.turnPhase === 'WAITING_FOR_RESPONSE'
+    && state.value?.pendingResponsePlayerId === playerId.value
+})
+const responseRoleText = computed(() => {
+  if (state.value?.pendingResponseRole === 'LANDLORD_COUNTER') return '对方打出免租，你可以用 Just Say No 反制'
+  if (awaitingPayment.value) return `需要支付 ${paymentDue.value}M`
+  return '对方行动正在指向你'
+})
+const responseBodyText = computed(() => {
+  if (awaitingPayment.value) return `已选 ${selectedPaymentTotal.value}M。可以打出 Just Say No，也可以支付。`
+  if (state.value?.pendingResponseRole === 'LANDLORD_COUNTER') return '对方已经打出 Just Say No，你可以继续用 Just Say No 反制，也可以放弃。'
+  return '可以打出 Just Say No 取消这张行动，也可以放弃响应。'
+})
+const justSayNoCards = computed(() => {
+  return hand.value.filter((card) => String(card.effectCode || '').toUpperCase() === 'RENT_WAIVER')
+})
 const paymentCards = computed(() => {
   const p = localPlayer.value
   if (!p) return []
@@ -489,7 +506,7 @@ function endTurn() {
 
 function autoPayRent() {
   if (actionBusy.value) return
-  markBusy('', '正在自动支付租金...')
+  markBusy('', awaitingPayment.value ? '正在自动支付租金...' : '正在放弃响应...')
   send('PLAY', {
     actionType: 'RESPONSE_PASS',
     actingPlayerId: playerId.value
@@ -507,6 +524,16 @@ function confirmPayRent() {
     actionType: 'RESPONSE_PASS',
     actingPlayerId: playerId.value,
     paymentCardIds: [...paymentSelection.value]
+  })
+}
+
+function playJustSayNo(card) {
+  if (actionBusy.value || !card?.id) return
+  markBusy(card.id, '正在打出 Just Say No...')
+  send('PLAY', {
+    actionType: 'ACTION',
+    actingPlayerId: playerId.value,
+    cardId: card.id
   })
 }
 
@@ -997,17 +1024,24 @@ function log(direction, text) {
             </section>
           </section>
 
-          <div v-if="awaitingPayment" class="rent-panel">
-            <h2>需要支付 {{ paymentDue }}M</h2>
-            <p>已选 {{ selectedPaymentTotal }}M。可以让系统自动选，或者自己点选支付牌。</p>
-            <div class="payment-list">
+          <div v-if="awaitingResponse" class="rent-panel">
+            <h2>{{ responseRoleText }}</h2>
+            <p>{{ responseBodyText }}</p>
+            <div v-if="justSayNoCards.length" class="response-cards">
+              <button v-for="card in justSayNoCards" :key="card.id" class="nope-card" @click="playJustSayNo(card)" :disabled="actionBusy">
+                <img v-if="cardImageUrl(card)" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
+                <span>打出 {{ cardTitle(card) }}</span>
+              </button>
+            </div>
+            <p v-else class="response-empty">你手里没有 Just Say No。</p>
+            <div v-if="awaitingPayment" class="payment-list">
               <button v-for="card in paymentCards" :key="card.id" :class="{ picked: paymentSelection.has(card.id) }" @click="togglePayment(card.id)">
                 {{ card.zone }} · {{ cardTitle(card) }} · {{ card.valueM || 0 }}M
               </button>
             </div>
             <div class="payment-actions">
-              <button class="primary small" @click="autoPayRent" :disabled="actionBusy">自动支付</button>
-              <button class="secondary small" @click="confirmPayRent" :disabled="actionBusy">按所选支付</button>
+              <button class="primary small" @click="autoPayRent" :disabled="actionBusy">{{ awaitingPayment ? '自动支付' : '放弃响应' }}</button>
+              <button v-if="awaitingPayment" class="secondary small" @click="confirmPayRent" :disabled="actionBusy">按所选支付</button>
             </div>
           </div>
         </div>

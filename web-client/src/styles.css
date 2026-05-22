@@ -670,6 +670,47 @@ select:focus {
   margin: 10px 0 12px;
 }
 
+.response-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.nope-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 178px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 12px;
+  padding: 7px 10px;
+  color: #fff8d8;
+  background: linear-gradient(135deg, #cf222e, #8116a1);
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.25);
+  text-align: left;
+}
+
+.nope-card img {
+  width: 42px;
+  height: 58px;
+  border-radius: 5px;
+  object-fit: contain;
+  background: #fff9df;
+}
+
+.nope-card span {
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.response-empty {
+  color: rgba(255, 248, 216, 0.7);
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .payment-list button {
   padding: 8px 10px;
   color: #263238;

@@ -85,6 +85,16 @@ public class GameContext {
         return null;
     }
 
+    /** 栈底方向第一个可被 Just Say No 抵消的非收租行动。 */
+    public String findBottomActionEntryId() {
+        for (EffectStackEntry e : effectStack) {
+            if (e.isActionLike()) {
+                return e.getId();
+            }
+        }
+        return null;
+    }
+
     public EffectStackEntry peekTopEffect() {
         if (effectStack.isEmpty()) {
             return null;

@@ -14,7 +14,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 将领域 {@link Card} 转为客户端可视化的 JSON 片段（MY_HAND 中每张牌）。
+ * Serializes Card for MY_HAND WebSocket messages.
  */
 public final class HandCardJson {
 

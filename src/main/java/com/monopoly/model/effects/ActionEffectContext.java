@@ -9,7 +9,7 @@ import com.monopoly.pattern.singleton.GameEngineSingleton;
 import java.util.List;
 
 /**
- * 行动卡效果执行时的完整上下文：持有施效者、目标、全局牌堆等引用。
+ * Inputs for ActionEffect.execute (actor, targets, engine).
  */
 public class ActionEffectContext {
 
@@ -60,7 +60,7 @@ public class ActionEffectContext {
     }
 
     /**
-     * 己方财产区目标：强制交换时为己方出让房产；HOUSE/HOTEL 时为要打出的升级目标房产（由 actorCardId / targetCardId 解析）。
+     * Property target: swap (forced deal) or house/hotel placement card id.
      */
     public PropertyCard getActorProperty() {
         return actorProperty;

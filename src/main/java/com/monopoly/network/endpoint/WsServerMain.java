@@ -3,7 +3,7 @@ package com.monopoly.network.endpoint;
 import org.glassfish.tyrus.server.Server;
 
 /**
- * 嵌入式 WebSocket 启动入口。
+ * Tyrus WebSocket server (ws://localhost:8025/ws).
  */
 public final class WsServerMain {
 

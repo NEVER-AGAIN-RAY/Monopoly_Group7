@@ -1,7 +1,7 @@
 package com.monopoly.pattern.strategy;
 
 /**
- * AI 难度画像：供 {@link AiHeuristics} 在相同公开信息下采用不同启发式与阶段顺序。
+ * Difficulty profile for AiHeuristics.
  */
 public enum AiStrategyProfile {
     /** 较弱：随机打乱候选顺序，万能色固定性弱 */

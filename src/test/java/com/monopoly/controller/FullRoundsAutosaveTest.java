@@ -1,6 +1,7 @@
 package com.monopoly.controller;
 
 import com.monopoly.model.core.GameConstants;
+import com.monopoly.dto.PlayActionRequest;
 import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
@@ -62,8 +63,10 @@ class FullRoundsAutosaveTest {
 
         for (int round = 0; round < 3; round++) {
             c.handleDrawCommand(2);
+            discardToSeven(c);
             c.handleEndTurnCommand();
             c.handleDrawCommand(2);
+            discardToSeven(c);
             c.handleEndTurnCommand();
         }
 
@@ -73,5 +76,14 @@ class FullRoundsAutosaveTest {
         assertTrue(Files.isRegularFile(autosave));
         String json = Files.readString(autosave, StandardCharsets.UTF_8);
         assertTrue(json.contains("autosave-round"), "memento 应含 sessionId");
+    }
+
+    private static void discardToSeven(GameController c) {
+        while (c.getCurrentPlayer().getHandCardCount() > TurnFlowService.MAX_HAND_SIZE) {
+            PlayActionRequest req = new PlayActionRequest();
+            req.setActionType("DISCARD");
+            req.setCardId(c.getCurrentPlayer().getHandCardsView().get(0).getId());
+            c.handlePlayActionRequest(req);
+        }
     }
 }

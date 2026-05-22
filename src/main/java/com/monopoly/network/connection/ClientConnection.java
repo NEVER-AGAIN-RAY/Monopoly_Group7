@@ -3,7 +3,7 @@ package com.monopoly.network.connection;
 import java.io.IOException;
 
 /**
- * WebSocket 会话抽象：实际部署时用 {@code jakarta.websocket.Session} 编写适配器实现本接口即可。
+ * Transport abstraction; Tyrus Session adapter in MonopolyWebSocketEndpoint.
  */
 public interface ClientConnection {
 

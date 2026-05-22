@@ -28,11 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 完整对局快照（Memento）：仅 Java 对象与 JSON 字符串互转，不涉及文件 IO。
- * <p>
- * 捕获/恢复通过反射读取 {@link GameController} 未公开字段，以便在不扩展 Facade 的前提下存档。
- * 未纳入或仅部分恢复的内容（可后续补全）：{@code pendingResponseFuture} 调度、
- * {@code lastError*} 诊断字段、观察者订阅需调用方自行重新挂接。
+ * Full-session Memento (JSON only, no file IO). Capture/restore uses reflection on GameController private fields.
  */
 public final class GameSessionMemento {
 
@@ -200,7 +196,7 @@ public final class GameSessionMemento {
     }
 
     /**
-     * 从运行中的控制器捕获快照（使用反射读取会话与回合私有字段）。
+     * Captures live session via reflection on GameController private fields.
      */
     public static GameSessionMemento capture(GameController controller) {
         if (controller == null) {
@@ -270,7 +266,7 @@ public final class GameSessionMemento {
     }
 
     /**
-     * 重置 {@link GameEngineSingleton}（封装对包内 {@code resetForTests} 的反射，供存档恢复与测试使用）。
+     * Resets GameEngineSingleton (reflection wrapper around resetForTests).
      */
     public static void resetSingletonEngineForTests() {
         try {
@@ -283,8 +279,7 @@ public final class GameSessionMemento {
     }
 
     /**
-     * 将快照应用到已有 {@link GameController}：重置引擎单例、抽/弃牌堆、玩家列表、回合与 {@link GameContext}。
-     * 不广播状态；调用方负责 {@link GameController#importSessionJson(String)} 中的收尾与快照。
+     * Applies memento to GameController; caller must broadcast after importSessionJson.
      */
     public static void applyToController(GameController controller, GameSessionMemento memento) {
         if (controller == null || memento == null) {

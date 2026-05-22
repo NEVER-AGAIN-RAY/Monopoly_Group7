@@ -5,7 +5,7 @@ import com.monopoly.model.core.GameContext;
 import com.monopoly.model.player.Player;
 
 /**
- * 所有卡牌抽象父类：封装标识与展示信息，具体玩法由子类实现。
+ * Abstract card: id and display name.
  */
 public abstract class Card implements Playable {
 

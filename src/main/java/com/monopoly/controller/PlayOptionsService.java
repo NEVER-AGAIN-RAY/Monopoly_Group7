@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 出牌阶段：按动作类型（存入/部署/弃牌/行动）生成可选参数行，供 {@code PLAY_OPTIONS} 向导使用。
+ * PLAY_OPTIONS rows for DEPOSIT/DEPLOY/DISCARD/ACTION.
  */
 public final class PlayOptionsService {
 

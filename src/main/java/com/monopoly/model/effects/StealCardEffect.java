@@ -6,7 +6,7 @@ import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.settlement.StealTargetZone;
 
 /**
- * 偷牌效果抽象：由 {@link StealTargetZone} 决定从目标 {@link Player} 的财产区或银行堆取牌。
+ * Steal (Sly Deal): pick property or bank card via StealTargetZone.
  */
 public class StealCardEffect implements ActionEffect {
 

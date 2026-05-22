@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 会话中一名玩家的简化存档视图（身份 + 各分区牌张快照）。
+ * Per-player save snapshot (zones as PersistedCard lists).
  */
 public final class SessionPlayerMemento {
 

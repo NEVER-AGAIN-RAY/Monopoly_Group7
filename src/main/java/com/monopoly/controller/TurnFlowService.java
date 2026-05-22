@@ -24,19 +24,17 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 回合流程核心逻辑：摸牌、出牌、弃牌、结束回合、行动卡效果调度，
- * 从 {@link GameController} 抽出。
+ * Turn lifecycle: draw, play, discard, end turn, action cards (extracted from GameController).
  * <p>
- * 持有回合级可变状态（{@code currentTurnPlayerId}、{@code currentTurnPhase}、
- * {@code currentTurnActionCount}）；通过 {@link GameController} 包级方法完成
- * 会话检查、快照推送与错误记录。
+ * Holds per-turn state（currentTurnPlayerId、currentTurnPhase、
+ * currentTurnActionCount）；Uses GameController for session checks, snapshots, and errors.
  */
 final class TurnFlowService {
 
     enum TurnPhase {
         DRAW,
         PLAY,
-        /** 收租/免租连锁：等待特定玩家打出 Just Say No 或放弃 */
+        /** Rent/waiver chain: wait for Just Say No or pass */
         WAITING_FOR_RESPONSE,
         END_TURN
     }
@@ -52,6 +50,7 @@ final class TurnFlowService {
     String currentTurnPlayerId;
     int currentTurnActionCount;
     TurnPhase currentTurnPhase;
+    private boolean currentTurnMustDiscardOverflow;
 
     TurnFlowService(GameController controller) {
         this.controller = controller;
@@ -66,9 +65,10 @@ final class TurnFlowService {
         this.currentTurnPlayerId = firstPlayer != null ? firstPlayer.getPlayerId() : null;
         this.currentTurnActionCount = 0;
         this.currentTurnPhase = TurnPhase.DRAW;
+        this.currentTurnMustDiscardOverflow = false;
     }
 
-    // ─── 摸牌 ──────────────────────────────────────────────
+    // --- draw ---
 
     void drawCards(Player player, int count) {
         if (player == null) {
@@ -110,7 +110,7 @@ final class TurnFlowService {
                 player.getDisplayName() + " drew " + drawn + " card(s).");
     }
 
-    // ─── 出牌 ──────────────────────────────────────────────
+    // --- play ---
 
     void playCard(Player player, Card card, String actionType, ActionParamContext params) {
         if (player == null || card == null) {
@@ -121,6 +121,7 @@ final class TurnFlowService {
         if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
             throw new IllegalStateException("正在等待免租响应，不能出牌。");
         }
+        ensureNoPendingOverflowDiscard(player, "出牌");
         if (currentTurnPhase != TurnPhase.PLAY) {
             throw new IllegalStateException("当前不是出牌阶段，请先完成摸牌。");
         }
@@ -164,11 +165,16 @@ final class TurnFlowService {
             currentTurnPhase = TurnPhase.END_TURN;
         }
 
-        controller.pushSnapshot(controller.getCurrentSessionId(), normalizedActionType,
-                player.getDisplayName() + " played " + normalizedActionType + " (" + card.getName() + ").");
+        controller.pushSnapshot(
+                controller.getCurrentSessionId(),
+                normalizedActionType,
+                player.getDisplayName() + " played " + normalizedActionType + " (" + card.getName() + ").",
+                player,
+                card,
+                normalizedActionType);
     }
 
-    // ─── 弃牌 ──────────────────────────────────────────────
+    // --- discard ---
 
     void discardFromHand(Player player, Card card) {
         if (player == null || card == null) {
@@ -179,11 +185,33 @@ final class TurnFlowService {
         if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
             throw new IllegalStateException("正在等待免租响应，不能弃牌。");
         }
-        if (currentTurnPhase != TurnPhase.PLAY) {
-            throw new IllegalStateException("当前不是出牌阶段，不能弃牌。");
-        }
         if (!player.getHandCardsView().contains(card)) {
             throw new IllegalStateException("该卡牌不在当前玩家手牌中，不能弃牌。");
+        }
+        boolean forcedOverflowDiscard =
+                currentTurnMustDiscardOverflow && player.getHandCardCount() > MAX_HAND_SIZE;
+        if (forcedOverflowDiscard) {
+            if (currentTurnPhase != TurnPhase.PLAY && currentTurnPhase != TurnPhase.END_TURN) {
+                throw new IllegalStateException("当前阶段不能弃牌。");
+            }
+            if (!player.discardFromHand(card)) {
+                throw new IllegalStateException("从手牌弃置失败。");
+            }
+            engine.discard(card);
+            if (player.getHandCardCount() <= MAX_HAND_SIZE) {
+                currentTurnMustDiscardOverflow = false;
+            }
+            controller.pushSnapshot(
+                    controller.getCurrentSessionId(),
+                    "FORCE_DISCARD",
+                    player.getDisplayName() + " force-discarded overflow card (" + card.getName() + ").",
+                    player,
+                    card,
+                    "DISCARD");
+            return;
+        }
+        if (currentTurnPhase != TurnPhase.PLAY) {
+            throw new IllegalStateException("当前不是出牌阶段，不能弃牌。");
         }
         if (currentTurnActionCount >= MAX_ACTIONS_PER_TURN) {
             throw new IllegalStateException("每回合最多可出 3 张牌，已达到上限。");
@@ -197,11 +225,33 @@ final class TurnFlowService {
         if (currentTurnActionCount >= MAX_ACTIONS_PER_TURN) {
             currentTurnPhase = TurnPhase.END_TURN;
         }
-        controller.pushSnapshot(controller.getCurrentSessionId(), "DISCARD",
-                player.getDisplayName() + " discarded a card (" + card.getName() + ").");
+        controller.pushSnapshot(
+                controller.getCurrentSessionId(),
+                "DISCARD",
+                player.getDisplayName() + " discarded a card (" + card.getName() + ").",
+                player,
+                card,
+                "DISCARD");
     }
 
-    // ─── 万能房产重新分配颜色 ──────────────────────────────
+    void forceDiscardOverflowToLimit(Player player) {
+        if (player == null || player.getHandCardCount() <= MAX_HAND_SIZE) {
+            return;
+        }
+        controller.ensureSessionActive();
+        ensureTurnContext(player);
+        if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
+            throw new IllegalStateException("正在等待免租响应，不能强制弃牌。");
+        }
+        List<Card> discarded = player.discardOverflowTo(MAX_HAND_SIZE);
+        engine.discardMany(discarded);
+        currentTurnMustDiscardOverflow = false;
+        controller.pushSnapshot(controller.getCurrentSessionId(), "FORCE_DISCARD",
+                player.getDisplayName() + " force-discarded "
+                        + discarded.size() + " overflow card(s).");
+    }
+
+    // --- reassign wild property color ---
 
     void reassignWildProperty(Player player, String wildPropertyCardId, String newColorKey) {
         if (player == null) {
@@ -215,6 +265,7 @@ final class TurnFlowService {
         if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
             throw new IllegalStateException("正在等待免租响应，不能调整万能房产颜色。");
         }
+        ensureNoPendingOverflowDiscard(player, "调整万能房产颜色");
         if (currentTurnPhase != TurnPhase.PLAY) {
             throw new IllegalStateException("当前不是出牌阶段，不能调整万能房产颜色。");
         }
@@ -237,14 +288,13 @@ final class TurnFlowService {
                 player.getDisplayName() + " reassigned wild property to " + normalizedColor + ".");
     }
 
-    // ─── 结束回合 ──────────────────────────────────────────
+    // --- end turn ---
 
     /**
-     * 结束回合：弃牌限制、胜负判定、轮转。
-     * <p>
-     * 不触发 AI 回合——AI 触发由 {@link GameController#endTurn} 负责。
+     * Ends the turn: trim hand to 7, check win, advance turn order.
+     * AI is started by GameController.endTurn, not here.
      *
-     * @return 下一位玩家，供外层判断是否触发 AI 回合；若 game over 则返回 {@code null}
+     * @return next player, or null if the game ended
      */
     Player endTurn(Player player) {
         if (player == null) {
@@ -261,11 +311,10 @@ final class TurnFlowService {
         }
 
         if (player.getHandCardCount() > MAX_HAND_SIZE) {
-            List<Card> discarded = player.discardOverflowTo(MAX_HAND_SIZE);
-            engine.discardMany(discarded);
-            System.out.println("[FORCE_DISCARD] 玩家 " + player.getPlayerId()
-                    + " 弃牌 " + discarded.size() + " 张至上限。");
+            currentTurnMustDiscardOverflow = true;
+            throw new IllegalStateException("手牌超过 7 张，必须先弃牌至最多 7 张才能结束回合。");
         }
+        currentTurnMustDiscardOverflow = false;
         controller.assertDeckIntegrityOrLog();
 
         if (checkWinCondition(player)) {
@@ -281,6 +330,7 @@ final class TurnFlowService {
         this.currentTurnPlayerId = next != null ? next.getPlayerId() : null;
         this.currentTurnActionCount = 0;
         this.currentTurnPhase = TurnPhase.DRAW;
+        this.currentTurnMustDiscardOverflow = false;
 
         controller.onTurnAdvanced(next);
 
@@ -290,7 +340,7 @@ final class TurnFlowService {
         return next;
     }
 
-    // ─── 行动卡 ──────────────────────────────────────────
+    // --- action cards ---
 
     ActionEffectResult handleActionCardCommand(
             int handIndex, String targetPlayerId, String colorKey,
@@ -386,6 +436,7 @@ final class TurnFlowService {
         if (currentTurnPhase != TurnPhase.PLAY) {
             throw new IllegalStateException("当前不是出牌阶段，请先完成摸牌。");
         }
+        ensureNoPendingOverflowDiscard(actor, "打出行动牌");
         if (!actor.getHandCardsView().contains(card)) {
             throw new IllegalStateException("该卡牌不在当前玩家手牌中，不能打出。");
         }
@@ -415,7 +466,7 @@ final class TurnFlowService {
                     ctx.getTargetColorKey(),
                     due.getAmountDue());
             gameContext.pushEffect(rentEntry);
-            effectStack.enterRentResponseWindow(ctx.getTarget());
+            effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
                     "收租已入栈，等待对方在 "
                             + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
@@ -437,7 +488,7 @@ final class TurnFlowService {
                     ctx.getTargetColorKey(),
                     due.getAmountDue());
             gameContext.pushEffect(drEntry);
-            effectStack.enterRentResponseWindow(ctx.getTarget());
+            effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
                     "双倍收租已入栈，等待对方在 "
                             + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
@@ -479,7 +530,7 @@ final class TurnFlowService {
                         firstTenant.getPlayerId(),
                         ctx.getTargetColorKey(),
                         dueAll.getAmountDue()));
-                effectStack.enterRentResponseWindow(firstTenant);
+                effectStack.enterRentResponseWindow(firstTenant, actor, card);
                 ActionEffectResult result = ActionEffectResult.success(
                         "双色全员收租已入栈，将依次向每位其他玩家收租；当前等待 "
                                 + firstTenant.getDisplayName()
@@ -501,7 +552,7 @@ final class TurnFlowService {
                     ctx.getTargetColorKey(),
                     due.getAmountDue());
             gameContext.pushEffect(rentEntry);
-            effectStack.enterRentResponseWindow(ctx.getTarget());
+            effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
                     "双色收租已入栈，等待对方在 "
                             + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
@@ -533,7 +584,7 @@ final class TurnFlowService {
                     firstTenant.getPlayerId(),
                     "BIRTHDAY",
                     2));
-            effectStack.enterRentResponseWindow(firstTenant);
+            effectStack.enterRentResponseWindow(firstTenant, actor, card);
             ActionEffectResult result = ActionEffectResult.success(
                     "生日礼金已入栈，将依次向每位其他玩家收 2M；当前等待 "
                             + firstTenant.getDisplayName()
@@ -573,7 +624,13 @@ final class TurnFlowService {
                         ? "ACTION_COUNTERED" : "ACTION_FAILED");
         String actionSummary = actor.getDisplayName() + " played ACTION (" + card.getName() + ")"
                 + ": " + (result.getMessage() != null ? result.getMessage() : phase);
-        controller.pushSnapshot(controller.getCurrentSessionId(), phase, actionSummary);
+        controller.pushSnapshot(
+                controller.getCurrentSessionId(),
+                phase,
+                actionSummary,
+                actor,
+                card,
+                "ACTION");
 
         System.out.println("[ACTION] " + result.getMessage());
         return result;
@@ -596,7 +653,7 @@ final class TurnFlowService {
         return ids;
     }
 
-    // ─── 内部工具方法 ──────────────────────────────────────
+    // --- helpers ---
 
     void ensureTurnContext(Player player) {
         String pid = player.getPlayerId();
@@ -604,11 +661,24 @@ final class TurnFlowService {
             currentTurnPlayerId = pid;
             currentTurnActionCount = 0;
             currentTurnPhase = TurnPhase.DRAW;
+            currentTurnMustDiscardOverflow = false;
             return;
         }
         if (!currentTurnPlayerId.equals(pid)) {
             throw new IllegalStateException("当前不是玩家 " + pid + " 的回合。");
         }
+    }
+
+    private void ensureNoPendingOverflowDiscard(Player player, String attemptedAction) {
+        if (!currentTurnMustDiscardOverflow) {
+            return;
+        }
+        if (player != null && player.getHandCardCount() <= MAX_HAND_SIZE) {
+            currentTurnMustDiscardOverflow = false;
+            return;
+        }
+        throw new IllegalStateException(
+                "手牌超过 7 张，必须先弃牌至最多 7 张，不能" + attemptedAction + "。");
     }
 
     Card resolveCardInHand(Player actor, String cardId, Integer handIndex) {

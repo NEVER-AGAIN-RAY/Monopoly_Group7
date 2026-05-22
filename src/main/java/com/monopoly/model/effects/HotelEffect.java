@@ -7,7 +7,7 @@ import com.monopoly.model.settlement.BuildingPlacementRules;
 import com.monopoly.model.settlement.PropertySetCalculator;
 
 /**
- * Hotel：将已有房子的房产升级为酒店（{@link BuildingLevel#HOTEL}）。
+ * Hotel: upgrade a house to hotel on same property.
  */
 public final class HotelEffect implements ActionEffect {
 

@@ -7,10 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * 暂停与 PVP 投票逻辑，从 {@link GameController} 抽出。
- * <p>
- * 持有暂停相关可变状态（{@code paused}、{@code pausePending}、{@code pauseAcks}）；
- * 通过回调 {@link GameController} 包级方法完成快照推送与错误记录，避免双写。
+ * Pause immediately in HVM; unanimous vote in PVP.
  */
 final class PauseVoteService {
 
@@ -39,7 +36,7 @@ final class PauseVoteService {
     }
 
     /**
-     * 人机模式立即暂停；PVP 模式抛错。
+     * pause(): immediate in HVM, error in PVP.
      */
     void pause() {
         if (controller.isPvpMode()) {
@@ -49,7 +46,7 @@ final class PauseVoteService {
     }
 
     /**
-     * PVP: 当前回合玩家发起暂停请求。HVM: 等价于立即暂停。
+     * requestPause(): vote in PVP, immediate in HVM.
      */
     void requestPause() {
         if (paused) {
@@ -73,7 +70,7 @@ final class PauseVoteService {
     }
 
     /**
-     * PVP: 玩家确认暂停；全员确认后暂停生效。
+     * acknowledgePause(): all humans must ack in PVP.
      */
     void acknowledgePause(String playerId) {
         if (playerId == null || playerId.isBlank()) {

@@ -3,7 +3,7 @@ package com.monopoly.persistence;
 import com.monopoly.model.effects.EffectStackEntry;
 
 /**
- * {@link EffectStackEntry} 的扁平快照（与枚举 {@link EffectStackEntry.Kind} 对应）。
+ * Flat memento for one EffectStackEntry.
  */
 public final class EffectStackEntryMemento {
 

@@ -5,8 +5,8 @@ import com.monopoly.network.GameServer;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 
 /**
- * 组合根（骨架）：演示 DefaultGameUpdateSubject → GameController（Facade）→ 状态通知 → GameServer（Observer 实现）广播。
- * 实际启动 WebSocket 容器时在此类中完成初始化即可。
+ * Composition root: wires DefaultGameUpdateSubject, GameController (Facade), and GameServer (Observer).
+ * Production WebSocket startup uses WsServerMain.
  */
 public final class ServerBootstrap {
 

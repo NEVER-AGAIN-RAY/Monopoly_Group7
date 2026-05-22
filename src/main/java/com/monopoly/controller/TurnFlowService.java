@@ -13,7 +13,6 @@ import com.monopoly.dto.ActionParamContext;
 import com.monopoly.model.effects.ActionEffectContext;
 import com.monopoly.model.effects.ActionEffectDispatcher;
 import com.monopoly.model.effects.ActionEffectResult;
-import com.monopoly.model.effects.DoubleRentEffect;
 import com.monopoly.model.effects.RentEffect;
 import com.monopoly.model.core.RentChargeSequence;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
@@ -323,6 +322,8 @@ final class TurnFlowService {
             return null;
         }
 
+        controller.getGameContext().clearPendingDoubleRent();
+
         TurnManager tm = controller.getTurnManager();
         tm.advanceTurn();
 
@@ -458,13 +459,14 @@ final class TurnFlowService {
             if (!due.isOk()) {
                 throw new IllegalStateException(due.getError());
             }
+            int amountDue = consumePendingDoubleRentAmount(gameContext, actor, due.getAmountDue());
             currentTurnActionCount++;
             actor.placeActionToCenter(card);
             EffectStackEntry rentEntry = EffectStackEntry.pendingRent(
                     actor.getPlayerId(),
                     ctx.getTarget().getPlayerId(),
                     ctx.getTargetColorKey(),
-                    due.getAmountDue());
+                    amountDue);
             gameContext.pushEffect(rentEntry);
             effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
@@ -476,23 +478,22 @@ final class TurnFlowService {
         }
 
         if ("DOUBLE_RENT".equals(effectCodeStr)) {
-            RentEffect.DueResult due = DoubleRentEffect.computeDue(ctx);
-            if (!due.isOk()) {
-                throw new IllegalStateException(due.getError());
-            }
             currentTurnActionCount++;
             actor.placeActionToCenter(card);
-            EffectStackEntry drEntry = EffectStackEntry.pendingDoubleRent(
-                    actor.getPlayerId(),
-                    ctx.getTarget().getPlayerId(),
-                    ctx.getTargetColorKey(),
-                    due.getAmountDue());
-            gameContext.pushEffect(drEntry);
-            effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
+            gameContext.setPendingDoubleRentFor(actor.getPlayerId());
+            if (currentTurnActionCount >= MAX_ACTIONS_PER_TURN) {
+                currentTurnPhase = TurnPhase.END_TURN;
+            }
             ActionEffectResult result = ActionEffectResult.success(
-                    "双倍收租已入栈，等待对方在 "
-                            + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS
-                            + " 秒内打出免租或放弃。");
+                    "Double The Rent 已生效：你下一张租金牌金额翻倍。");
+            controller.pushSnapshot(
+                    controller.getCurrentSessionId(),
+                    "ACTION_SUCCESS",
+                    actor.getDisplayName() + " played ACTION (" + card.getName() + "): "
+                            + result.getMessage(),
+                    actor,
+                    card,
+                    "ACTION");
             System.out.println("[ACTION] " + result.getMessage());
             return result;
         }
@@ -503,6 +504,7 @@ final class TurnFlowService {
                 if (!dueAll.isOk()) {
                     throw new IllegalStateException(dueAll.getError());
                 }
+                int amountDue = consumePendingDoubleRentAmount(gameContext, actor, dueAll.getAmountDue());
                 List<String> tenantIds = new ArrayList<>();
                 for (Player p : controller.getSessionPlayersView()) {
                     if (p != null && !p.getPlayerId().equals(actor.getPlayerId())) {
@@ -518,7 +520,7 @@ final class TurnFlowService {
                 gameContext.setRentChargeSequence(new RentChargeSequence(
                         actor.getPlayerId(),
                         ctx.getTargetColorKey(),
-                        dueAll.getAmountDue(),
+                        amountDue,
                         tenantIds));
                 Player firstTenant = controller.resolvePlayer(tenantIds.get(0));
                 if (firstTenant == null) {
@@ -529,7 +531,7 @@ final class TurnFlowService {
                         actor.getPlayerId(),
                         firstTenant.getPlayerId(),
                         ctx.getTargetColorKey(),
-                        dueAll.getAmountDue()));
+                        amountDue));
                 effectStack.enterRentResponseWindow(firstTenant, actor, card);
                 ActionEffectResult result = ActionEffectResult.success(
                         "双色全员收租已入栈，将依次向每位其他玩家收租；当前等待 "
@@ -544,13 +546,14 @@ final class TurnFlowService {
             if (!due.isOk()) {
                 throw new IllegalStateException(due.getError());
             }
+            int amountDue = consumePendingDoubleRentAmount(gameContext, actor, due.getAmountDue());
             currentTurnActionCount++;
             actor.placeActionToCenter(card);
             EffectStackEntry rentEntry = EffectStackEntry.pendingRent(
                     actor.getPlayerId(),
                     ctx.getTarget().getPlayerId(),
                     ctx.getTargetColorKey(),
-                    due.getAmountDue());
+                    amountDue);
             gameContext.pushEffect(rentEntry);
             effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
@@ -651,6 +654,14 @@ final class TurnFlowService {
             }
         }
         return ids;
+    }
+
+    private static int consumePendingDoubleRentAmount(GameContext gameContext, Player actor, int baseAmountDue) {
+        if (gameContext != null && actor != null && gameContext.hasPendingDoubleRentFor(actor.getPlayerId())) {
+            gameContext.clearPendingDoubleRent();
+            return baseAmountDue * 2;
+        }
+        return baseAmountDue;
     }
 
     // --- helpers ---

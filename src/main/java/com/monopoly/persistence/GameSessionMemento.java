@@ -53,6 +53,7 @@ public final class GameSessionMemento {
     private List<EffectStackEntryMemento> effectStack = new ArrayList<>();
     private StackResponseStateMemento responseState;
     private RentChargeSequenceMemento rentChargeSequence;
+    private String pendingDoubleRentPlayerId;
 
     private static final Gson GSON = new GsonBuilder()
             .serializeNulls()
@@ -187,6 +188,14 @@ public final class GameSessionMemento {
         this.rentChargeSequence = rentChargeSequence;
     }
 
+    public String getPendingDoubleRentPlayerId() {
+        return pendingDoubleRentPlayerId;
+    }
+
+    public void setPendingDoubleRentPlayerId(String pendingDoubleRentPlayerId) {
+        this.pendingDoubleRentPlayerId = pendingDoubleRentPlayerId;
+    }
+
     public String toJson() {
         return GSON.toJson(this);
     }
@@ -258,6 +267,7 @@ public final class GameSessionMemento {
 
             RentChargeSequence rcs = ctx.getRentChargeSequence();
             m.rentChargeSequence = RentChargeSequenceMemento.from(rcs);
+            m.pendingDoubleRentPlayerId = ctx.getPendingDoubleRentPlayerId();
 
             return m;
         } catch (ReflectiveOperationException e) {
@@ -332,6 +342,7 @@ public final class GameSessionMemento {
             } else {
                 ctx.clearRentChargeSequence();
             }
+            ctx.setPendingDoubleRentFor(memento.getPendingDoubleRentPlayerId());
 
             Object turnFlow = readField(controller, "turnFlowService");
             Class<?> phaseClass = Class.forName("com.monopoly.controller.TurnFlowService$TurnPhase");

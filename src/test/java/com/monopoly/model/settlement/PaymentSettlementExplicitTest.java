@@ -30,15 +30,16 @@ class PaymentSettlementExplicitTest {
         assertTrue(r.isSuccess());
         assertEquals(1, debtor.getBankCardCount());
         assertTrue(debtor.getBankCardsView().contains(m1));
-        assertEquals(1, creditor.getBankCardCount());
-        assertTrue(creditor.getBankCardsView().contains(m5));
+        assertEquals(0, creditor.getBankCardCount());
+        assertTrue(creditor.getHandCardsView().contains(m5));
     }
 
     @Test
     void settleWithExplicit_rejectsInsufficientSum() {
         HumanPlayer debtor = new HumanPlayer("d", "D");
         HumanPlayer creditor = new HumanPlayer("c", "C");
-        debtor.addToBank(new MoneyCard("m1", "1", 1));
+        MoneyCard m1 = new MoneyCard("m1", "1", 1);
+        debtor.addToBank(m1);
         GameEngineSingleton engine = GameEngineSingleton.getInstance();
 
         PaymentSettlement.Result r = PaymentSettlement.settleWithExplicitCards(
@@ -60,7 +61,8 @@ class PaymentSettlementExplicitTest {
     void settleWithExplicit_canUsePropertyCard() {
         HumanPlayer debtor = new HumanPlayer("d", "D");
         HumanPlayer creditor = new HumanPlayer("c", "C");
-        debtor.addToBank(new MoneyCard("m1", "1", 1));
+        MoneyCard m1 = new MoneyCard("m1", "1", 1);
+        debtor.addToBank(m1);
         PropertyCard p = new PropertyCard("p1", "p", "GREEN");
         debtor.addToPropertyZone(p);
         GameEngineSingleton engine = GameEngineSingleton.getInstance();
@@ -71,5 +73,9 @@ class PaymentSettlementExplicitTest {
         assertTrue(r.isSuccess());
         assertEquals(0, debtor.getBankCardCount());
         assertEquals(0, debtor.getPropertyCardCount());
+        assertTrue(creditor.getHandCardsView().contains(m1));
+        assertTrue(creditor.getHandCardsView().contains(p));
+        assertEquals(0, creditor.getBankCardCount());
+        assertEquals(0, creditor.getPropertyCardCount());
     }
 }

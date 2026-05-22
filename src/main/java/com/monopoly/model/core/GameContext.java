@@ -18,6 +18,8 @@ public class GameContext {
     private StackResponseState responseState;
     /** Set during RENT_DUAL multi-tenant collection. */
     private RentChargeSequence rentChargeSequence;
+    /** Player whose next rent card should be doubled by Double The Rent. */
+    private String pendingDoubleRentPlayerId;
 
     public void bindPlayers(List<Player> players) {
         this.players = players == null ? List.of() : Collections.unmodifiableList(players);
@@ -65,6 +67,24 @@ public class GameContext {
 
     public void clearRentChargeSequence() {
         this.rentChargeSequence = null;
+    }
+
+    public void setPendingDoubleRentFor(String playerId) {
+        this.pendingDoubleRentPlayerId = (playerId == null || playerId.isBlank()) ? null : playerId;
+    }
+
+    public String getPendingDoubleRentPlayerId() {
+        return pendingDoubleRentPlayerId;
+    }
+
+    public boolean hasPendingDoubleRentFor(String playerId) {
+        return pendingDoubleRentPlayerId != null
+                && playerId != null
+                && pendingDoubleRentPlayerId.equals(playerId);
+    }
+
+    public void clearPendingDoubleRent() {
+        this.pendingDoubleRentPlayerId = null;
     }
 
     public StackResponseState getResponseState() {

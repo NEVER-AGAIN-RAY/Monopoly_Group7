@@ -66,7 +66,8 @@ class JustSayNoActionResponseTest {
 
         assertNull(controller.getGameContext().getResponseState());
         assertFalse(target.getPropertyCardsView().contains(targetProperty));
-        assertTrue(actor.getPropertyCardsView().contains(targetProperty));
+        assertTrue(actor.getHandCardsView().contains(targetProperty));
+        assertFalse(actor.getPropertyCardsView().contains(targetProperty));
     }
 
     @Test
@@ -95,6 +96,7 @@ class JustSayNoActionResponseTest {
         assertNull(controller.getGameContext().getResponseState());
         assertTrue(target.getBankCardsView().contains(targetMoney));
         assertFalse(actor.getBankCardsView().contains(targetMoney));
+        assertFalse(actor.getHandCardsView().contains(targetMoney));
     }
 
     @Test
@@ -115,7 +117,8 @@ class JustSayNoActionResponseTest {
 
         assertNull(controller.getGameContext().getResponseState());
         assertFalse(target.getBankCardsView().contains(targetMoney));
-        assertTrue(actor.getBankCardsView().contains(targetMoney));
+        assertTrue(actor.getHandCardsView().contains(targetMoney));
+        assertFalse(actor.getBankCardsView().contains(targetMoney));
     }
 
     private static GameController newPvpControllerInPlayPhase() {

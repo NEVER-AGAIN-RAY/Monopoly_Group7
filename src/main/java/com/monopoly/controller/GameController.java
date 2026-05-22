@@ -180,6 +180,7 @@ public class GameController implements AiGameBridge {
         turnManager.bindTurnOrder(sessionPlayers);
         gameContext.bindPlayers(sessionPlayers);
         gameContext.clearEffectStack();
+        gameContext.clearPendingDoubleRent();
         effectStackOrchestrator.cancelPendingResponseTimeout();
 
         int initialEach = TurnFlowService.INITIAL_HAND_SIZE;

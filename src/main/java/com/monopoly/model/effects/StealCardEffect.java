@@ -1,6 +1,5 @@
 package com.monopoly.model.effects;
 
-import com.monopoly.model.card.Card;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.settlement.StealTargetZone;
@@ -16,7 +15,7 @@ public class StealCardEffect implements ActionEffect {
                 ? ctx.getStealTargetZone()
                 : StealTargetZone.PROPERTY;
         if (zone == StealTargetZone.BANK) {
-            return stealFromBank(ctx);
+            return ActionEffectResult.failed("Sly Deal 只能偷取目标玩家财产区的一张房产。");
         }
         return stealFromPropertyZone(ctx);
     }
@@ -43,37 +42,10 @@ public class StealCardEffect implements ActionEffect {
         if (!removed) {
             return ActionEffectResult.failed("状态不一致：无法从目标玩家移除房产。");
         }
-        actor.addToPropertyZone(targetProp);
+        actor.receiveCardToHand(targetProp);
         return ActionEffectResult.success(
                 actor.getDisplayName() + " 从 " + target.getDisplayName()
-                        + " 偷走了 " + targetProp.getName() + "。");
+                        + " 偷走了 " + targetProp.getName() + "，收入手牌。");
     }
 
-    private static ActionEffectResult stealFromBank(ActionEffectContext ctx) {
-        Player actor = ctx.getActor();
-        Player target = ctx.getTarget();
-        Card card = ctx.getTargetBankCard();
-
-        if (target == null) {
-            return ActionEffectResult.failed("偷银行牌需指定目标玩家。");
-        }
-        if (target.getBankCardCount() == 0) {
-            return ActionEffectResult.failed("目标玩家银行没有牌可偷。");
-        }
-        if (card == null) {
-            return ActionEffectResult.failed("偷银行牌需指定目标银行中的一张牌。");
-        }
-        if (!target.getBankCardsView().contains(card)) {
-            return ActionEffectResult.failed("指定卡牌不在目标玩家银行。");
-        }
-
-        boolean removed = target.removeFromBank(card);
-        if (!removed) {
-            return ActionEffectResult.failed("状态不一致：无法从目标银行移除卡牌。");
-        }
-        actor.receiveCardToHand(card);
-        return ActionEffectResult.success(
-                actor.getDisplayName() + " 从 " + target.getDisplayName()
-                        + " 的银行拿走了 " + card.getName() + "。");
-    }
 }

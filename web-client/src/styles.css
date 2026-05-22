@@ -1348,6 +1348,131 @@ select:focus {
   transform: none;
 }
 
+.center-reveal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 8;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.center-reveal-meta {
+  max-width: 190px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255, 244, 190, 0.34);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #fff8d8;
+  background: rgba(4, 16, 12, 0.82);
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.28);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.center-reveal-meta span,
+.center-reveal-meta b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.center-reveal-meta b {
+  color: #ffe082;
+}
+
+.reveal-card.table-card {
+  width: 116px;
+  height: 164px;
+  display: grid;
+  grid-template-rows: 13px 16px 58px minmax(28px, 1fr) auto;
+  gap: 5px;
+  border-radius: 11px;
+  padding: 0 9px 9px;
+  box-shadow:
+    0 0 0 4px rgba(255, 209, 102, 0.16),
+    0 24px 48px rgba(0, 0, 0, 0.5);
+}
+
+.reveal-card.table-card.has-image {
+  padding: 0;
+}
+
+.reveal-card.table-card .color-band {
+  height: 13px;
+  margin: 0 -9px;
+}
+
+.reveal-card.table-card .card-type {
+  display: block;
+  font-size: 9px;
+}
+
+.reveal-card.table-card .card-art {
+  min-height: 56px;
+}
+
+.reveal-card.table-card .card-art b {
+  font-size: 18px;
+}
+
+.reveal-card.table-card strong {
+  font-size: 12px;
+  line-height: 1.12;
+}
+
+.reveal-card.table-card small {
+  display: block;
+  overflow: hidden;
+  color: #3f4a43;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.14;
+}
+
+.reveal-card.table-card .value-badge {
+  font-size: 11px;
+}
+
+.center-reveal.ai .reveal-card {
+  border-color: #8be4ff;
+  box-shadow:
+    0 0 0 4px rgba(139, 228, 255, 0.18),
+    0 24px 48px rgba(0, 0, 0, 0.5);
+}
+
+.skip-ai-button {
+  position: absolute;
+  left: 50%;
+  bottom: -42px;
+  z-index: 9;
+  width: max-content;
+  max-width: 170px;
+  padding: 8px 12px;
+  color: #062235;
+  background: #8be4ff;
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.28);
+  font-size: 12px;
+  transform: translateX(-50%);
+}
+
+.center-card-enter-active,
+.center-card-leave-active {
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.center-card-enter-from,
+.center-card-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -44%) scale(0.94);
+}
+
 .deck {
   width: 88px;
   height: 122px;

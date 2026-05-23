@@ -26,6 +26,8 @@ import com.monopoly.pattern.factory.CardFactory;
 import com.monopoly.pattern.factory.MonopolyDealCardFactory;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 import com.monopoly.pattern.strategy.AiPlayStrategy;
+import com.monopoly.pattern.strategy.AiBattleLogger;
+import com.monopoly.pattern.strategy.DeepSeekAiPlayStrategy;
 import com.monopoly.pattern.strategy.EasyAiPlayStrategy;
 import com.monopoly.pattern.strategy.HardAiPlayStrategy;
 import com.monopoly.pattern.strategy.NormalAiPlayStrategy;
@@ -91,6 +93,7 @@ public class GameController implements AiGameBridge {
     private String sessionGameMode = "HVM";
     private int fullRoundsCompleted;
     private long playEventSequence;
+    private long stateSequence;
 
     // --- constructor ---
 
@@ -138,9 +141,13 @@ public class GameController implements AiGameBridge {
             throw new IllegalArgumentException("playerCount 必须在 2–5 之间，当前为 " + count + "。");
         }
         String mode = req.getGameMode() == null ? "" : req.getGameMode().trim().toUpperCase();
-        if (!"HVM".equals(mode) && !"PVP".equals(mode)) {
+        if (mode.isBlank()) {
+            mode = "HVM";
+        }
+        if (!"HVM".equals(mode) && !"PVP".equals(mode)
+                && !"LLM".equals(mode) && !"AI_VS_AI".equals(mode)) {
             throw new IllegalArgumentException(
-                    "gameMode 必须为 HVM 或 PVP，当前为 " + req.getGameMode() + "。");
+                    "gameMode 必须为 HVM、PVP、LLM 或 AI_VS_AI，当前为 " + req.getGameMode() + "。");
         }
 
         String sid = req.getSessionId();
@@ -153,6 +160,7 @@ public class GameController implements AiGameBridge {
         forceEndReason = null;
         quitPlayerIds.clear();
         playEventSequence = 0L;
+        stateSequence = 0L;
         List<Card> deck = new ArrayList<>(cardFactory.createStandardDeck108());
         Collections.shuffle(deck, ThreadLocalRandom.current());
         engine.attachDrawPile(deck);
@@ -165,12 +173,25 @@ public class GameController implements AiGameBridge {
             sessionPlayers.add(new HumanPlayer("human-1", "Human"));
             for (int i = 1; i < count; i++) {
                 sessionPlayers.add(
-                        new AIPlayer("ai-" + i, "AI-" + diffLabel, resolveAiStrategy(diff)));
+                        new AIPlayer("ai-" + i, "AI-" + diffLabel + "-" + i, resolveAiStrategy(diff)));
             }
-        } else {
+        } else if ("PVP".equals(mode)) {
             for (int i = 1; i <= count; i++) {
                 sessionPlayers.add(new HumanPlayer("pvp-" + i, "Player-" + i));
             }
+        } else if ("LLM".equals(mode)) {
+            sessionPlayers.add(new HumanPlayer("human-1", "Human"));
+            for (int i = 1; i < count; i++) {
+                sessionPlayers.add(new AIPlayer("ai-" + i, "DeepSeek-AI-" + i, new DeepSeekAiPlayStrategy()));
+            }
+            AiBattleLogger.log("Session", "Started LLM mode session=" + currentSessionId
+                    + " players=" + count + " model=" + com.monopoly.pattern.strategy.DeepSeekClient.model());
+        } else {
+            for (int i = 1; i <= count; i++) {
+                sessionPlayers.add(new AIPlayer("ai-" + i, "DeepSeek-AI-" + i, new DeepSeekAiPlayStrategy()));
+            }
+            AiBattleLogger.log("Session", "Started AI_VS_AI mode session=" + currentSessionId
+                    + " players=" + count + " model=" + com.monopoly.pattern.strategy.DeepSeekClient.model());
         }
 
         if (req.isRandomizeFirstPlayer()) {
@@ -200,6 +221,9 @@ public class GameController implements AiGameBridge {
         clearLastError();
         assertDeckIntegrityOrLog();
         pushSnapshot(currentSessionId, "INIT", "新局已开始：牌堆已随机洗牌，起手按真人发牌方式轮流发 5 张。");
+        if (current instanceof AIPlayer ai) {
+            aiTurnService.executeAiTurn(ai);
+        }
     }
 
     private static AiPlayStrategy resolveAiStrategy(String normalizedDifficulty) {
@@ -253,6 +277,16 @@ public class GameController implements AiGameBridge {
         Player next = turnFlowService.endTurn(player);
         if (next instanceof AIPlayer ai) {
             aiTurnService.executeAiTurn(ai);
+        }
+    }
+
+    void resumeAiTurnIfNeeded() {
+        if (turnFlowService.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
+            return;
+        }
+        Player current = turnManager.getCurrentPlayer();
+        if (current instanceof AIPlayer ai) {
+            aiTurnService.continueAiTurn(ai);
         }
     }
 
@@ -497,6 +531,15 @@ public class GameController implements AiGameBridge {
         }
     }
 
+    public void forceEndSession(String reason) {
+        if (sessionForceEnded) {
+            return;
+        }
+        sessionForceEnded = true;
+        forceEndReason = (reason == null || reason.isBlank()) ? "FORCE_END" : reason.trim();
+        pushSnapshot(currentSessionId, "GAME_FORCE_END");
+    }
+
     public void handleResponsePass(String actingPlayerId) {
         try {
             ensureSessionActive();
@@ -549,6 +592,10 @@ public class GameController implements AiGameBridge {
 
     public boolean isPvpMode() {
         return "PVP".equals(sessionGameMode);
+    }
+
+    public boolean isAiBattleMode() {
+        return "LLM".equals(sessionGameMode) || "AI_VS_AI".equals(sessionGameMode);
     }
 
     public void pause() {
@@ -658,6 +705,9 @@ public class GameController implements AiGameBridge {
         if (sessionStartEpochMs <= 0) {
             return;
         }
+        if (isAiBattleMode()) {
+            return;
+        }
         long elapsed = System.currentTimeMillis() - sessionStartEpochMs;
         if (elapsed <= sessionLimitMs()) {
             return;
@@ -707,6 +757,7 @@ public class GameController implements AiGameBridge {
                 ? gameMode.trim().toUpperCase() : "HVM";
         this.fullRoundsCompleted = 0;
         this.playEventSequence = 0L;
+        this.stateSequence = 0L;
         quitPlayerIds.clear();
         assertDeckIntegrityOrLog();
         pushSnapshot(currentSessionId, "INIT", "Session loaded from save.");
@@ -730,7 +781,7 @@ public class GameController implements AiGameBridge {
             Card playedCard,
             String playedActionType) {
         String originalPhase = phase;
-        if (!sessionForceEnded && sessionStartEpochMs > 0) {
+        if (!sessionForceEnded && sessionStartEpochMs > 0 && !isAiBattleMode()) {
             long elapsed = System.currentTimeMillis() - sessionStartEpochMs;
             if (elapsed > sessionLimitMs()) {
                 sessionForceEnded = true;
@@ -750,6 +801,7 @@ public class GameController implements AiGameBridge {
         GameStateSnapshot snap = new GameStateSnapshot();
         snap.setSessionId(sessionId);
         snap.setPhase(phase);
+        snap.setStateSequence(++stateSequence);
         snap.setLastActionSummary(summary);
         snap.setCurrentPlayerId(turnFlowService.currentTurnPlayerId);
         snap.setTurnPhase(tp == null ? "UNKNOWN" : tp.name());
@@ -847,7 +899,7 @@ public class GameController implements AiGameBridge {
             case "DEPLOY", "DEPOSIT", "ACTION", "DISCARD" -> "A play action completed.";
             case "TURN_END" -> "Turn ended.";
             case "GAME_OVER" -> "Game over.";
-            case "REASSIGN_WILD" -> "Wild property reassigned.";
+            case "REASSIGN_WILD" -> "Wild property color changes are not allowed.";
             case "RENT_PAID", "RENT_FAILED" -> "Rent settlement updated.";
             case "PAUSE_PENDING" -> "Pause vote in progress.";
             case "RULE_VIOLATION" -> (lastErrorMessage != null && !lastErrorMessage.isBlank())

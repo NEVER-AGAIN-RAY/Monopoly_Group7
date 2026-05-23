@@ -71,9 +71,12 @@ public final class PlayOptionsService {
                 }
                 out.setOk(true);
                 if (card instanceof PropertyWildCard ww) {
-                    List<String> colors = ww.getWildPropertyKind() == WildPropertyKind.DUAL_COLOR
-                            ? List.copyOf(ww.getPrintedColorPairView())
-                            : WILD_DEPLOY_COLORS;
+                    String assigned = ww.getAssignedColorKey();
+                    List<String> colors = assigned != null && !assigned.isBlank()
+                            ? List.of(assigned.trim().toUpperCase(Locale.ROOT))
+                            : (ww.getWildPropertyKind() == WildPropertyKind.DUAL_COLOR
+                                    ? List.copyOf(ww.getPrintedColorPairView())
+                                    : WILD_DEPLOY_COLORS);
                     for (String c : colors) {
                         out.addOption(new ActionOptionRow(
                                 "部署万能房产，财产区计入颜色 " + c, null, c, null, null, null));

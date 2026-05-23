@@ -37,7 +37,7 @@ public final class RentScheduleText {
 
     public static String forWildCard() {
         return "部署时选一色计入该色轨道，租金阶梯与该单色一致。"
-                + " 本牌堆为简化万能模型，无实体双色地权卡；作支付价值 0M。";
+                + " 声明颜色后不可改色；任意色万能无货币价值，双色万能按牌面角标价值支付。";
     }
 
     public static String forColorKeyEn(String colorKey) {
@@ -67,6 +67,6 @@ public final class RentScheduleText {
 
     public static String forWildCardEn() {
         return "Deploy as one color, rent follows that color's tier."
-                + " Payment value 0M.";
+                + " Color is locked after declaration. Any-color wild has no monetary value; printed dual wilds use card face value.";
     }
 }

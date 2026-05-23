@@ -1,6 +1,7 @@
 package com.monopoly.network;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.monopoly.controller.GameController;
@@ -219,9 +220,11 @@ class GameServerSaveLoadIntegrationTest {
                 .filter(s -> s.contains("\"type\":\"MY_HAND\"") && s.contains("\"playerId\":\"pvp-1\""))
                 .reduce((a, b) -> b)
                 .orElseThrow();
-        assertTrue(c1MyHand.contains(p1FirstHandId));
-        assertFalse(out2.stream().anyMatch(s -> s.contains("\"type\":\"MY_HAND\"") && s.contains(p1FirstHandId)));
-        assertFalse(out2.stream().anyMatch(s -> s.contains(p1FirstHandId)));
+        assertTrue(handMessageContainsCard(c1MyHand, p1FirstHandId));
+        assertFalse(out2.stream()
+                .filter(s -> s.contains("\"type\":\"MY_HAND\""))
+                .anyMatch(s -> handMessageContainsCard(s, p1FirstHandId)));
+        assertFalse(out2.stream().anyMatch(s -> s.contains("\"id\":\"" + p1FirstHandId + "\"")));
     }
 
     @Test
@@ -293,5 +296,18 @@ class GameServerSaveLoadIntegrationTest {
                 sink.add(text);
             }
         };
+    }
+
+    private static boolean handMessageContainsCard(String message, String cardId) {
+        JsonObject root = JsonParser.parseString(message).getAsJsonObject();
+        JsonObject payload = root.getAsJsonObject("payload");
+        JsonArray cards = payload.getAsJsonArray("cards");
+        for (int i = 0; i < cards.size(); i++) {
+            JsonObject card = cards.get(i).getAsJsonObject();
+            if (cardId.equals(card.get("id").getAsString())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

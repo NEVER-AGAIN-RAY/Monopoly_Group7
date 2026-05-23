@@ -3,6 +3,10 @@ package com.monopoly.controller;
 import com.monopoly.model.player.AIPlayer;
 import com.monopoly.pattern.strategy.AiPlayStrategy;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 /**
  * Runs AI turns after GameController.endTurn (HVM mode).
  * <p>
@@ -13,6 +17,12 @@ final class AiTurnService {
 
     private final GameController controller;
     private final TurnFlowService turnFlow;
+    private final ScheduledExecutorService decisionScheduler =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "ai-turn-decision");
+                t.setDaemon(true);
+                return t;
+            });
 
     AiTurnService(GameController controller, TurnFlowService turnFlow) {
         this.controller = controller;
@@ -20,26 +30,101 @@ final class AiTurnService {
     }
 
     void executeAiTurn(AIPlayer ai) {
+        schedule(ai, true);
+    }
+
+    void continueAiTurn(AIPlayer ai) {
+        schedule(ai, false);
+    }
+
+    private void schedule(AIPlayer ai, boolean needsDraw) {
+        if (ai == null) {
+            return;
+        }
+        String sessionId = controller.getCurrentSessionId();
+        decisionScheduler.schedule(
+                () -> runScheduled(ai, needsDraw, sessionId),
+                decisionDelayMs(),
+                TimeUnit.MILLISECONDS);
+    }
+
+    private void runScheduled(AIPlayer ai, boolean needsDraw, String sessionId) {
+        if (sessionId == null || !sessionId.equals(controller.getCurrentSessionId())) {
+            return;
+        }
+        runOne(ai, needsDraw);
+    }
+
+    private void runOne(AIPlayer ai, boolean needsDraw) {
+        try {
+            controller.ensureNotPaused();
+            controller.ensureSessionActive();
+            controller.getGameContext().bindPlayers(controller.getSessionPlayersView());
+            if (needsDraw) {
+                turnFlow.drawCards(ai, 2);
+                schedule(ai, false);
+                return;
+            }
+            continueAiTurnOneDecision(ai);
+        } catch (IllegalStateException ex) {
+            if (!controller.isSessionForceEnded()) {
+                throw ex;
+            }
+        }
+    }
+
+    private void continueAiTurnOneDecision(AIPlayer ai) {
         controller.ensureNotPaused();
         controller.ensureSessionActive();
+        if (controller.getCurrentPlayer() != ai) {
+            return;
+        }
         controller.getGameContext().bindPlayers(controller.getSessionPlayersView());
-        turnFlow.drawCards(ai, 2);
+        controller.getGameContext().setTurnActionBudget(
+                turnFlow.currentTurnActionCount, TurnFlowService.MAX_ACTIONS_PER_TURN);
 
-        int played = 0;
         AiPlayStrategy strategy = ai.getPlayStrategy();
-        while (played < TurnFlowService.MAX_ACTIONS_PER_TURN
+        if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.PLAY
+                && turnFlow.currentTurnActionCount < TurnFlowService.MAX_ACTIONS_PER_TURN
+                && !controller.isSessionForceEnded()
                 && !ai.getHandCardsView().isEmpty()) {
             boolean progressed = strategy != null
                     && strategy.tryPlayOneCard(ai, controller.getGameContext(), controller);
-            if (!progressed) {
-                break;
+            if (controller.isSessionForceEnded()) {
+                return;
             }
-            played++;
+            if (!progressed) {
+                finishAiTurn(ai);
+                return;
+            }
             if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
                 return;
             }
+            if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.PLAY
+                    && turnFlow.currentTurnActionCount < TurnFlowService.MAX_ACTIONS_PER_TURN
+                    && !ai.getHandCardsView().isEmpty()) {
+                schedule(ai, false);
+                return;
+            }
+        }
+        finishAiTurn(ai);
+    }
+
+    private void finishAiTurn(AIPlayer ai) {
+        if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
+            return;
+        }
+        if (controller.isSessionForceEnded()) {
+            return;
         }
         turnFlow.forceDiscardOverflowToLimit(ai);
+        if (controller.isSessionForceEnded()) {
+            return;
+        }
         controller.endTurn(ai);
+    }
+
+    private static long decisionDelayMs() {
+        return Math.max(0L, Long.getLong("monopoly.ai.decisionDelayMs", 75L));
     }
 }

@@ -133,14 +133,16 @@ public final class HandCardJson {
                 }
                 o.add("printedColors", pc);
                 o.addProperty("titleZh", "双色万能（" + String.join("·", w.getPrintedColorPairView()) + "）");
-                o.addProperty("hintZh", "部署时仅可声明为上述两色之一；作支付价值 0M。");
+                o.addProperty("hintZh", "部署时仅可声明为上述两色之一，声明后不可改色；作支付价值 "
+                        + w.getPaymentValue() + "M。");
                 o.addProperty("titleEn", "Dual Wild (" + String.join("/", w.getPrintedColorPairView()) + ")");
-                o.addProperty("hintEn", "Deploy as one of the two colors above; payment value 0M.");
+                o.addProperty("hintEn", "Deploy as one of the two colors above; color is locked after declaration; payment value "
+                        + w.getPaymentValue() + "M.");
             } else {
                 o.addProperty("titleZh", "万能房产（任意标准色）");
-                o.addProperty("hintZh", "部署时可声明为任意标准颜色组之一；作支付价值 0M。");
+                o.addProperty("hintZh", "部署时可声明为任意标准颜色组之一，声明后不可改色；无货币价值。");
                 o.addProperty("titleEn", "Wild Property (Any Color)");
-                o.addProperty("hintEn", "Deploy as any standard color group; payment value 0M.");
+                o.addProperty("hintEn", "Deploy as any standard color group; color is locked after declaration; no monetary value.");
             }
             o.addProperty("rentDetailZh", RentScheduleText.forWildCard());
             o.addProperty("rentDetailEn", RentScheduleText.forWildCardEn());

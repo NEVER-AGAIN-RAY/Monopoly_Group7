@@ -7,13 +7,12 @@ import com.monopoly.model.player.Player;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
- * Rent payment from bank + property only; no change; greedy card selection.
+ * Rent payment from bank + property only; no change; optimized card selection.
  */
 public final class PaymentSettlement {
 
@@ -67,36 +66,9 @@ public final class PaymentSettlement {
             return new Result(Status.SUCCESS, amountDue, 0, "无需支付");
         }
 
-        List<Card> bank = new ArrayList<>(debtor.getBankCardsView());
-        bank.sort(Comparator.comparingInt(PayableCards::valueOf));
-
-        List<PropertyCard> props = new ArrayList<>(debtor.getPropertyCardsView());
-        props.sort(Comparator.comparingInt(p -> PayableCards.valueOf(p)));
-
-        List<Card> chosen = new ArrayList<>();
-        int sum = 0;
-
-        for (Card c : bank) {
-            if (sum >= amountDue) {
-                break;
-            }
-            chosen.add(c);
-            sum += PayableCards.valueOf(c);
-        }
-        if (sum < amountDue) {
-            for (PropertyCard p : props) {
-                if (sum >= amountDue) {
-                    break;
-                }
-                chosen.add(p);
-                sum += PayableCards.valueOf(p);
-            }
-        }
-
-        if (sum < amountDue) {
-            return new Result(Status.FAILED, amountDue, sum,
-                    "资产不足：银行与财产区可支付最大为 " + sum + "M，应付 " + amountDue + "M");
-        }
+        PaymentChoice choice = chooseAutomaticPayment(debtor, amountDue);
+        List<Card> chosen = choice.cards();
+        int sum = choice.amountPaid();
 
         return transferChosen(debtor, creditor, amountDue, chosen, sum, engine);
     }
@@ -141,8 +113,12 @@ public final class PaymentSettlement {
             sum += PayableCards.valueOf(c);
         }
         if (sum < amountDue) {
-            return new Result(Status.FAILED, amountDue, sum,
-                    "所选牌合计 " + sum + "M，低于应付 " + amountDue + "M");
+            int totalPayable = totalPayableValue(debtor);
+            if (sum < totalPayable) {
+                return new Result(Status.FAILED, amountDue, sum,
+                        "所选牌合计 " + sum + "M，低于应付 " + amountDue
+                                + "M，且未付尽可支付资产 " + totalPayable + "M");
+            }
         }
         return transferChosen(debtor, creditor, amountDue, chosen, sum, engine);
     }
@@ -158,6 +134,13 @@ public final class PaymentSettlement {
         if (!r.isSuccess()) {
             throw new IllegalArgumentException(r.getMessage());
         }
+    }
+
+    public static int estimateAutomaticAmountPaid(Player debtor, int amountDue) {
+        if (debtor == null || amountDue <= 0) {
+            return 0;
+        }
+        return chooseAutomaticPayment(debtor, amountDue).amountPaid();
     }
 
     private static Result dryRunExplicit(Player debtor, int amountDue, List<String> cardIds) {
@@ -179,8 +162,12 @@ public final class PaymentSettlement {
             sum += PayableCards.valueOf(c);
         }
         if (sum < amountDue) {
-            return new Result(Status.FAILED, amountDue, sum,
-                    "所选牌合计 " + sum + "M，低于应付 " + amountDue + "M");
+            int totalPayable = totalPayableValue(debtor);
+            if (sum < totalPayable) {
+                return new Result(Status.FAILED, amountDue, sum,
+                        "所选牌合计 " + sum + "M，低于应付 " + amountDue
+                                + "M，且未付尽可支付资产 " + totalPayable + "M");
+            }
         }
         return new Result(Status.SUCCESS, amountDue, sum, "ok");
     }
@@ -197,6 +184,122 @@ public final class PaymentSettlement {
             }
         }
         return null;
+    }
+
+    private static int totalPayableValue(Player debtor) {
+        int total = 0;
+        for (Card c : debtor.getBankCardsView()) {
+            total += PayableCards.valueOf(c);
+        }
+        for (PropertyCard p : debtor.getPropertyCardsView()) {
+            total += PayableCards.valueOf(p);
+        }
+        return total;
+    }
+
+    /**
+     * Automatic payment policy:
+     * <ol>
+     *   <li>If bank cards can cover the bill, never sacrifice property cards.</li>
+     *   <li>Within the eligible cards, minimize overpayment, then card count.</li>
+     *   <li>When bank cannot cover the bill, add the least damaging property combination.</li>
+     * </ol>
+     */
+    static PaymentChoice chooseAutomaticPayment(Player debtor, int amountDue) {
+        List<PayOption> bank = new ArrayList<>();
+        int bankTotal = 0;
+        for (Card c : debtor.getBankCardsView()) {
+            int v = PayableCards.valueOf(c);
+            if (v <= 0) {
+                continue;
+            }
+            bank.add(new PayOption(c, v, false));
+            bankTotal += v;
+        }
+
+        List<PayOption> eligible = new ArrayList<>(bank);
+        if (bankTotal < amountDue) {
+            for (PropertyCard p : debtor.getPropertyCardsView()) {
+                int v = PayableCards.valueOf(p);
+                if (v <= 0) {
+                    continue;
+                }
+                eligible.add(new PayOption(p, v, true));
+            }
+        }
+
+        if (eligible.isEmpty()) {
+            return new PaymentChoice(List.of(), 0);
+        }
+
+        int total = 0;
+        for (PayOption option : eligible) {
+            total += option.value();
+        }
+        if (total < amountDue) {
+            List<Card> all = new ArrayList<>();
+            for (PayOption option : eligible) {
+                all.add(option.card());
+            }
+            return new PaymentChoice(List.copyOf(all), total);
+        }
+
+        int cap = total;
+        ChoiceState[] dp = new ChoiceState[cap + 1];
+        dp[0] = ChoiceState.empty();
+        for (PayOption option : eligible) {
+            for (int sum = cap; sum >= 0; sum--) {
+                ChoiceState prev = dp[sum];
+                if (prev == null) {
+                    continue;
+                }
+                int nextSum = sum + option.value();
+                if (nextSum > cap) {
+                    continue;
+                }
+                ChoiceState next = prev.add(option);
+                if (dp[nextSum] == null || compareChoice(nextSum, next, nextSum, dp[nextSum]) < 0) {
+                    dp[nextSum] = next;
+                }
+            }
+        }
+
+        int bestSum = -1;
+        ChoiceState best = null;
+        for (int sum = amountDue; sum <= cap; sum++) {
+            ChoiceState candidate = dp[sum];
+            if (candidate == null) {
+                continue;
+            }
+            if (best == null || compareChoice(sum, candidate, bestSum, best) < 0) {
+                bestSum = sum;
+                best = candidate;
+            }
+        }
+        if (best == null) {
+            return new PaymentChoice(List.of(), total);
+        }
+        return new PaymentChoice(best.cards(), bestSum);
+    }
+
+    private static int compareChoice(int amountA, ChoiceState a, int amountB, ChoiceState b) {
+        int c = Integer.compare(amountA, amountB);
+        if (c != 0) {
+            return c;
+        }
+        c = Integer.compare(a.propertyCount(), b.propertyCount());
+        if (c != 0) {
+            return c;
+        }
+        c = Integer.compare(a.propertyValue(), b.propertyValue());
+        if (c != 0) {
+            return c;
+        }
+        c = Integer.compare(a.cardCount(), b.cardCount());
+        if (c != 0) {
+            return c;
+        }
+        return Integer.compare(a.bankValue(), b.bankValue());
     }
 
     private static Result transferChosen(
@@ -220,7 +323,41 @@ public final class PaymentSettlement {
             }
         }
 
+        if (sum < amountDue) {
+            return new Result(Status.SUCCESS, amountDue, sum,
+                    "资产不足：已付尽可支付资产 " + sum + "M（应付 "
+                            + amountDue + "M），收款方收入手牌");
+        }
         return new Result(Status.SUCCESS, amountDue, sum,
                 "支付成功：付出 " + sum + "M（应付 " + amountDue + "M，找零不退），收款方收入手牌");
+    }
+
+    record PaymentChoice(List<Card> cards, int amountPaid) {
+    }
+
+    private record PayOption(Card card, int value, boolean property) {
+    }
+
+    private record ChoiceState(
+            List<Card> cards,
+            int cardCount,
+            int bankValue,
+            int propertyCount,
+            int propertyValue) {
+
+        static ChoiceState empty() {
+            return new ChoiceState(List.of(), 0, 0, 0, 0);
+        }
+
+        ChoiceState add(PayOption option) {
+            List<Card> next = new ArrayList<>(cards);
+            next.add(option.card());
+            return new ChoiceState(
+                    List.copyOf(next),
+                    cardCount + 1,
+                    bankValue + (option.property() ? 0 : option.value()),
+                    propertyCount + (option.property() ? 1 : 0),
+                    propertyValue + (option.property() ? option.value() : 0));
+        }
     }
 }

@@ -61,16 +61,22 @@ public class PropertyWildCard extends PropertyCard {
      */
     public void setAssignedColorKey(String colorKey) {
         if (colorKey == null || colorKey.isBlank()) {
+            if (assignedColorKey != null) {
+                throw new IllegalStateException("万能房产已经声明为 " + assignedColorKey + "，不能清空或改色。");
+            }
             this.assignedColorKey = null;
             return;
         }
         String ck = colorKey.trim().toUpperCase(Locale.ROOT);
         validateAssignableColorKey(ck);
+        if (assignedColorKey != null && !assignedColorKey.equals(ck)) {
+            throw new IllegalStateException("万能房产已经声明为 " + assignedColorKey + "，不能改为 " + ck + "。");
+        }
         this.assignedColorKey = ck;
     }
 
     /**
-     * Validates color for wild kind before deploy/reassign.
+     * Validates color for wild kind before deploy.
      */
     public void validateAssignableColorKey(String normalizedColorKey) {
         if (normalizedColorKey == null || normalizedColorKey.isBlank()) {
@@ -99,10 +105,56 @@ public class PropertyWildCard extends PropertyCard {
     }
 
     /**
-     * Wild properties pay 0M when used as payment.
+     * Any-color wild has no monetary value; printed dual wilds use the face value shown on the card.
      */
     @Override
     public int getPaymentValue() {
-        return 0;
+        if (wildKind == WildPropertyKind.ANY_COLOR) {
+            return 0;
+        }
+        return printedDualPaymentValue();
+    }
+
+    private int printedDualPaymentValue() {
+        if (printedColorPair.size() != 2) {
+            return 0;
+        }
+        String a = printedColorPair.get(0);
+        String b = printedColorPair.get(1);
+        if (pairEquals(a, b, "LIGHT_BLUE", "BROWN")) {
+            return 1;
+        }
+        if (pairEquals(a, b, "PINK", "ORANGE")
+                || pairEquals(a, b, "RAILROAD", "UTILITY")) {
+            return 2;
+        }
+        if (pairEquals(a, b, "RED", "YELLOW")) {
+            return 3;
+        }
+        if (pairEquals(a, b, "LIGHT_BLUE", "RAILROAD")
+                || pairEquals(a, b, "DARK_BLUE", "GREEN")
+                || pairEquals(a, b, "GREEN", "RAILROAD")) {
+            return 4;
+        }
+        return Math.max(0, printedColorPair.stream()
+                .mapToInt(PropertyWildCard::singleColorPaymentValue)
+                .max()
+                .orElse(0));
+    }
+
+    private static boolean pairEquals(String a, String b, String x, String y) {
+        return (x.equals(a) && y.equals(b)) || (x.equals(b) && y.equals(a));
+    }
+
+    private static int singleColorPaymentValue(String colorKey) {
+        if (colorKey == null || colorKey.isBlank()) {
+            return 0;
+        }
+        return switch (colorKey.trim().toUpperCase(Locale.ROOT)) {
+            case "BROWN", "DARK_BLUE", "UTILITY" -> 2;
+            case "LIGHT_BLUE", "PINK", "ORANGE", "RED", "YELLOW", "GREEN" -> 3;
+            case "RAILROAD" -> 4;
+            default -> 0;
+        };
     }
 }

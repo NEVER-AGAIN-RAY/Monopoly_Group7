@@ -16,6 +16,7 @@ import com.monopoly.model.core.RentChargeSequence;
 import com.monopoly.model.effects.StackResponseState;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 import com.monopoly.pattern.strategy.AiPlayStrategy;
+import com.monopoly.pattern.strategy.DeepSeekAiPlayStrategy;
 import com.monopoly.pattern.strategy.EasyAiPlayStrategy;
 import com.monopoly.pattern.strategy.HardAiPlayStrategy;
 import com.monopoly.pattern.strategy.NormalAiPlayStrategy;
@@ -228,6 +229,8 @@ public final class GameSessionMemento {
             List<Player> players = controller.getSessionPlayersView();
             m.sessionPlayers = new ArrayList<>();
             boolean anyAi = false;
+            boolean allAi = !players.isEmpty();
+            boolean anyDeepSeek = false;
             String firstAiDiff = "EASY";
             for (Player p : players) {
                 SessionPlayerMemento sp = new SessionPlayerMemento();
@@ -237,8 +240,12 @@ public final class GameSessionMemento {
                     anyAi = true;
                     sp.setPlayerKind(SessionPlayerMemento.PlayerKind.AI);
                     firstAiDiff = inferAiDifficulty(ai);
+                    if ("DEEPSEEK".equals(firstAiDiff)) {
+                        anyDeepSeek = true;
+                    }
                     sp.setAiDifficulty(firstAiDiff);
                 } else {
+                    allAi = false;
                     sp.setPlayerKind(SessionPlayerMemento.PlayerKind.HUMAN);
                 }
                 sp.setHandCards(mapCards(p.getHandCardsView()));
@@ -247,7 +254,11 @@ public final class GameSessionMemento {
                 sp.setActionZoneCards(mapCards(p.getActionZoneCardsView()));
                 m.sessionPlayers.add(sp);
             }
-            m.gameMode = anyAi ? "HVM" : "PVP";
+            if (anyDeepSeek) {
+                m.gameMode = allAi ? "AI_VS_AI" : "LLM";
+            } else {
+                m.gameMode = anyAi ? "HVM" : "PVP";
+            }
             m.aiDifficulty = anyAi ? firstAiDiff : null;
 
             GameEngineSingleton engine = GameEngineSingleton.getInstance();
@@ -400,6 +411,9 @@ public final class GameSessionMemento {
             return "EASY";
         }
         String n = s.getClass().getSimpleName();
+        if (n.contains("DeepSeek")) {
+            return "DEEPSEEK";
+        }
         if (n.contains("Hard")) {
             return "HARD";
         }
@@ -420,6 +434,7 @@ public final class GameSessionMemento {
     private static AiPlayStrategy resolveAiStrategy(String diff) {
         String d = diff == null ? "EASY" : diff.trim().toUpperCase();
         return switch (d) {
+            case "DEEPSEEK", "LLM" -> new DeepSeekAiPlayStrategy();
             case "NORMAL" -> new NormalAiPlayStrategy();
             case "HARD" -> new HardAiPlayStrategy();
             default -> new EasyAiPlayStrategy();

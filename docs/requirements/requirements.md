@@ -32,7 +32,7 @@
 - The system calculates rent from the selected color's property-count rent tier and applies payment rules.
 - Rent payment uses bank cards and/or property cards; hand cards cannot be used for direct payment.
 - Overpayment returns no change.
-- Wild property cards can be reassigned by color and are included in property-set completion checks.
+- Wild property cards declare a color when first deployed, then keep that color for set completion checks.
 - The system performs real-time legality checks for action validity and target validity.
 - If the draw pile is empty, the discard pile is reshuffled into a new draw pile.
 

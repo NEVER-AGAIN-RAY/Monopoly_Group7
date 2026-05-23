@@ -79,8 +79,8 @@ Note: This project uses `*_RESULT` with `ok/error` fields as ACK/REJECT style re
 | `rentPalette` | string[] | `ACTION`（`RENT_DUAL`） | 卡面色组，如 `["LIGHT_BLUE","BROWN"]` |
 | `wildKind` | string | `WILD` | `ANY_COLOR` 或 `DUAL_COLOR` |
 | `printedColors` | string[] | `WILD`（`DUAL_COLOR`） | 卡面印有的两色 |
-| `assignedColorKey` | string | `WILD`（已部署/已声明时） | 万能房产当前计入的颜色组，用于桌面分组、收租和改色显示 |
-| `valueM` | int | `MONEY`, `ACTION`, `PROPERTY`, `WILD` | Bank / mortgage face value in millions (action cards: corner value when banked; wild uses `0` in this project’s model) |
+| `assignedColorKey` | string | `WILD`（已部署/已声明时） | 万能房产当前计入的颜色组；一旦声明即锁定，不支持改色 |
+| `valueM` | int | `MONEY`, `ACTION`, `PROPERTY`, `WILD` | Bank / mortgage face value in millions (action cards: corner value when banked; any-color wild is `0`, printed dual wilds use their card face value) |
 | `setNeed` | int | `PROPERTY` | Number of same-color cards required to complete one full set for that color |
 | `titleZh` | string | recommended | Short Chinese title for display |
 | `hintZh` | string | optional | One-line hint for players |
@@ -153,14 +153,16 @@ Legacy clients may ignore unknown fields and keep using `id` / `name` only.
 
 ## REASSIGN_WILD
 
+Deprecated: wild property colors are now locked after the initial declaration. The web client does not send this message; servers should reject it with `RULE_VIOLATION`.
+
 **上行 `REASSIGN_WILD.payload`**
 
 | Field | Type | Meaning |
 | ----- | ---- | ------- |
 | `wildPropertyCardId` | string | 当前玩家财产区里已部署的万能房产 id |
-| `newColorKey` | string | 新声明颜色；双色万能只能是卡面两色之一，任意色万能可为标准颜色组之一 |
+| `newColorKey` | string | 旧字段；当前规则下不会生效 |
 
-仅在当前玩家 `turnPhase == PLAY` 时有效。成功后会广播新的 `STATE_UPDATE`，该万能房产会通过 `assignedColorKey` 暴露当前声明色。
+当前规则下万能房产只能在首次 `DEPLOY` 时声明颜色，之后 `assignedColorKey` 仅用于展示、分组、收租和存档。
 
 ## Field Notes
 

@@ -20,6 +20,8 @@ public class GameContext {
     private RentChargeSequence rentChargeSequence;
     /** Player whose next rent card should be doubled by Double The Rent. */
     private String pendingDoubleRentPlayerId;
+    private int currentTurnActionCount;
+    private int maxActionsPerTurn = 3;
 
     public void bindPlayers(List<Player> players) {
         this.players = players == null ? List.of() : Collections.unmodifiableList(players);
@@ -85,6 +87,15 @@ public class GameContext {
 
     public void clearPendingDoubleRent() {
         this.pendingDoubleRentPlayerId = null;
+    }
+
+    public void setTurnActionBudget(int currentTurnActionCount, int maxActionsPerTurn) {
+        this.currentTurnActionCount = Math.max(0, currentTurnActionCount);
+        this.maxActionsPerTurn = Math.max(1, maxActionsPerTurn);
+    }
+
+    public int remainingTurnActions() {
+        return Math.max(0, maxActionsPerTurn - currentTurnActionCount);
     }
 
     public StackResponseState getResponseState() {

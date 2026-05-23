@@ -55,7 +55,7 @@ User requirements describe goals and experience expectations from the player’s
 - **Calculate rent** from **completed property sets** and apply **payment** rules.
 - Rent is paid only with cards already on the table (**bank** and/or **property zones**); **hands cannot pay directly**.
 - **No change** is returned for overpayment.
-- **Wild property** cards may be **reassigned** (e.g., by color) and participate in **set completion** checks where applicable.
+- **Wild property** cards declare one color when first deployed, then keep that color for **set completion** checks where applicable.
 - Perform **real-time validity checks** for actions and targets.
 - If the **draw pile** is empty, **reshuffle the discard pile** into a new draw pile.
 

@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SessionTimeoutTest {
 
     private String prevLimit;
+    private String prevDeepSeekEnabled;
+    private String prevAiBattleLogEnabled;
 
     @AfterEach
     void tearDown() {
@@ -28,6 +30,16 @@ class SessionTimeoutTest {
             System.clearProperty("monopoly.sessionLimitMs");
         } else {
             System.setProperty("monopoly.sessionLimitMs", prevLimit);
+        }
+        if (prevDeepSeekEnabled == null) {
+            System.clearProperty("monopoly.deepseek.enabled");
+        } else {
+            System.setProperty("monopoly.deepseek.enabled", prevDeepSeekEnabled);
+        }
+        if (prevAiBattleLogEnabled == null) {
+            System.clearProperty("monopoly.aiBattle.log.enabled");
+        } else {
+            System.setProperty("monopoly.aiBattle.log.enabled", prevAiBattleLogEnabled);
         }
     }
 
@@ -70,5 +82,49 @@ class SessionTimeoutTest {
         assertTrue(snap.isGameOver());
         assertEquals("TIMEOUT", snap.getForceEndReason());
         assertEquals("GAME_FORCE_END", snap.getPhase());
+    }
+
+    @Test
+    void aiBattleModeIgnoresSessionLimit() throws Exception {
+        prevLimit = System.getProperty("monopoly.sessionLimitMs");
+        prevDeepSeekEnabled = System.getProperty("monopoly.deepseek.enabled");
+        prevAiBattleLogEnabled = System.getProperty("monopoly.aiBattle.log.enabled");
+        System.setProperty("monopoly.sessionLimitMs", "1");
+        System.setProperty("monopoly.deepseek.enabled", "false");
+        System.setProperty("monopoly.aiBattle.log.enabled", "false");
+
+        AtomicReference<GameStateSnapshot> last = new AtomicReference<>();
+        GameUpdateSubject subject = new GameUpdateSubject() {
+            @Override
+            public void registerObserver(GameUpdateObserver observer) {
+            }
+
+            @Override
+            public void unregisterObserver(GameUpdateObserver observer) {
+            }
+
+            @Override
+            public void notifyStateChanged(GameStateSnapshot snapshot) {
+                last.set(snapshot);
+            }
+        };
+        var controller = new GameController(subject);
+
+        var req = new StartSessionRequest();
+        req.setSessionId("ai-timeout-test");
+        req.setPlayerCount(2);
+        req.setGameMode("LLM");
+        req.setRandomizeFirstPlayer(false);
+        controller.startNewSession(req);
+
+        Field f = GameController.class.getDeclaredField("sessionStartEpochMs");
+        f.setAccessible(true);
+        f.set(controller, System.currentTimeMillis() - 120_000L);
+
+        controller.handleDrawCommand(2);
+
+        GameStateSnapshot snap = last.get();
+        assertTrue(snap != null);
+        assertTrue(!snap.isGameOver());
     }
 }

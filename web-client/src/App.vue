@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const wsUrl = ref('ws://localhost:8025/ws')
 const playerId = ref('human-1')
@@ -23,13 +23,16 @@ const notice = ref('')
 const actionBusy = ref(false)
 const busyCardId = ref('')
 const gameOverDismissed = ref(false)
-const centerReveal = ref(null)
 const playRevealQueue = ref([])
+const revealAnimating = ref(false)
+const tablePlayedCards = ref([])
 const stagedPlayedCardIds = ref({})
 const pendingTurnFlush = ref(false)
+const nowMs = ref(Date.now())
 const AI_PLAY_REVEAL_MS = 1000
 let socket = null
 let revealTimer = null
+let clockTimer = null
 let lastHandledPlaySequence = 0
 
 const CARD_IMAGE_BASE = '/cards/'
@@ -54,6 +57,15 @@ const WILD_CARD_IMAGES = {
   'DARK_BLUE|GREEN': ['47-Property Wild Card - Dark Blue Green.jpg'],
   'GREEN|RAILROAD': ['46-Property Wild Card - Green Railroad.jpg'],
   'RAILROAD|UTILITY': ['24-Property Wild Card - Railroad Utility.jpg']
+}
+const WILD_IMAGE_TOP_COLOR = {
+  'LIGHT_BLUE|BROWN': 'BROWN',
+  'LIGHT_BLUE|RAILROAD': 'LIGHT_BLUE',
+  'PINK|ORANGE': 'PINK',
+  'RED|YELLOW': 'RED',
+  'DARK_BLUE|GREEN': 'GREEN',
+  'GREEN|RAILROAD': 'GREEN',
+  'RAILROAD|UTILITY': 'RAILROAD'
 }
 const RENT_CARD_IMAGES = {
   ANY: ['40-Rent Card - Any Rent.jpg', '41-Rent Card - Any Rent.jpg', '42-Rent Card - Any Rent.jpg'],
@@ -131,6 +143,24 @@ const awaitingResponse = computed(() => {
   return state.value?.turnPhase === 'WAITING_FOR_RESPONSE'
     && state.value?.pendingResponsePlayerId === playerId.value
 })
+const responseDeadlineMs = computed(() => Number(state.value?.responseDeadlineEpochMs || 0))
+const responseSecondsLeft = computed(() => {
+  if (!responseDeadlineMs.value) return 0
+  return Math.max(0, Math.ceil((responseDeadlineMs.value - nowMs.value) / 1000))
+})
+const hasResponseCountdown = computed(() => responseDeadlineMs.value > 0)
+const responsePending = computed(() => state.value?.turnPhase === 'WAITING_FOR_RESPONSE')
+const waitingForOtherResponse = computed(() => {
+  return responsePending.value && state.value?.pendingResponsePlayerId !== playerId.value
+})
+const playControlsDisabled = computed(() => actionBusy.value || responsePending.value)
+const waitingResponseText = computed(() => {
+  const pendingId = state.value?.pendingResponsePlayerId || ''
+  if (!responsePending.value || !pendingId) return ''
+  const suffix = hasResponseCountdown.value ? ` · ${responseSecondsLeft.value}s` : ''
+  if (pendingId === playerId.value) return `等待你响应${suffix}`
+  return `等待 ${displayNameForPlayer(pendingId)} 响应${suffix}`
+})
 const responseRoleText = computed(() => {
   if (state.value?.pendingResponseRole === 'LANDLORD_COUNTER') return '对方打出免租，你可以用 Just Say No 反制'
   if (awaitingPayment.value) return `需要支付 ${paymentDue.value}M`
@@ -148,8 +178,8 @@ const paymentCards = computed(() => {
   const p = localPlayer.value
   if (!p) return []
   return [
-    ...(p.bankCards || []).map((card) => ({ ...card, zone: '银行' })),
-    ...(p.propertyZoneCards || []).map((card) => ({ ...card, zone: '房产' }))
+    ...(p.bankCards || []).map((card) => ({ ...card, zone: '银行', zoneKey: 'BANK' })),
+    ...(p.propertyZoneCards || []).map((card) => ({ ...card, zone: '房产', zoneKey: 'PROPERTY' }))
   ]
 })
 const selectedPaymentTotal = computed(() => {
@@ -157,6 +187,10 @@ const selectedPaymentTotal = computed(() => {
     .filter((card) => paymentSelection.value.has(card.id))
     .reduce((sum, card) => sum + Number(card.valueM || 0), 0)
 })
+const totalPayableValue = computed(() => {
+  return paymentCards.value.reduce((sum, card) => sum + Number(card.valueM || 0), 0)
+})
+const recommendedPaymentIds = computed(() => bestPaymentCardIds(paymentCards.value, paymentDue.value))
 const tableStatus = computed(() => {
   if (state.value?.gameOver) return '游戏结束'
   if (playerId.value === currentPlayerId.value) return '你的回合'
@@ -165,6 +199,7 @@ const tableStatus = computed(() => {
 })
 const eventLine = computed(() => {
   if (actionBusy.value) return notice.value || '处理中...'
+  if (waitingResponseText.value) return waitingResponseText.value
   return notice.value || state.value?.lastActionSummary || '摸牌、出牌和房产变化会显示在这里'
 })
 const winnerPlayer = computed(() => {
@@ -206,18 +241,42 @@ const gameResult = computed(() => {
   }
 })
 const aiAnimationActive = computed(() => {
-  return gameMode.value === 'HVM'
-    && Boolean(centerReveal.value?.isAi || playRevealQueue.value.some((event) => event.isAi))
+  return ['HVM', 'LLM', 'AI_VS_AI'].includes(gameMode.value)
+    && (revealAnimating.value || playRevealQueue.value.some((event) => event.isAi))
+})
+const tablePlayedByPlayer = computed(() => {
+  const groups = []
+  const byId = new Map()
+  for (const event of tablePlayedCards.value) {
+    if (!byId.has(event.playerId)) {
+      const group = {
+        playerId: event.playerId,
+        playerName: event.playerName || displayNameForPlayer(event.playerId),
+        cards: []
+      }
+      byId.set(event.playerId, group)
+      groups.push(group)
+    }
+    byId.get(event.playerId).cards.push(event)
+  }
+  return groups
 })
 
 function modeChanged() {
-  playerId.value = gameMode.value === 'HVM' ? 'human-1' : 'pvp-1'
+  if (gameMode.value === 'PVP') {
+    playerId.value = 'pvp-1'
+  } else if (gameMode.value === 'AI_VS_AI') {
+    playerId.value = 'observer'
+  } else {
+    playerId.value = 'human-1'
+  }
 }
 
 function forceEndText(reason) {
   return ({
     TIMEOUT: '本局因时间限制结束。',
-    ALL_QUIT: '所有玩家已退出，本局结束。'
+    ALL_QUIT: '所有玩家已退出，本局结束。',
+    AI_BATTLE_TURN_LIMIT: 'AI 自战达到实验回合上限。'
   })[reason] || `本局已强制结束：${reason}`
 }
 
@@ -309,7 +368,9 @@ function handleMessage(raw) {
       }
       state.value = payload
       screen.value = 'game'
-      if (!awaitingPayment.value) paymentSelection.value = new Set()
+      paymentSelection.value = awaitingPayment.value
+        ? new Set(recommendedPaymentIds.value)
+        : new Set()
       if (!payload.gameOver) gameOverDismissed.value = false
       wildReassignSheet.value = null
       enqueuePlayRevealFromState(payload)
@@ -354,10 +415,13 @@ function enqueuePlayRevealFromState(payload) {
     isAi: isAiPlayerId(playerIdForEvent)
   }
   stagePlayedCard(event)
-  playRevealQueue.value = [...playRevealQueue.value, event]
-  if (!centerReveal.value || !centerReveal.value.isAi) {
-    showNextPlayReveal()
+  if (event.isAi) {
+    playRevealQueue.value = [...playRevealQueue.value, event]
+    if (!revealAnimating.value && !revealTimer) showNextPlayReveal()
+    return
   }
+  stageTablePlayedCard(event)
+  maybeFlushAfterAnimations()
 }
 
 function showNextPlayReveal() {
@@ -365,45 +429,46 @@ function showNextPlayReveal() {
   const [next, ...rest] = playRevealQueue.value
   playRevealQueue.value = rest
   if (!next) {
-    centerReveal.value = null
+    revealAnimating.value = false
     maybeFlushAfterAnimations()
     return
   }
-  centerReveal.value = next
-  if (next.isAi) {
-    revealTimer = window.setTimeout(showNextPlayReveal, AI_PLAY_REVEAL_MS)
-  }
+  revealAnimating.value = true
+  stageTablePlayedCard(next)
+  revealTimer = window.setTimeout(showNextPlayReveal, AI_PLAY_REVEAL_MS)
 }
 
 function skipAiPlayAnimation() {
   if (!aiAnimationActive.value) return
   clearRevealTimer()
-  playRevealQueue.value = playRevealQueue.value.filter((event) => !event.isAi)
-  if (centerReveal.value?.isAi) centerReveal.value = null
+  revealAnimating.value = false
   flushStagedCards()
-  if (playRevealQueue.value.length) showNextPlayReveal()
+  playRevealQueue.value = []
 }
 
 function markTurnFlush() {
   pendingTurnFlush.value = true
-  const hasAiReveal = centerReveal.value?.isAi || playRevealQueue.value.some((event) => event.isAi)
-  if (!hasAiReveal) {
+  if (!isRevealInProgress()) {
     clearRevealTimer()
-    centerReveal.value = null
     flushStagedCards()
   }
 }
 
 function maybeFlushAfterAnimations() {
   if (!pendingTurnFlush.value) return
-  if (centerReveal.value || playRevealQueue.value.length) return
+  if (isRevealInProgress()) return
   flushStagedCards()
+}
+
+function isRevealInProgress() {
+  return revealAnimating.value || playRevealQueue.value.length > 0
 }
 
 function resetPlayAnimation() {
   clearRevealTimer()
-  centerReveal.value = null
   playRevealQueue.value = []
+  revealAnimating.value = false
+  tablePlayedCards.value = []
   stagedPlayedCardIds.value = {}
   pendingTurnFlush.value = false
   lastHandledPlaySequence = 0
@@ -431,8 +496,16 @@ function shouldHoldPlayedCard(event) {
   return ['DEPOSIT', 'DEPLOY'].includes(normalizeActionType(event?.actionType))
 }
 
+function stageTablePlayedCard(event) {
+  if (!event?.card?.id) return
+  const next = tablePlayedCards.value.filter((item) => item.sequence !== event.sequence)
+  next.push(event)
+  tablePlayedCards.value = next.slice(-18)
+}
+
 function flushStagedCards() {
   stagedPlayedCardIds.value = {}
+  tablePlayedCards.value = []
   pendingTurnFlush.value = false
 }
 
@@ -496,7 +569,7 @@ function handleOptions(payload) {
 }
 
 function queryPlay(actionType) {
-  if (actionBusy.value) return
+  if (playControlsDisabled.value) return
   if (!selectedCard.value) {
     notice.value = '先点一张手牌'
     return
@@ -524,7 +597,7 @@ function defaultActionForCard(card) {
 }
 
 function quickPlay(card) {
-  if (actionBusy.value) return
+  if (playControlsDisabled.value) return
   if (!card?.id) return
   const actionType = defaultActionForCard(card)
   selectedCardId.value = card.id
@@ -573,11 +646,7 @@ function openWildReassign(card, ownerId) {
 }
 
 function canReassignWild(card, ownerId) {
-  return card?.kind === 'WILD'
-    && ownerId === playerId.value
-    && playerId.value === currentPlayerId.value
-    && turnPhase.value === 'PLAY'
-    && !actionBusy.value
+  return false
 }
 
 function wildAssignableColors(card) {
@@ -651,13 +720,13 @@ function playDirect(payload, card, actionType) {
 }
 
 function draw() {
-  if (actionBusy.value) return
+  if (playControlsDisabled.value) return
   notice.value = '正在摸牌...'
   send('DRAW', { count: 2 })
 }
 
 function endTurn() {
-  if (actionBusy.value) return
+  if (playControlsDisabled.value) return
   notice.value = '正在结束回合...'
   send('END_TURN', {})
 }
@@ -665,19 +734,22 @@ function endTurn() {
 function autoPayRent() {
   if (actionBusy.value) return
   markBusy('', awaitingPayment.value ? '正在自动支付租金...' : '正在放弃响应...')
-  send('PLAY', {
+  const ids = awaitingPayment.value ? recommendedPaymentIds.value : []
+  send('PLAY', compact({
     actionType: 'RESPONSE_PASS',
-    actingPlayerId: playerId.value
-  })
+    actingPlayerId: playerId.value,
+    paymentCardIds: ids.length ? ids : undefined
+  }))
 }
 
 function confirmPayRent() {
   if (actionBusy.value) return
-  if (selectedPaymentTotal.value < paymentDue.value) {
+  const canOnlyPayPartially = totalPayableValue.value < paymentDue.value
+  if (selectedPaymentTotal.value < paymentDue.value && selectedPaymentTotal.value < totalPayableValue.value) {
     notice.value = `已选 ${selectedPaymentTotal.value}M，不足 ${paymentDue.value}M`
     return
   }
-  markBusy('', '正在按所选牌支付租金...')
+  markBusy('', canOnlyPayPartially ? '正在付尽可支付资产...' : '正在按所选牌支付租金...')
   send('PLAY', {
     actionType: 'RESPONSE_PASS',
     actingPlayerId: playerId.value,
@@ -700,6 +772,69 @@ function togglePayment(id) {
   if (next.has(id)) next.delete(id)
   else next.add(id)
   paymentSelection.value = next
+}
+
+function bestPaymentCardIds(cards = [], amountDue = 0) {
+  const due = Number(amountDue || 0)
+  if (due <= 0) return []
+  const options = (cards || [])
+    .map(paymentOption)
+    .filter((option) => option.value > 0)
+  const bankOptions = options.filter((option) => option.zoneKey !== 'PROPERTY')
+  const bankTotal = bankOptions.reduce((sum, option) => sum + option.value, 0)
+  const eligible = bankTotal >= due ? bankOptions : options
+  if (!eligible.length) return []
+  const total = eligible.reduce((sum, option) => sum + option.value, 0)
+  if (total < due) return eligible.map((option) => option.id)
+
+  const dp = Array(total + 1).fill(null)
+  dp[0] = { ids: [], cardCount: 0, bankValue: 0, propertyCount: 0, propertyValue: 0 }
+  for (const option of eligible) {
+    for (let sum = total; sum >= 0; sum -= 1) {
+      const prev = dp[sum]
+      if (!prev) continue
+      const nextSum = sum + option.value
+      if (nextSum > total) continue
+      const next = {
+        ids: [...prev.ids, option.id],
+        cardCount: prev.cardCount + 1,
+        bankValue: prev.bankValue + (option.zoneKey === 'PROPERTY' ? 0 : option.value),
+        propertyCount: prev.propertyCount + (option.zoneKey === 'PROPERTY' ? 1 : 0),
+        propertyValue: prev.propertyValue + (option.zoneKey === 'PROPERTY' ? option.value : 0)
+      }
+      if (!dp[nextSum] || comparePaymentChoice(nextSum, next, nextSum, dp[nextSum]) < 0) {
+        dp[nextSum] = next
+      }
+    }
+  }
+
+  let bestSum = -1
+  let best = null
+  for (let sum = due; sum <= total; sum += 1) {
+    const candidate = dp[sum]
+    if (!candidate) continue
+    if (!best || comparePaymentChoice(sum, candidate, bestSum, best) < 0) {
+      bestSum = sum
+      best = candidate
+    }
+  }
+  return best?.ids || []
+}
+
+function paymentOption(card) {
+  return {
+    id: card?.id,
+    value: Number(card?.valueM || 0),
+    zoneKey: card?.zoneKey || ''
+  }
+}
+
+function comparePaymentChoice(amountA, a, amountB, b) {
+  return amountA - amountB
+    || a.propertyCount - b.propertyCount
+    || a.propertyValue - b.propertyValue
+    || a.cardCount - b.cardCount
+    || a.bankValue - b.bankValue
 }
 
 function cardTitle(card) {
@@ -727,6 +862,19 @@ function tableCardClass(card) {
     `kind-${(card?.kind || 'UNKNOWN').toLowerCase()}`,
     cardImageFile(card) ? 'has-image' : ''
   ]
+}
+
+function playTableCardClass(event) {
+  return [
+    ...tableCardClass(event?.card),
+    'played-table-card',
+    isDiscardAction(event?.actionType) ? 'discarded-played-card' : ''
+  ]
+}
+
+function isDiscardAction(actionType) {
+  const normalized = normalizeActionType(actionType)
+  return normalized === 'DISCARD' || normalized === 'FORCE_DISCARD'
 }
 
 function cardImageFile(card) {
@@ -888,7 +1036,10 @@ function stackCardClass(card, stack, ownerId) {
 
 function isWildFlipped(card, stackKey) {
   const printed = (card?.printedColors || []).map(normalizeColorKey)
-  return card?.kind === 'WILD' && printed.length === 2 && normalizeColorKey(stackKey) === printed[1]
+  if (card?.kind !== 'WILD' || printed.length !== 2) return false
+  const assigned = normalizeColorKey(stackKey || effectivePropertyColor(card))
+  const imageTop = WILD_IMAGE_TOP_COLOR[pairKey(printed)] || printed[0]
+  return assigned !== imageTop
 }
 
 function cardVars(card) {
@@ -928,8 +1079,18 @@ function log(direction, text) {
   messages.value = messages.value.slice(0, 80)
 }
 
+onMounted(() => {
+  clockTimer = window.setInterval(() => {
+    nowMs.value = Date.now()
+  }, 250)
+})
+
 onBeforeUnmount(() => {
   clearRevealTimer()
+  if (clockTimer) {
+    window.clearInterval(clockTimer)
+    clockTimer = null
+  }
 })
 </script>
 
@@ -948,6 +1109,8 @@ onBeforeUnmount(() => {
           <select v-model="gameMode" @change="modeChanged">
             <option>HVM</option>
             <option>PVP</option>
+            <option>LLM</option>
+            <option>AI_VS_AI</option>
           </select>
         </label>
         <label>
@@ -1074,35 +1237,37 @@ onBeforeUnmount(() => {
           </section>
 
           <div class="center-play">
-            <button class="deck draw-deck" @click="draw" :disabled="actionBusy">
-              <strong>DRAW</strong>
-              <span>{{ playerId === currentPlayerId ? '摸 2' : '牌堆' }}</span>
-            </button>
-            <div class="table-center-status">
-              <span>{{ tableStatus }}</span>
-              <strong>{{ currentPlayerId || '-' }}</strong>
-            </div>
-            <div class="deck discard-deck">
-              <strong>DISCARD</strong>
-              <span>{{ state?.discardPileCount ?? 0 }}</span>
-            </div>
-            <transition name="center-card">
-              <section v-if="centerReveal" :key="centerReveal.sequence" class="center-reveal" :class="{ ai: centerReveal.isAi }">
-                <div class="center-reveal-meta">
-                  <span>{{ centerReveal.playerName }}</span>
-                  <b>{{ playActionLabel(centerReveal.actionType) }}</b>
+            <section class="played-table-zone" :class="{ empty: !tablePlayedCards.length }">
+              <div
+                v-for="group in tablePlayedByPlayer"
+                :key="group.playerId"
+                class="played-row"
+                :class="{ ai: isAiPlayerId(group.playerId), mine: group.playerId === playerId }"
+              >
+                <div class="played-row-label">{{ group.playerName }}</div>
+                <div class="played-card-strip">
+                  <article
+                    v-for="event in group.cards"
+                    :key="event.sequence"
+                    :class="playTableCardClass(event)"
+                    :style="cardVars(event.card)"
+                  >
+                    <img v-if="cardImageUrl(event.card)" class="card-face-img" :src="cardImageUrl(event.card)" :alt="cardTitle(event.card)" loading="eager" />
+                    <span class="color-band" :style="colorStyle(event.card)"></span>
+                    <span class="card-type">{{ cardKindLabel(event.card) }}</span>
+                    <span class="card-art"><b>{{ cardIcon(event.card) }}</b></span>
+                    <strong>{{ cardTitle(event.card) }}</strong>
+                    <b class="value-badge" v-if="event.card.valueM !== undefined">{{ event.card.valueM }}M</b>
+                    <div class="played-card-detail">
+                      <b>{{ cardTitle(event.card) }}</b>
+                      <span>{{ playActionLabel(event.actionType) }}</span>
+                      <small>{{ cardHint(event.card) || event.summary }}</small>
+                    </div>
+                  </article>
                 </div>
-                <article :class="['reveal-card', ...tableCardClass(centerReveal.card)]" :style="cardVars(centerReveal.card)">
-                  <img v-if="cardImageUrl(centerReveal.card)" class="card-face-img" :src="cardImageUrl(centerReveal.card)" :alt="cardTitle(centerReveal.card)" loading="eager" />
-                  <span class="color-band" :style="colorStyle(centerReveal.card)"></span>
-                  <span class="card-type">{{ cardKindLabel(centerReveal.card) }}</span>
-                  <span class="card-art"><b>{{ cardIcon(centerReveal.card) }}</b></span>
-                  <strong>{{ cardTitle(centerReveal.card) }}</strong>
-                  <small>{{ cardHint(centerReveal.card) }}</small>
-                  <b class="value-badge" v-if="centerReveal.card.valueM !== undefined">{{ centerReveal.card.valueM }}M</b>
-                </article>
-              </section>
-            </transition>
+              </div>
+              <em v-if="!tablePlayedCards.length">出过的牌会依次摊在这里</em>
+            </section>
             <button v-if="aiAnimationActive" class="skip-ai-button" @click="skipAiPlayAnimation">
               跳过 AI 动画
             </button>
@@ -1183,6 +1348,7 @@ onBeforeUnmount(() => {
                   :class="cardClass(card)"
                   :style="fanCardStyle(card, index)"
                   :title="'双击默认出牌：' + cardTitle(card)"
+                  :disabled="playControlsDisabled"
                   @click="selectedCardId = card.id"
                   @dblclick.prevent.stop="quickPlay(card)"
                 >
@@ -1207,17 +1373,18 @@ onBeforeUnmount(() => {
 
             <section class="action-pad">
               <h2>操作区</h2>
-              <button class="primary small" @click="draw" :disabled="actionBusy">摸 2 张</button>
-              <button class="secondary small" @click="endTurn" :disabled="actionBusy">结束回合</button>
-              <button class="green small" @click="queryPlay('DEPOSIT')" :disabled="!selectedCard || actionBusy">存入银行</button>
-              <button class="blue small" @click="queryPlay('DEPLOY')" :disabled="!selectedCard || actionBusy">部署房产</button>
-              <button class="purple small" @click="queryPlay('ACTION')" :disabled="!selectedCard || actionBusy">打出行动牌</button>
-              <button class="gray small" @click="queryPlay('DISCARD')" :disabled="!selectedCard || actionBusy">弃牌</button>
+              <p v-if="waitingForOtherResponse" class="action-pad-note">{{ waitingResponseText }}</p>
+              <button class="primary small" @click="draw" :disabled="playControlsDisabled">摸 2 张</button>
+              <button class="secondary small" @click="endTurn" :disabled="playControlsDisabled">结束回合</button>
+              <button class="green small" @click="queryPlay('DEPOSIT')" :disabled="!selectedCard || playControlsDisabled">存入银行</button>
+              <button class="blue small" @click="queryPlay('DEPLOY')" :disabled="!selectedCard || playControlsDisabled">部署房产</button>
+              <button class="purple small" @click="queryPlay('ACTION')" :disabled="!selectedCard || playControlsDisabled">打出行动牌</button>
+              <button class="gray small" @click="queryPlay('DISCARD')" :disabled="!selectedCard || playControlsDisabled">弃牌</button>
             </section>
           </section>
 
           <div v-if="awaitingResponse" class="rent-panel">
-            <h2>{{ responseRoleText }}</h2>
+            <h2>{{ responseRoleText }}<span v-if="hasResponseCountdown" class="response-countdown">{{ responseSecondsLeft }}s</span></h2>
             <p>{{ responseBodyText }}</p>
             <div v-if="justSayNoCards.length" class="response-cards">
               <button v-for="card in justSayNoCards" :key="card.id" class="nope-card" @click="playJustSayNo(card)" :disabled="actionBusy">

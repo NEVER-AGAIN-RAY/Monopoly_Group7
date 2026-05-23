@@ -121,12 +121,68 @@ class JustSayNoActionResponseTest {
         assertFalse(actor.getBankCardsView().contains(targetMoney));
     }
 
+    @Test
+    void hvmBirthdayCollectsFromAiWithoutResponseTimer() {
+        GameController controller = newHvmControllerInPlayPhase();
+        Player actor = controller.getSessionPlayersView().get(0);
+        Player ai = controller.getSessionPlayersView().get(1);
+        ActionCard birthday = new ActionCard("birthday-action", "Birthday", "BIRTHDAY");
+        MoneyCard aiMoney = new MoneyCard("ai-2m", "2M", 2);
+        actor.receiveCardToHand(birthday);
+        ai.addToBank(aiMoney);
+
+        PlayActionRequest req = new PlayActionRequest();
+        req.setActionType("ACTION");
+        req.setCardId(birthday.getId());
+        controller.handlePlayActionRequest(req);
+
+        assertNull(controller.getGameContext().getResponseState());
+        assertFalse(ai.getBankCardsView().contains(aiMoney));
+        assertTrue(actor.getHandCardsView().contains(aiMoney));
+    }
+
+    @Test
+    void pvpResponseWindowUsesTwentySecondDeadline() {
+        GameController controller = newPvpControllerInPlayPhase();
+        Player actor = controller.getSessionPlayersView().get(0);
+        Player target = controller.getSessionPlayersView().get(1);
+        ActionCard birthday = new ActionCard("birthday-action", "Birthday", "BIRTHDAY");
+        MoneyCard targetMoney = new MoneyCard("target-2m", "2M", 2);
+        actor.receiveCardToHand(birthday);
+        target.addToBank(targetMoney);
+
+        PlayActionRequest req = new PlayActionRequest();
+        req.setActionType("ACTION");
+        req.setCardId(birthday.getId());
+        long before = System.currentTimeMillis();
+        controller.handlePlayActionRequest(req);
+
+        StackResponseState state = controller.getGameContext().getResponseState();
+        assertEquals(target.getPlayerId(), state.getAwaitingPlayerId());
+        long remainingMs = state.getDeadlineEpochMs() - before;
+        assertTrue(remainingMs > 19_000L);
+        assertTrue(remainingMs <= 21_000L);
+    }
+
     private static GameController newPvpControllerInPlayPhase() {
         GameController controller = new GameController(new DefaultGameUpdateSubject());
         StartSessionRequest req = new StartSessionRequest();
         req.setSessionId("jsn-action-test");
         req.setPlayerCount(2);
         req.setGameMode("PVP");
+        req.setRandomizeFirstPlayer(false);
+        controller.startNewSession(req);
+        controller.handleDrawCommand(2);
+        return controller;
+    }
+
+    private static GameController newHvmControllerInPlayPhase() {
+        GameController controller = new GameController(new DefaultGameUpdateSubject());
+        StartSessionRequest req = new StartSessionRequest();
+        req.setSessionId("jsn-hvm-action-test");
+        req.setPlayerCount(2);
+        req.setGameMode("HVM");
+        req.setAiDifficulty("NORMAL");
         req.setRandomizeFirstPlayer(false);
         controller.startNewSession(req);
         controller.handleDrawCommand(2);

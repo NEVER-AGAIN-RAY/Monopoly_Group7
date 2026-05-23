@@ -8,10 +8,13 @@ import com.monopoly.model.core.GameContext;
 import com.monopoly.model.core.RentChargeSequence;
 import com.monopoly.model.effects.ActionEffectResult;
 import com.monopoly.model.settlement.PaymentSettlement;
+import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.effects.StackResponseState;
 import com.monopoly.dto.ActionParamContext;
 import com.monopoly.dto.PlayActionRequest;
+import com.monopoly.pattern.strategy.AiHeuristics;
+import com.monopoly.pattern.strategy.DeepSeekAiPlayStrategy;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 
 import java.util.ArrayList;
@@ -24,7 +27,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Orchestrates rent/Just-Say-No response windows and 15s timeouts (extracted from GameController).
+ * Orchestrates rent/Just-Say-No response windows and 20s PVP timeouts (extracted from GameController).
  * <p>
  * Uses a single-thread scheduler; cooperates with TurnFlowService for phase changes.
  * <p>
@@ -32,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  */
 final class EffectStackOrchestrator {
 
-    static final int RESPONSE_WINDOW_SECONDS = 15;
+    static final int RESPONSE_WINDOW_SECONDS = 20;
 
     private final GameController controller;
     private final TurnFlowService turnFlow;
@@ -62,12 +65,25 @@ final class EffectStackOrchestrator {
         if (tenant == null) {
             throw new IllegalStateException("收租目标无效。");
         }
+        if (shouldAutoRespond(tenant)) {
+            turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
+            GameContext ctx = controller.getGameContext();
+            ctx.setResponseState(
+                    new StackResponseState(StackResponseState.Role.TENANT, tenant.getPlayerId(), 0L));
+            autoRespondFromCurrentWindow(
+                    (AIPlayer) tenant,
+                    "RENT_AI_RESPONSE_PASS",
+                    tenant.getDisplayName() + " auto-accepted the charge.",
+                    playedBy,
+                    playedCard);
+            return;
+        }
         GameContext ctx = controller.getGameContext();
-        long deadline = System.currentTimeMillis() + RESPONSE_WINDOW_SECONDS * 1000L;
+        long deadline = responseDeadlineEpochMs();
         ctx.setResponseState(
                 new StackResponseState(StackResponseState.Role.TENANT, tenant.getPlayerId(), deadline));
         turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
-        scheduleResponseTimeout(deadline);
+        scheduleResponseTimeoutIfNeeded(deadline);
         EffectStackEntry top = ctx.peekTopEffect();
         int due = top != null ? top.getAmountDue() : 0;
         String rentSummary = "Rent " + due + "M — awaiting response from "
@@ -84,13 +100,29 @@ final class EffectStackOrchestrator {
         if (target == null || card == null || resolver == null) {
             throw new IllegalStateException("行动响应目标无效。");
         }
+        if (shouldAutoRespond(target)) {
+            turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
+            GameContext ctx = controller.getGameContext();
+            pendingAction = new PendingAction(card, resolver, actionCountAfterPlay);
+            ctx.setResponseState(
+                    new StackResponseState(StackResponseState.Role.TENANT, target.getPlayerId(), 0L));
+            ctx.pushEffect(EffectStackEntry.pendingAction(turnFlow.currentTurnPlayerId, target.getPlayerId()));
+            Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
+            autoRespondFromCurrentWindow(
+                    (AIPlayer) target,
+                    "ACTION_AI_RESPONSE_PASS",
+                    target.getDisplayName() + " auto-accepted " + card.getName() + ".",
+                    actor,
+                    card);
+            return;
+        }
         GameContext ctx = controller.getGameContext();
-        long deadline = System.currentTimeMillis() + RESPONSE_WINDOW_SECONDS * 1000L;
+        long deadline = responseDeadlineEpochMs();
         pendingAction = new PendingAction(card, resolver, actionCountAfterPlay);
         ctx.setResponseState(
                 new StackResponseState(StackResponseState.Role.TENANT, target.getPlayerId(), deadline));
         turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
-        scheduleResponseTimeout(deadline);
+        scheduleResponseTimeoutIfNeeded(deadline);
         ctx.pushEffect(EffectStackEntry.pendingAction(turnFlow.currentTurnPlayerId, target.getPlayerId()));
         Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
         String actorName = actor != null ? actor.getDisplayName() : turnFlow.currentTurnPlayerId;
@@ -123,6 +155,14 @@ final class EffectStackOrchestrator {
                 ex.printStackTrace();
             }
         }, RESPONSE_WINDOW_SECONDS, TimeUnit.SECONDS);
+    }
+
+    void scheduleResponseTimeoutIfNeeded(long deadlineEpochMs) {
+        cancelPendingResponseTimeout();
+        if (deadlineEpochMs <= 0L) {
+            return;
+        }
+        scheduleResponseTimeout(deadlineEpochMs);
     }
 
     void cancelPendingResponseTimeout() {
@@ -176,9 +216,9 @@ final class EffectStackOrchestrator {
                 : null;
         if (pendingAction != null) {
             resolvePendingActionAndResume("RESPONSE_PASS");
-            return;
+        } else {
+            resolveEffectStackAndResume("RESPONSE_PASS", paymentCardIds, tenantExplicit);
         }
-        resolveEffectStackAndResume("RESPONSE_PASS", paymentCardIds, tenantExplicit);
     }
 
     // --- Just Say No (rent waiver) ---
@@ -230,10 +270,21 @@ final class EffectStackOrchestrator {
             if (landlord == null) {
                 throw new IllegalStateException("当前回合玩家丢失。");
             }
-            long deadline = System.currentTimeMillis() + RESPONSE_WINDOW_SECONDS * 1000L;
+            if (shouldAutoRespond(landlord)) {
+                ctx.setResponseState(new StackResponseState(
+                        StackResponseState.Role.LANDLORD_COUNTER, landlord.getPlayerId(), 0L));
+                autoRespondFromCurrentWindow(
+                        (AIPlayer) landlord,
+                        "JSN_AI_COUNTER_PASS",
+                        landlord.getDisplayName() + " auto-passed Just Say No counter.",
+                        actor,
+                        actionCard);
+                return;
+            }
+            long deadline = responseDeadlineEpochMs();
             ctx.setResponseState(new StackResponseState(
                     StackResponseState.Role.LANDLORD_COUNTER, landlord.getPlayerId(), deadline));
-            scheduleResponseTimeout(deadline);
+            scheduleResponseTimeoutIfNeeded(deadline);
             controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_AWAITING_COUNTER",
                     actor.getDisplayName() + " played Just Say No; landlord may counter.",
                     actor,
@@ -282,6 +333,9 @@ final class EffectStackOrchestrator {
         if (rentSeq != null) {
             boolean moreTenants = rentSeq.advanceToNextTenant();
             if (moreTenants) {
+                if (controller.isSessionForceEnded()) {
+                    return;
+                }
                 String nextId = rentSeq.getCurrentTenantId();
                 Player nextTenant = controller.resolvePlayer(nextId);
                 if (nextTenant != null) {
@@ -309,6 +363,7 @@ final class EffectStackOrchestrator {
         controller.pushSnapshot(controller.getCurrentSessionId(), phaseHint,
                 "Effect stack resolved: " + pay.getMessage());
         System.out.println("[EFFECT_STACK] " + phaseHint + " " + pay.getMessage());
+        controller.resumeAiTurnIfNeeded();
     }
 
     private void resolvePendingActionAndResume(String phaseHint) {
@@ -339,6 +394,7 @@ final class EffectStackOrchestrator {
         controller.pushSnapshot(controller.getCurrentSessionId(), phase,
                 "Action effect resolved: " + pending.card.getName() + " — " + result.getMessage());
         System.out.println("[EFFECT_STACK] " + phaseHint + " " + result.getMessage());
+        controller.resumeAiTurnIfNeeded();
     }
 
     // --- UI hint text ---
@@ -348,13 +404,58 @@ final class EffectStackOrchestrator {
             return null;
         }
         if (st.getRole() == StackResponseState.Role.TENANT) {
-            return "有人对你打出收租或行动，你有 "
-                    + RESPONSE_WINDOW_SECONDS
-                    + " 秒打出 Just Say No，否则默认接受。";
+            if (st.getDeadlineEpochMs() > 0L) {
+                return "有人对你打出收租或行动，你有 "
+                        + RESPONSE_WINDOW_SECONDS
+                        + " 秒打出 Just Say No，否则默认接受。";
+            }
+            return "有人对你打出收租或行动，你可以打出 Just Say No，也可以接受。";
         }
-        return "对方打出免租，你有 "
-                + RESPONSE_WINDOW_SECONDS
-                + " 秒打出 Just Say No 反制，否则默认放弃反制。";
+        if (st.getDeadlineEpochMs() > 0L) {
+            return "对方打出免租，你有 "
+                    + RESPONSE_WINDOW_SECONDS
+                    + " 秒打出 Just Say No 反制，否则默认放弃反制。";
+        }
+        return "对方打出免租，你可以打出 Just Say No 反制，也可以放弃反制。";
+    }
+
+    private boolean shouldAutoRespond(Player player) {
+        return !controller.isPvpMode() && player instanceof AIPlayer;
+    }
+
+    private void autoRespondFromCurrentWindow(
+            AIPlayer ai,
+            String passPhase,
+            String passSummary,
+            Player playedBy,
+            ActionCard playedCard) {
+        StackResponseState st = controller.getGameContext().getResponseState();
+        boolean counterRole = st != null && st.getRole() == StackResponseState.Role.LANDLORD_COUNTER;
+        AiHeuristics.AiResponseDecision decision = chooseAiResponse(ai, counterRole);
+        if (decision.playWaiver() && decision.request() != null) {
+            handleWaiverPlay(decision.request());
+            return;
+        }
+        controller.pushSnapshot(controller.getCurrentSessionId(),
+                passPhase,
+                passSummary,
+                playedBy,
+                playedCard,
+                "ACTION");
+        performResponsePass(ai.getPlayerId());
+    }
+
+    private AiHeuristics.AiResponseDecision chooseAiResponse(AIPlayer ai, boolean counterRole) {
+        if (ai.getPlayStrategy() instanceof DeepSeekAiPlayStrategy deepSeek) {
+            return deepSeek.chooseResponse(ai, controller.getGameContext(), counterRole);
+        }
+        return AiHeuristics.chooseResponse(ai, controller.getGameContext(), counterRole);
+    }
+
+    private long responseDeadlineEpochMs() {
+        return controller.isPvpMode()
+                ? System.currentTimeMillis() + RESPONSE_WINDOW_SECONDS * 1000L
+                : 0L;
     }
 
     private record PendingAction(

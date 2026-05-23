@@ -10,7 +10,9 @@ import com.monopoly.model.card.PropertyCard;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Base player: hand, bank, property, and action zones; Human vs AI in subclasses.
@@ -111,10 +113,40 @@ public abstract class Player {
             limit = 0;
         }
         while (handCards.size() > limit) {
-            Card removed = handCards.remove(handCards.size() - 1);
+            Card removed = chooseOverflowDiscardCard();
+            handCards.remove(removed);
             discarded.add(removed);
         }
         return discarded;
+    }
+
+    private Card chooseOverflowDiscardCard() {
+        return handCards.stream()
+                .min(Comparator.comparingInt(Player::handRetentionScore))
+                .orElse(handCards.get(handCards.size() - 1));
+    }
+
+    private static int handRetentionScore(Card card) {
+        if (card instanceof PropertyCard) {
+            return 900 + PayableCards.valueOf(card) * 10;
+        }
+        if (card instanceof ActionCard ac) {
+            String effect = ac.getEffectCode() == null
+                    ? ""
+                    : ac.getEffectCode().trim().toUpperCase(Locale.ROOT);
+            int base = switch (effect) {
+                case "DEAL_BREAKER" -> 1_000;
+                case "RENT_WAIVER" -> 950;
+                case "STEAL_PROPERTY", "FORCED_DEAL" -> 875;
+                case "HOTEL", "HOUSE" -> 720;
+                case "DEBT_COLLECTOR", "BIRTHDAY" -> 620;
+                case "PASS_GO" -> 520;
+                case "DOUBLE_RENT", "RENT", "RENT_DUAL" -> 420;
+                default -> 500;
+            };
+            return base + PayableCards.valueOf(card) * 10;
+        }
+        return PayableCards.valueOf(card) * 10;
     }
 
     /** Moves a hand card into the bank pile (action cards lose effect when banked). */

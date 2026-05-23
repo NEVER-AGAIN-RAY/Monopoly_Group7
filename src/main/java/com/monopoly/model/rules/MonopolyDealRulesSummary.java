@@ -171,9 +171,9 @@ public final class MonopolyDealRulesSummary {
         sb.append("<div class='card wild'>");
         sb.append("<div class='card-header'><div class='icon pink'>&#x1F3B4;</div><h2>").append(esc("万能房产")).append("</h2></div>");
         sb.append("<ul>");
-        sb.append("<li>").append(esc("作支付价值 ")).append("<strong>0M</strong></li>");
-        sb.append("<li>2 ").append(esc("张可声明任意标准色")).append("</li>");
-        sb.append("<li>9 ").append(esc("张仅可声明为卡面印有的两色之一")).append("</li>");
+        sb.append("<li>").append(esc("声明颜色后不可改色")).append("</li>");
+        sb.append("<li>2 ").append(esc("张任意色万能无货币价值")).append("</li>");
+        sb.append("<li>9 ").append(esc("张双色万能按牌面角标价值支付")).append("</li>");
         sb.append("</ul></div>");
 
         // Wizard play
@@ -303,9 +303,9 @@ public final class MonopolyDealRulesSummary {
         sb.append("<div class='card wild'>");
         sb.append("<div class='card-header'><div class='icon pink'>&#x1F3B4;</div><h2>Wild Property</h2></div>");
         sb.append("<ul>");
-        sb.append("<li>Payment value: <strong>0M</strong></li>");
-        sb.append("<li>2 cards can declare any standard color</li>");
-        sb.append("<li>9 cards can only declare one of the two printed colors</li>");
+        sb.append("<li>Color is locked after declaration</li>");
+        sb.append("<li>2 any-color wilds have no monetary value</li>");
+        sb.append("<li>9 printed dual wilds use their card face value</li>");
         sb.append("</ul></div>");
 
         // Wizard play
@@ -382,7 +382,7 @@ public final class MonopolyDealRulesSummary {
             sb.append("  \u00B7 ").append(e.getKey()).append(" \u2192 ").append(e.getValue()).append("M\n");
         }
         sb.append("\n【房产抵押价值】棕色/深蓝/公共 2M；多数颜色 3M；铁路 4M。\n\n");
-        sb.append("【万能房产】作支付价值 0M。牌堆：2 张可声明任意标准色；9 张仅可声明为卡面印有的两色之一（见手牌 JSON wildKind / printedColors）。\n\n");
+        sb.append("【万能房产】声明颜色后不可改色。2 张任意色万能无货币价值；9 张双色万能按牌面角标价值支付（见手牌 JSON wildKind / printedColors / valueM）。\n\n");
 
         sb.append("【向导化出牌】出牌阶段可先发 `PLAY_OPTIONS`（playerId + cardId + actionType：DEPOSIT/DEPLOY/DISCARD/ACTION），")
                 .append("或仅用行动牌发 `ACTION_OPTIONS`；服务器返回选项后再 `PLAY`。\n\n");
@@ -412,7 +412,7 @@ public final class MonopolyDealRulesSummary {
             sb.append("  - ").append(e.getKey()).append(" -> ").append(e.getValue()).append("M\n");
         }
         sb.append("\n[PROPERTY VALUE] Brown/DarkBlue/Utility 2M; most colors 3M; Railroad 4M.\n\n");
-        sb.append("[WILD PROPERTY] Payment value 0M. Deck: 2 any-color wilds and 9 printed dual-color wilds.\n\n");
+        sb.append("[WILD PROPERTY] Color is locked after declaration. Any-color wilds have no monetary value; printed dual wilds use their card face value.\n\n");
         sb.append("[WIZARD PLAY] During play phase, send PLAY_OPTIONS (playerId + cardId + actionType: DEPOSIT/DEPLOY/DISCARD/ACTION), ")
                 .append("or ACTION_OPTIONS for action cards; send PLAY after the server returns options.\n\n");
         sb.append("[RENT] Own at least 1 property of the chosen color (including declared wilds) to charge rent; ")

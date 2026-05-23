@@ -58,6 +58,15 @@ const WILD_CARD_IMAGES = {
   'GREEN|RAILROAD': ['46-Property Wild Card - Green Railroad.jpg'],
   'RAILROAD|UTILITY': ['24-Property Wild Card - Railroad Utility.jpg']
 }
+const WILD_IMAGE_TOP_COLOR = {
+  'LIGHT_BLUE|BROWN': 'BROWN',
+  'LIGHT_BLUE|RAILROAD': 'LIGHT_BLUE',
+  'PINK|ORANGE': 'PINK',
+  'RED|YELLOW': 'RED',
+  'DARK_BLUE|GREEN': 'GREEN',
+  'GREEN|RAILROAD': 'GREEN',
+  'RAILROAD|UTILITY': 'RAILROAD'
+}
 const RENT_CARD_IMAGES = {
   ANY: ['40-Rent Card - Any Rent.jpg', '41-Rent Card - Any Rent.jpg', '42-Rent Card - Any Rent.jpg'],
   'LIGHT_BLUE|BROWN': ['11-Rent Card - Light Blue Brown.jpg', '12-Rent Card - Light Blue Brown.jpg'],
@@ -169,8 +178,8 @@ const paymentCards = computed(() => {
   const p = localPlayer.value
   if (!p) return []
   return [
-    ...(p.bankCards || []).map((card) => ({ ...card, zone: '银行' })),
-    ...(p.propertyZoneCards || []).map((card) => ({ ...card, zone: '房产' }))
+    ...(p.bankCards || []).map((card) => ({ ...card, zone: '银行', zoneKey: 'BANK' })),
+    ...(p.propertyZoneCards || []).map((card) => ({ ...card, zone: '房产', zoneKey: 'PROPERTY' }))
   ]
 })
 const selectedPaymentTotal = computed(() => {
@@ -178,6 +187,10 @@ const selectedPaymentTotal = computed(() => {
     .filter((card) => paymentSelection.value.has(card.id))
     .reduce((sum, card) => sum + Number(card.valueM || 0), 0)
 })
+const totalPayableValue = computed(() => {
+  return paymentCards.value.reduce((sum, card) => sum + Number(card.valueM || 0), 0)
+})
+const recommendedPaymentIds = computed(() => bestPaymentCardIds(paymentCards.value, paymentDue.value))
 const tableStatus = computed(() => {
   if (state.value?.gameOver) return '游戏结束'
   if (playerId.value === currentPlayerId.value) return '你的回合'
@@ -228,7 +241,7 @@ const gameResult = computed(() => {
   }
 })
 const aiAnimationActive = computed(() => {
-  return gameMode.value === 'HVM'
+  return ['HVM', 'LLM', 'AI_VS_AI'].includes(gameMode.value)
     && (revealAnimating.value || playRevealQueue.value.some((event) => event.isAi))
 })
 const tablePlayedByPlayer = computed(() => {
@@ -250,13 +263,20 @@ const tablePlayedByPlayer = computed(() => {
 })
 
 function modeChanged() {
-  playerId.value = gameMode.value === 'HVM' ? 'human-1' : 'pvp-1'
+  if (gameMode.value === 'PVP') {
+    playerId.value = 'pvp-1'
+  } else if (gameMode.value === 'AI_VS_AI') {
+    playerId.value = 'observer'
+  } else {
+    playerId.value = 'human-1'
+  }
 }
 
 function forceEndText(reason) {
   return ({
     TIMEOUT: '本局因时间限制结束。',
-    ALL_QUIT: '所有玩家已退出，本局结束。'
+    ALL_QUIT: '所有玩家已退出，本局结束。',
+    AI_BATTLE_TURN_LIMIT: 'AI 自战达到实验回合上限。'
   })[reason] || `本局已强制结束：${reason}`
 }
 
@@ -348,7 +368,9 @@ function handleMessage(raw) {
       }
       state.value = payload
       screen.value = 'game'
-      if (!awaitingPayment.value) paymentSelection.value = new Set()
+      paymentSelection.value = awaitingPayment.value
+        ? new Set(recommendedPaymentIds.value)
+        : new Set()
       if (!payload.gameOver) gameOverDismissed.value = false
       wildReassignSheet.value = null
       enqueuePlayRevealFromState(payload)
@@ -624,11 +646,7 @@ function openWildReassign(card, ownerId) {
 }
 
 function canReassignWild(card, ownerId) {
-  return card?.kind === 'WILD'
-    && ownerId === playerId.value
-    && playerId.value === currentPlayerId.value
-    && turnPhase.value === 'PLAY'
-    && !playControlsDisabled.value
+  return false
 }
 
 function wildAssignableColors(card) {
@@ -716,19 +734,22 @@ function endTurn() {
 function autoPayRent() {
   if (actionBusy.value) return
   markBusy('', awaitingPayment.value ? '正在自动支付租金...' : '正在放弃响应...')
-  send('PLAY', {
+  const ids = awaitingPayment.value ? recommendedPaymentIds.value : []
+  send('PLAY', compact({
     actionType: 'RESPONSE_PASS',
-    actingPlayerId: playerId.value
-  })
+    actingPlayerId: playerId.value,
+    paymentCardIds: ids.length ? ids : undefined
+  }))
 }
 
 function confirmPayRent() {
   if (actionBusy.value) return
-  if (selectedPaymentTotal.value < paymentDue.value) {
+  const canOnlyPayPartially = totalPayableValue.value < paymentDue.value
+  if (selectedPaymentTotal.value < paymentDue.value && selectedPaymentTotal.value < totalPayableValue.value) {
     notice.value = `已选 ${selectedPaymentTotal.value}M，不足 ${paymentDue.value}M`
     return
   }
-  markBusy('', '正在按所选牌支付租金...')
+  markBusy('', canOnlyPayPartially ? '正在付尽可支付资产...' : '正在按所选牌支付租金...')
   send('PLAY', {
     actionType: 'RESPONSE_PASS',
     actingPlayerId: playerId.value,
@@ -751,6 +772,69 @@ function togglePayment(id) {
   if (next.has(id)) next.delete(id)
   else next.add(id)
   paymentSelection.value = next
+}
+
+function bestPaymentCardIds(cards = [], amountDue = 0) {
+  const due = Number(amountDue || 0)
+  if (due <= 0) return []
+  const options = (cards || [])
+    .map(paymentOption)
+    .filter((option) => option.value > 0)
+  const bankOptions = options.filter((option) => option.zoneKey !== 'PROPERTY')
+  const bankTotal = bankOptions.reduce((sum, option) => sum + option.value, 0)
+  const eligible = bankTotal >= due ? bankOptions : options
+  if (!eligible.length) return []
+  const total = eligible.reduce((sum, option) => sum + option.value, 0)
+  if (total < due) return eligible.map((option) => option.id)
+
+  const dp = Array(total + 1).fill(null)
+  dp[0] = { ids: [], cardCount: 0, bankValue: 0, propertyCount: 0, propertyValue: 0 }
+  for (const option of eligible) {
+    for (let sum = total; sum >= 0; sum -= 1) {
+      const prev = dp[sum]
+      if (!prev) continue
+      const nextSum = sum + option.value
+      if (nextSum > total) continue
+      const next = {
+        ids: [...prev.ids, option.id],
+        cardCount: prev.cardCount + 1,
+        bankValue: prev.bankValue + (option.zoneKey === 'PROPERTY' ? 0 : option.value),
+        propertyCount: prev.propertyCount + (option.zoneKey === 'PROPERTY' ? 1 : 0),
+        propertyValue: prev.propertyValue + (option.zoneKey === 'PROPERTY' ? option.value : 0)
+      }
+      if (!dp[nextSum] || comparePaymentChoice(nextSum, next, nextSum, dp[nextSum]) < 0) {
+        dp[nextSum] = next
+      }
+    }
+  }
+
+  let bestSum = -1
+  let best = null
+  for (let sum = due; sum <= total; sum += 1) {
+    const candidate = dp[sum]
+    if (!candidate) continue
+    if (!best || comparePaymentChoice(sum, candidate, bestSum, best) < 0) {
+      bestSum = sum
+      best = candidate
+    }
+  }
+  return best?.ids || []
+}
+
+function paymentOption(card) {
+  return {
+    id: card?.id,
+    value: Number(card?.valueM || 0),
+    zoneKey: card?.zoneKey || ''
+  }
+}
+
+function comparePaymentChoice(amountA, a, amountB, b) {
+  return amountA - amountB
+    || a.propertyCount - b.propertyCount
+    || a.propertyValue - b.propertyValue
+    || a.cardCount - b.cardCount
+    || a.bankValue - b.bankValue
 }
 
 function cardTitle(card) {
@@ -952,7 +1036,10 @@ function stackCardClass(card, stack, ownerId) {
 
 function isWildFlipped(card, stackKey) {
   const printed = (card?.printedColors || []).map(normalizeColorKey)
-  return card?.kind === 'WILD' && printed.length === 2 && normalizeColorKey(stackKey) === printed[1]
+  if (card?.kind !== 'WILD' || printed.length !== 2) return false
+  const assigned = normalizeColorKey(stackKey || effectivePropertyColor(card))
+  const imageTop = WILD_IMAGE_TOP_COLOR[pairKey(printed)] || printed[0]
+  return assigned !== imageTop
 }
 
 function cardVars(card) {
@@ -1022,6 +1109,8 @@ onBeforeUnmount(() => {
           <select v-model="gameMode" @change="modeChanged">
             <option>HVM</option>
             <option>PVP</option>
+            <option>LLM</option>
+            <option>AI_VS_AI</option>
           </select>
         </label>
         <label>

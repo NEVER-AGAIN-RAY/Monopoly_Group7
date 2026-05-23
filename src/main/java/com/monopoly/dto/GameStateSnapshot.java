@@ -18,6 +18,8 @@ public class GameStateSnapshot {
     private String turnPhase;
     private int drawPileCount;
     private int discardPileCount;
+    /** Monotonic session-local STATE_UPDATE sequence. */
+    private long stateSequence;
     /** 等待打出免租/放弃的玩家（效果栈响应阶段） */
     private String pendingResponsePlayerId;
     private String pendingResponseRole;
@@ -91,6 +93,14 @@ public class GameStateSnapshot {
 
     public void setDiscardPileCount(int discardPileCount) {
         this.discardPileCount = discardPileCount;
+    }
+
+    public long getStateSequence() {
+        return stateSequence;
+    }
+
+    public void setStateSequence(long stateSequence) {
+        this.stateSequence = stateSequence;
     }
 
     public String getPendingResponsePlayerId() {

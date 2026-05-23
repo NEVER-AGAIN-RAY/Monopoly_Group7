@@ -52,4 +52,19 @@ class PlayOptionsServiceTest {
         assertTrue(r.isOk());
         assertEquals(2, r.getOptions().size());
     }
+
+    @Test
+    void deploy_preassignedWild_onlyOffersLockedColor() {
+        HumanPlayer p = new HumanPlayer("p1", "P1");
+        PropertyWildCard w = new PropertyWildCard(
+                "w1", "wild", WildPropertyKind.DUAL_COLOR, List.of("RED", "YELLOW"));
+        w.setAssignedColorKey("YELLOW");
+
+        ActionOptionsResult r = PlayOptionsService.build(
+                p, w, "DEPLOY", List.of(p), GameEngineSingleton.getInstance());
+
+        assertTrue(r.isOk());
+        assertEquals(1, r.getOptions().size());
+        assertEquals("YELLOW", r.getOptions().get(0).getTargetColorKey());
+    }
 }

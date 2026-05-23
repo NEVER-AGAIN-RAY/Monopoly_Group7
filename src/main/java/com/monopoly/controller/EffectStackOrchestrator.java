@@ -13,6 +13,8 @@ import com.monopoly.model.player.Player;
 import com.monopoly.model.effects.StackResponseState;
 import com.monopoly.dto.ActionParamContext;
 import com.monopoly.dto.PlayActionRequest;
+import com.monopoly.pattern.strategy.AiHeuristics;
+import com.monopoly.pattern.strategy.DeepSeekAiPlayStrategy;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 
 import java.util.ArrayList;
@@ -63,18 +65,17 @@ final class EffectStackOrchestrator {
         if (tenant == null) {
             throw new IllegalStateException("收租目标无效。");
         }
-        if (shouldAutoPassResponse(tenant)) {
+        if (shouldAutoRespond(tenant)) {
             turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
             GameContext ctx = controller.getGameContext();
             ctx.setResponseState(
                     new StackResponseState(StackResponseState.Role.TENANT, tenant.getPlayerId(), 0L));
-            controller.pushSnapshot(controller.getCurrentSessionId(),
+            autoRespondFromCurrentWindow(
+                    (AIPlayer) tenant,
                     "RENT_AI_RESPONSE_PASS",
                     tenant.getDisplayName() + " auto-accepted the charge.",
                     playedBy,
-                    playedCard,
-                    "ACTION");
-            performResponsePass(tenant.getPlayerId());
+                    playedCard);
             return;
         }
         GameContext ctx = controller.getGameContext();
@@ -99,7 +100,7 @@ final class EffectStackOrchestrator {
         if (target == null || card == null || resolver == null) {
             throw new IllegalStateException("行动响应目标无效。");
         }
-        if (shouldAutoPassResponse(target)) {
+        if (shouldAutoRespond(target)) {
             turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
             GameContext ctx = controller.getGameContext();
             pendingAction = new PendingAction(card, resolver, actionCountAfterPlay);
@@ -107,13 +108,12 @@ final class EffectStackOrchestrator {
                     new StackResponseState(StackResponseState.Role.TENANT, target.getPlayerId(), 0L));
             ctx.pushEffect(EffectStackEntry.pendingAction(turnFlow.currentTurnPlayerId, target.getPlayerId()));
             Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
-            controller.pushSnapshot(controller.getCurrentSessionId(),
+            autoRespondFromCurrentWindow(
+                    (AIPlayer) target,
                     "ACTION_AI_RESPONSE_PASS",
                     target.getDisplayName() + " auto-accepted " + card.getName() + ".",
                     actor,
-                    card,
-                    "ACTION");
-            performResponsePass(target.getPlayerId());
+                    card);
             return;
         }
         GameContext ctx = controller.getGameContext();
@@ -270,19 +270,15 @@ final class EffectStackOrchestrator {
             if (landlord == null) {
                 throw new IllegalStateException("当前回合玩家丢失。");
             }
-            if (shouldAutoPassResponse(landlord)) {
+            if (shouldAutoRespond(landlord)) {
                 ctx.setResponseState(new StackResponseState(
                         StackResponseState.Role.LANDLORD_COUNTER, landlord.getPlayerId(), 0L));
-                controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_AI_COUNTER_PASS",
+                autoRespondFromCurrentWindow(
+                        (AIPlayer) landlord,
+                        "JSN_AI_COUNTER_PASS",
                         landlord.getDisplayName() + " auto-passed Just Say No counter.",
                         actor,
-                        actionCard,
-                        "ACTION");
-                if (pendingAction != null) {
-                    resolvePendingActionAndResume("RESPONSE_PASS");
-                } else {
-                    resolveEffectStackAndResume("RESPONSE_PASS", null, null);
-                }
+                        actionCard);
                 return;
             }
             long deadline = responseDeadlineEpochMs();
@@ -337,6 +333,9 @@ final class EffectStackOrchestrator {
         if (rentSeq != null) {
             boolean moreTenants = rentSeq.advanceToNextTenant();
             if (moreTenants) {
+                if (controller.isSessionForceEnded()) {
+                    return;
+                }
                 String nextId = rentSeq.getCurrentTenantId();
                 Player nextTenant = controller.resolvePlayer(nextId);
                 if (nextTenant != null) {
@@ -420,8 +419,37 @@ final class EffectStackOrchestrator {
         return "对方打出免租，你可以打出 Just Say No 反制，也可以放弃反制。";
     }
 
-    private boolean shouldAutoPassResponse(Player player) {
+    private boolean shouldAutoRespond(Player player) {
         return !controller.isPvpMode() && player instanceof AIPlayer;
+    }
+
+    private void autoRespondFromCurrentWindow(
+            AIPlayer ai,
+            String passPhase,
+            String passSummary,
+            Player playedBy,
+            ActionCard playedCard) {
+        StackResponseState st = controller.getGameContext().getResponseState();
+        boolean counterRole = st != null && st.getRole() == StackResponseState.Role.LANDLORD_COUNTER;
+        AiHeuristics.AiResponseDecision decision = chooseAiResponse(ai, counterRole);
+        if (decision.playWaiver() && decision.request() != null) {
+            handleWaiverPlay(decision.request());
+            return;
+        }
+        controller.pushSnapshot(controller.getCurrentSessionId(),
+                passPhase,
+                passSummary,
+                playedBy,
+                playedCard,
+                "ACTION");
+        performResponsePass(ai.getPlayerId());
+    }
+
+    private AiHeuristics.AiResponseDecision chooseAiResponse(AIPlayer ai, boolean counterRole) {
+        if (ai.getPlayStrategy() instanceof DeepSeekAiPlayStrategy deepSeek) {
+            return deepSeek.chooseResponse(ai, controller.getGameContext(), counterRole);
+        }
+        return AiHeuristics.chooseResponse(ai, controller.getGameContext(), counterRole);
     }
 
     private long responseDeadlineEpochMs() {

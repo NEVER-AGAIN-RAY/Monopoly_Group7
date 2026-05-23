@@ -12,8 +12,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -61,7 +64,7 @@ class GameServerEndToEndSmokeTest {
         server.wireController(controller);
         server.attachTo(subject);
 
-        List<String> out = new ArrayList<>();
+        List<String> out = Collections.synchronizedList(new ArrayList<>());
         ClientConnection client = recordingClient(out);
         server.onClientConnected(client);
 
@@ -115,15 +118,15 @@ class GameServerEndToEndSmokeTest {
         out.clear();
         server.onMessage(client, "{\"type\":\"END_TURN\",\"payload\":{}}");
 
-        List<JsonObject> afterEndTurn = stateUpdatePayloads(out);
+        List<JsonObject> afterEndTurn = awaitStateUpdates(out, GameServerEndToEndSmokeTest::hasAiDrawAndPlay);
         boolean sawAiDraw = afterEndTurn.stream()
                 .map(p -> jsonString(p, "lastActionSummary"))
                 .anyMatch(s -> s != null && s.contains("AI-") && s.contains("drew"));
         assertTrue(sawAiDraw, "END_TURN 后应观察到 AI 摸牌摘要（AiTurnService → drawCards）");
 
         boolean sawAiPlay = afterEndTurn.stream()
-                .map(p -> jsonString(p, "lastActionSummary"))
-                .anyMatch(s -> s != null && s.contains("AI-") && s.contains("played"));
+                .anyMatch(p -> "ai-1".equals(jsonString(p, "lastPlayedPlayerId"))
+                        || summaryShowsAiAction(jsonString(p, "lastActionSummary")));
         assertTrue(sawAiPlay, "END_TURN 后应观察到 AI 出牌摘要（启发式打牌轨迹）");
 
         Optional<JsonObject> aiTurnSnapshot = afterEndTurn.stream()
@@ -133,10 +136,44 @@ class GameServerEndToEndSmokeTest {
     }
 
     private static List<JsonObject> stateUpdatePayloads(List<String> messages) {
-        return messages.stream()
+        List<String> copy;
+        synchronized (messages) {
+            copy = new ArrayList<>(messages);
+        }
+        return copy.stream()
                 .filter(s -> s.contains("\"type\":\"STATE_UPDATE\""))
                 .map(GameServerEndToEndSmokeTest::parsePayload)
                 .collect(Collectors.toList());
+    }
+
+    private static List<JsonObject> awaitStateUpdates(
+            List<String> messages,
+            Predicate<List<JsonObject>> done) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        List<JsonObject> latest = List.of();
+        while (System.nanoTime() < deadline) {
+            latest = stateUpdatePayloads(messages);
+            if (done.test(latest)) {
+                return latest;
+            }
+            try {
+                TimeUnit.MILLISECONDS.sleep(20);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return latest;
+            }
+        }
+        return latest;
+    }
+
+    private static boolean hasAiDrawAndPlay(List<JsonObject> updates) {
+        boolean sawAiDraw = updates.stream()
+                .map(p -> jsonString(p, "lastActionSummary"))
+                .anyMatch(s -> s != null && s.contains("AI-") && s.contains("drew"));
+        boolean sawAiPlay = updates.stream()
+                .anyMatch(p -> "ai-1".equals(jsonString(p, "lastPlayedPlayerId"))
+                        || summaryShowsAiAction(jsonString(p, "lastActionSummary")));
+        return sawAiDraw && sawAiPlay;
     }
 
     private static JsonObject parsePayload(String json) {
@@ -149,6 +186,12 @@ class GameServerEndToEndSmokeTest {
             return null;
         }
         return obj.get(key).getAsString();
+    }
+
+    private static boolean summaryShowsAiAction(String summary) {
+        return summary != null
+                && summary.contains("AI-")
+                && (summary.contains("played") || summary.contains("已入栈"));
     }
 
     private static ClientConnection recordingClient(List<String> sink) {

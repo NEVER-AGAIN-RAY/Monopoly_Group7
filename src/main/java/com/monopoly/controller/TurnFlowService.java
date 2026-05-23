@@ -144,7 +144,12 @@ final class TurnFlowService {
                 throw new IllegalArgumentException("DEPLOY 需要 PropertyCard（房产卡）。");
             }
             if (card instanceof PropertyWildCard wild) {
-                String assign = params != null ? blankToNull(params.getTargetColorKey()) : wild.getAssignedColorKey();
+                String requested = params != null ? blankToNull(params.getTargetColorKey()) : null;
+                String current = wild.getAssignedColorKey();
+                if (current != null && requested != null && !current.equalsIgnoreCase(requested)) {
+                    throw new IllegalStateException("万能房产已经声明为 " + current + "，不能改为 " + requested + "。");
+                }
+                String assign = current != null ? current : requested;
                 if (assign == null) {
                     throw new IllegalArgumentException("部署万能房产牌时必须指定 targetColorKey。");
                 }
@@ -250,41 +255,10 @@ final class TurnFlowService {
                         + discarded.size() + " overflow card(s).");
     }
 
-    // --- reassign wild property color ---
+    // --- rejected legacy wild property recolor command ---
 
     void reassignWildProperty(Player player, String wildPropertyCardId, String newColorKey) {
-        if (player == null) {
-            throw new IllegalArgumentException("player 不能为 null。");
-        }
-        controller.ensureSessionActive();
-        if (wildPropertyCardId == null || wildPropertyCardId.isBlank()) {
-            throw new IllegalArgumentException("wildPropertyCardId 不能为空。");
-        }
-        ensureTurnContext(player);
-        if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
-            throw new IllegalStateException("正在等待免租响应，不能调整万能房产颜色。");
-        }
-        ensureNoPendingOverflowDiscard(player, "调整万能房产颜色");
-        if (currentTurnPhase != TurnPhase.PLAY) {
-            throw new IllegalStateException("当前不是出牌阶段，不能调整万能房产颜色。");
-        }
-        String normalizedColor = normalizeWildReassignColorKey(newColorKey);
-
-        PropertyWildCard wild = null;
-        for (PropertyCard pc : player.getPropertyCardsView()) {
-            if (wildPropertyCardId.equals(pc.getId()) && pc instanceof PropertyWildCard w) {
-                wild = w;
-                break;
-            }
-        }
-        if (wild == null) {
-            throw new IllegalArgumentException(
-                    "财产区不存在 id 为 \"" + wildPropertyCardId + "\" 的万能房产牌。");
-        }
-
-        wild.setAssignedColorKey(normalizedColor);
-        controller.pushSnapshot(controller.getCurrentSessionId(), "REASSIGN_WILD",
-                player.getDisplayName() + " reassigned wild property to " + normalizedColor + ".");
+        throw new UnsupportedOperationException("万能房产颜色一旦声明后不能再改变。");
     }
 
     // --- end turn ---

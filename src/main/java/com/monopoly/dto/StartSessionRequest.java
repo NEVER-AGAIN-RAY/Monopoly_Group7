@@ -1,14 +1,14 @@
 package com.monopoly.dto;
 
 /**
- * START_SESSION payload: players, HVM/PVP, AI difficulty, first player.
+ * START_SESSION payload: players, HVM/PVP/LLM/AI_VS_AI, AI difficulty, first player.
  */
 public class StartSessionRequest {
 
     private String sessionId;
     /** 2–5 */
     private int playerCount;
-    /** HVM 人机 / PVP 人人 */
+    /** HVM 人机 / PVP 人人 / LLM 真人对 DeepSeek / AI_VS_AI DeepSeek 自战 */
     private String gameMode;
     /** EASY / NORMAL / HARD，仅 HVM 使用 */
     private String aiDifficulty;

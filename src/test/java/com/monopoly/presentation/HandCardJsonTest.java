@@ -31,10 +31,20 @@ class HandCardJsonTest {
     }
 
     @Test
-    void wild_includesZeroValueM() {
+    void anyColorWild_includesZeroValueM() {
         JsonObject o = HandCardJson.toHandCardObject(new PropertyWildCard("w1", "w"));
         assertEquals("WILD", o.get("kind").getAsString());
         assertEquals(0, o.get("valueM").getAsInt());
+    }
+
+    @Test
+    void dualWild_includesPrintedFaceValueM() {
+        PropertyWildCard w = new PropertyWildCard(
+                "w1", "w", PropertyWildCard.WildPropertyKind.DUAL_COLOR, List.of("RED", "YELLOW"));
+        JsonObject o = HandCardJson.toHandCardObject(w);
+        assertEquals("WILD", o.get("kind").getAsString());
+        assertEquals(3, o.get("valueM").getAsInt());
+        assertTrue(o.get("hintZh").getAsString().contains("3M"));
     }
 
     @Test

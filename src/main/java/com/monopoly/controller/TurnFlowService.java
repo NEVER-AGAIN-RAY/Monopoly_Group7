@@ -4,7 +4,6 @@ import com.monopoly.model.card.ActionCard;
 import com.monopoly.model.card.Card;
 import com.monopoly.model.effects.EffectStackEntry;
 import com.monopoly.model.core.GameContext;
-import com.monopoly.model.player.Player;
 import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.settlement.PropertySetCalculator;
 import com.monopoly.model.card.PropertyWildCard;
@@ -15,6 +14,9 @@ import com.monopoly.model.effects.ActionEffectDispatcher;
 import com.monopoly.model.effects.ActionEffectResult;
 import com.monopoly.model.effects.RentEffect;
 import com.monopoly.model.core.RentChargeSequence;
+import com.monopoly.model.player.AIPlayer;
+import com.monopoly.model.player.Player;
+import com.monopoly.pattern.strategy.AiChoiceAdvisor;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 
 import java.util.ArrayList;
@@ -247,7 +249,14 @@ final class TurnFlowService {
         if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
             throw new IllegalStateException("正在等待免租响应，不能强制弃牌。");
         }
-        List<Card> discarded = player.discardOverflowTo(MAX_HAND_SIZE);
+        List<Card> chosen = player.chooseOverflowDiscardsTo(MAX_HAND_SIZE);
+        if (player instanceof AIPlayer ai && ai.getPlayStrategy() instanceof AiChoiceAdvisor advisor) {
+            chosen = advisor.chooseOverflowDiscards(ai, MAX_HAND_SIZE, chosen);
+        }
+        List<Card> discarded = player.discardSpecificFromHand(chosen);
+        while (player.getHandCardCount() > MAX_HAND_SIZE) {
+            discarded.addAll(player.discardOverflowTo(MAX_HAND_SIZE));
+        }
         engine.discardMany(discarded);
         currentTurnMustDiscardOverflow = false;
         controller.pushSnapshot(controller.getCurrentSessionId(), "FORCE_DISCARD",

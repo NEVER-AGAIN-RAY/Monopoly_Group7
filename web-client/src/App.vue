@@ -127,6 +127,12 @@ const PROPERTY_COLOR_BG = {
 
 const currentPlayerId = computed(() => state.value?.currentPlayerId || '')
 const turnPhase = computed(() => state.value?.turnPhase || '')
+const decisionPlayerId = computed(() => state.value?.decisionPlayerId || currentPlayerId.value)
+const decisionKind = computed(() => state.value?.decisionKind || '')
+const decisionLabel = computed(() => state.value?.decisionLabel || '')
+const actionsUsedThisTurn = computed(() => Number(state.value?.actionsUsedThisTurn || 0))
+const actionsRemainingThisTurn = computed(() => Number(state.value?.actionsRemainingThisTurn || 0))
+const roundNumber = computed(() => Number(state.value?.roundNumber || 1))
 const selectedCard = computed(() => hand.value.find((c) => c.id === selectedCardId.value) || null)
 const localPlayer = computed(() => (state.value?.players || []).find((p) => p.playerId === playerId.value) || null)
 const players = computed(() => state.value?.players || [])
@@ -193,8 +199,10 @@ const totalPayableValue = computed(() => {
 const recommendedPaymentIds = computed(() => bestPaymentCardIds(paymentCards.value, paymentDue.value))
 const tableStatus = computed(() => {
   if (state.value?.gameOver) return '游戏结束'
+  if (playerId.value === decisionPlayerId.value) return decisionLabel.value || '轮到你决策'
+  if (decisionPlayerId.value) return `等待 ${displayNameForPlayer(decisionPlayerId.value)}`
   if (playerId.value === currentPlayerId.value) return '你的回合'
-  if (currentPlayerId.value) return `等待 ${currentPlayerId.value}`
+  if (currentPlayerId.value) return `等待 ${displayNameForPlayer(currentPlayerId.value)}`
   return '牌桌就绪'
 })
 const eventLine = computed(() => {
@@ -1159,8 +1167,10 @@ onBeforeUnmount(() => {
         <div class="hud-status">
           <div class="state-line">
             <span>{{ tableStatus }}</span>
+            <span>第 {{ roundNumber }} 轮</span>
             <span>阶段 {{ state?.phase || '-' }}</span>
-            <span>{{ turnPhase || '-' }}</span>
+            <span>{{ decisionLabel || turnPhase || '-' }}</span>
+            <span v-if="decisionKind === 'PLAY'">已出 {{ actionsUsedThisTurn }}/3 · 剩 {{ actionsRemainingThisTurn }}</span>
             <span>抽牌 {{ state?.drawPileCount ?? '-' }}</span>
             <span>弃牌 {{ state?.discardPileCount ?? '-' }}</span>
           </div>
@@ -1173,14 +1183,20 @@ onBeforeUnmount(() => {
       <div class="table-stage">
         <div class="felt-table">
           <section class="opponent-lane">
-            <article v-for="player in opponents" :key="player.playerId" class="tableau opponent-tableau" :class="{ active: player.playerId === currentPlayerId }">
+            <article
+              v-for="player in opponents"
+              :key="player.playerId"
+              class="tableau opponent-tableau"
+              :class="{ active: player.playerId === currentPlayerId, deciding: player.playerId === decisionPlayerId }"
+            >
               <header class="tableau-head">
                 <div class="avatar">{{ (player.displayName || player.playerId).slice(0, 2).toUpperCase() }}</div>
                 <div>
                   <h2>{{ player.displayName || player.playerId }}</h2>
                   <p>{{ player.handCount }} 张手牌 · {{ visibleCompleteSets(player) }}/3 套</p>
                 </div>
-                <span v-if="player.playerId === currentPlayerId">回合中</span>
+                <span v-if="player.playerId === decisionPlayerId">{{ decisionLabel || '决策中' }}</span>
+                <span v-else-if="player.playerId === currentPlayerId">回合中</span>
               </header>
               <div class="revealed-zones">
                 <section class="revealed-zone">
@@ -1274,7 +1290,11 @@ onBeforeUnmount(() => {
           </div>
 
           <section class="lower-table">
-            <article v-if="localBoard" class="tableau my-tableau" :class="{ active: localBoard.playerId === currentPlayerId }">
+            <article
+              v-if="localBoard"
+              class="tableau my-tableau"
+              :class="{ active: localBoard.playerId === currentPlayerId, deciding: localBoard.playerId === decisionPlayerId }"
+            >
               <header class="tableau-head">
                 <div class="avatar">{{ (localBoard.displayName || localBoard.playerId).slice(0, 2).toUpperCase() }}</div>
                 <div>

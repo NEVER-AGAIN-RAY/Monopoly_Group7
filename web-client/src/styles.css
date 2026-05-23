@@ -968,6 +968,22 @@ select:focus {
     0 15px 30px rgba(0, 0, 0, 0.28);
 }
 
+.tableau.deciding {
+  border-color: #7dd3fc;
+  box-shadow:
+    inset 0 0 0 1px rgba(125, 211, 252, 0.42),
+    0 0 0 4px rgba(125, 211, 252, 0.16),
+    0 16px 34px rgba(6, 182, 212, 0.18);
+}
+
+.tableau.active.deciding {
+  border-color: #ffd166;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 209, 102, 0.42),
+    0 0 0 4px rgba(255, 209, 102, 0.16),
+    0 16px 34px rgba(255, 209, 102, 0.16);
+}
+
 .empty-seat {
   display: grid;
   place-items: center;

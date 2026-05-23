@@ -73,6 +73,26 @@ public final class PaymentSettlement {
         return transferChosen(debtor, creditor, amountDue, chosen, sum, engine);
     }
 
+    public static PaymentChoice choosePayment(Player debtor, int amountDue) {
+        return chooseAutomaticPayment(debtor, amountDue);
+    }
+
+    public static Result settleWithChoice(
+            Player debtor,
+            Player creditor,
+            int amountDue,
+            PaymentChoice choice,
+            GameEngineSingleton engine) {
+        if (debtor == null || creditor == null || engine == null) {
+            return new Result(Status.FAILED, amountDue, 0, "参数无效");
+        }
+        if (amountDue <= 0) {
+            return new Result(Status.SUCCESS, amountDue, 0, "无需支付");
+        }
+        PaymentChoice effective = choice != null ? choice : chooseAutomaticPayment(debtor, amountDue);
+        return transferChosen(debtor, creditor, amountDue, effective.cards(), effective.amountPaid(), engine);
+    }
+
     /**
      * Explicit card ids for payment (tenant pass).
      */
@@ -332,7 +352,7 @@ public final class PaymentSettlement {
                 "支付成功：付出 " + sum + "M（应付 " + amountDue + "M，找零不退），收款方收入手牌");
     }
 
-    record PaymentChoice(List<Card> cards, int amountPaid) {
+    public record PaymentChoice(List<Card> cards, int amountPaid) {
     }
 
     private record PayOption(Card card, int value, boolean property) {

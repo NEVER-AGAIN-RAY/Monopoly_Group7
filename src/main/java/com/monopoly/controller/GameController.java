@@ -805,12 +805,18 @@ public class GameController implements AiGameBridge {
         snap.setLastActionSummary(summary);
         snap.setCurrentPlayerId(turnFlowService.currentTurnPlayerId);
         snap.setTurnPhase(tp == null ? "UNKNOWN" : tp.name());
+        snap.setActionsUsedThisTurn(turnFlowService.currentTurnActionCount);
+        snap.setActionsRemainingThisTurn(
+                Math.max(0, TurnFlowService.MAX_ACTIONS_PER_TURN - turnFlowService.currentTurnActionCount));
+        snap.setRoundNumber(Math.max(1, fullRoundsCompleted + 1));
         snap.setDrawPileCount(engine.remainingCount());
         snap.setDiscardPileCount(engine.discardCount());
         Integer pendingPaymentAmt = null;
         if (tp == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
             StackResponseState st = gameContext.getResponseState();
             if (st != null) {
+                snap.setDecisionPlayerId(st.getAwaitingPlayerId());
+                snap.setDecisionDeadlineEpochMs(st.getDeadlineEpochMs());
                 snap.setPendingResponsePlayerId(st.getAwaitingPlayerId());
                 snap.setPendingResponseRole(st.getRole().name());
                 snap.setResponseDeadlineEpochMs(st.getDeadlineEpochMs());
@@ -822,9 +828,15 @@ public class GameController implements AiGameBridge {
                         pendingPaymentAmt = top.getAmountDue();
                     }
                 }
+                snap.setDecisionKind(decisionKindForResponse(st, pendingPaymentAmt));
+                snap.setDecisionLabel(decisionLabelForResponse(st, pendingPaymentAmt));
             }
             snap.setEffectStackDepth(gameContext.getEffectStackView().size());
         } else {
+            snap.setDecisionPlayerId(turnFlowService.currentTurnPlayerId);
+            snap.setDecisionKind(decisionKindForTurnPhase(tp));
+            snap.setDecisionLabel(decisionLabelForTurnPhase(tp));
+            snap.setDecisionDeadlineEpochMs(0L);
             snap.setPendingResponsePlayerId(null);
             snap.setPendingResponseRole(null);
             snap.setResponseDeadlineEpochMs(0L);
@@ -914,6 +926,56 @@ public class GameController implements AiGameBridge {
             case "RESPONSE_PASS", "RESPONSE_TIMEOUT" -> "Rent response chain updated.";
             default -> phase.replace('_', ' ');
         };
+    }
+
+    private static String decisionKindForTurnPhase(TurnFlowService.TurnPhase phase) {
+        if (phase == null) {
+            return "UNKNOWN";
+        }
+        return switch (phase) {
+            case DRAW -> "DRAW";
+            case PLAY -> "PLAY";
+            case END_TURN -> "END_TURN";
+            case WAITING_FOR_RESPONSE -> "RESPONSE";
+        };
+    }
+
+    private static String decisionLabelForTurnPhase(TurnFlowService.TurnPhase phase) {
+        if (phase == null) {
+            return "等待状态更新";
+        }
+        return switch (phase) {
+            case DRAW -> "摸牌";
+            case PLAY -> "出牌";
+            case END_TURN -> "结束回合";
+            case WAITING_FOR_RESPONSE -> "响应";
+        };
+    }
+
+    private static String decisionKindForResponse(StackResponseState st, Integer pendingPaymentAmt) {
+        if (st == null) {
+            return "RESPONSE";
+        }
+        if (st.getRole() == StackResponseState.Role.LANDLORD_COUNTER) {
+            return "JUST_SAY_NO_COUNTER";
+        }
+        if (pendingPaymentAmt != null && pendingPaymentAmt > 0) {
+            return "PAY_OR_JUST_SAY_NO";
+        }
+        return "JUST_SAY_NO_RESPONSE";
+    }
+
+    private static String decisionLabelForResponse(StackResponseState st, Integer pendingPaymentAmt) {
+        if (st == null) {
+            return "等待响应";
+        }
+        if (st.getRole() == StackResponseState.Role.LANDLORD_COUNTER) {
+            return "反制 Just Say No";
+        }
+        if (pendingPaymentAmt != null && pendingPaymentAmt > 0) {
+            return "付款或 Just Say No";
+        }
+        return "接受或 Just Say No";
     }
 
     private void maybeAutosaveAfterFullRound() {

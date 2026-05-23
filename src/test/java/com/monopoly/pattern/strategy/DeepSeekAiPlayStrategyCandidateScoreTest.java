@@ -81,6 +81,24 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         assertEquals(null, id);
     }
 
+    @Test
+    void malformedCardIdsCanStillYieldLegalIds() {
+        List<String> ids = DeepSeekAiPlayStrategy.cardIdsFromMalformedDecision(
+                "{\"cardIds\":[\"m1\",\"p2\"],\"reason\":\"unfinished",
+                List.of("m1", "p2", "p3"));
+
+        assertEquals(List.of("m1", "p2"), ids);
+    }
+
+    @Test
+    void malformedCardIdsRejectUnknownIds() {
+        List<String> ids = DeepSeekAiPlayStrategy.cardIdsFromMalformedDecision(
+                "{\"cardIds\":[\"m1\",\"bad\"],\"reason\":\"unfinished",
+                List.of("m1", "p2"));
+
+        assertEquals(List.of(), ids);
+    }
+
     private static AiHeuristics.AiPlayCandidate candidate(
             String id,
             String actionType,

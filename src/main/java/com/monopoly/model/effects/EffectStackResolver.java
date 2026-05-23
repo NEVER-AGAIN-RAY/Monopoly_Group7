@@ -1,8 +1,10 @@
 package com.monopoly.model.effects;
 
+import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.settlement.PaymentSettlement;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
+import com.monopoly.pattern.strategy.AiChoiceAdvisor;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -60,10 +62,20 @@ public final class EffectStackResolver {
                         tenant, landlord, e.getAmountDue(), explicitPaymentCardIds, engine);
                 explicitConsumed = true;
             } else {
-                last = PaymentSettlement.settle(tenant, landlord, e.getAmountDue(), engine);
+                PaymentSettlement.PaymentChoice choice =
+                        choosePaymentForTenant(tenant, e.getAmountDue());
+                last = PaymentSettlement.settleWithChoice(tenant, landlord, e.getAmountDue(), choice, engine);
             }
         }
         return last;
+    }
+
+    private static PaymentSettlement.PaymentChoice choosePaymentForTenant(Player tenant, int amountDue) {
+        PaymentSettlement.PaymentChoice fallback = PaymentSettlement.choosePayment(tenant, amountDue);
+        if (tenant instanceof AIPlayer ai && ai.getPlayStrategy() instanceof AiChoiceAdvisor advisor) {
+            return advisor.choosePayment(ai, amountDue, fallback);
+        }
+        return fallback;
     }
 
     public static Set<String> computeCancelledEntryIds(List<EffectStackEntry> stackBottomToTop) {

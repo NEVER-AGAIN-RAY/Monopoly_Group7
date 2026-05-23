@@ -20,6 +20,20 @@ public class GameStateSnapshot {
     private int discardPileCount;
     /** Monotonic session-local STATE_UPDATE sequence. */
     private long stateSequence;
+    /** Player who must make the next meaningful decision, if any. */
+    private String decisionPlayerId;
+    /** Machine-readable decision kind: DRAW, PLAY, PAY_OR_JUST_SAY_NO, etc. */
+    private String decisionKind;
+    /** Short UI label for the current decision. */
+    private String decisionLabel;
+    /** Deadline for the current decision, or 0 when there is no countdown. */
+    private long decisionDeadlineEpochMs;
+    /** Number of cards already played in the current turn. */
+    private int actionsUsedThisTurn;
+    /** Number of card plays still available in the current turn. */
+    private int actionsRemainingThisTurn;
+    /** One-based round number for display. */
+    private int roundNumber;
     /** 等待打出免租/放弃的玩家（效果栈响应阶段） */
     private String pendingResponsePlayerId;
     private String pendingResponseRole;
@@ -101,6 +115,62 @@ public class GameStateSnapshot {
 
     public void setStateSequence(long stateSequence) {
         this.stateSequence = stateSequence;
+    }
+
+    public String getDecisionPlayerId() {
+        return decisionPlayerId;
+    }
+
+    public void setDecisionPlayerId(String decisionPlayerId) {
+        this.decisionPlayerId = decisionPlayerId;
+    }
+
+    public String getDecisionKind() {
+        return decisionKind;
+    }
+
+    public void setDecisionKind(String decisionKind) {
+        this.decisionKind = decisionKind;
+    }
+
+    public String getDecisionLabel() {
+        return decisionLabel;
+    }
+
+    public void setDecisionLabel(String decisionLabel) {
+        this.decisionLabel = decisionLabel;
+    }
+
+    public long getDecisionDeadlineEpochMs() {
+        return decisionDeadlineEpochMs;
+    }
+
+    public void setDecisionDeadlineEpochMs(long decisionDeadlineEpochMs) {
+        this.decisionDeadlineEpochMs = decisionDeadlineEpochMs;
+    }
+
+    public int getActionsUsedThisTurn() {
+        return actionsUsedThisTurn;
+    }
+
+    public void setActionsUsedThisTurn(int actionsUsedThisTurn) {
+        this.actionsUsedThisTurn = actionsUsedThisTurn;
+    }
+
+    public int getActionsRemainingThisTurn() {
+        return actionsRemainingThisTurn;
+    }
+
+    public void setActionsRemainingThisTurn(int actionsRemainingThisTurn) {
+        this.actionsRemainingThisTurn = actionsRemainingThisTurn;
+    }
+
+    public int getRoundNumber() {
+        return roundNumber;
+    }
+
+    public void setRoundNumber(int roundNumber) {
+        this.roundNumber = roundNumber;
     }
 
     public String getPendingResponsePlayerId() {

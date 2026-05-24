@@ -645,6 +645,9 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             String task,
             String output) {
         JsonObject root = new JsonObject();
+        root.addProperty("protocol", "MDSP");
+        root.addProperty("protocolName", "Monopoly Deal Strategy Protocol");
+        root.addProperty("protocolVersion", "1.0");
         root.addProperty("promptVersion", teamAwareMode()
                 ? "deepseek-decision-context-v5-tempo-team-aware"
                 : "deepseek-decision-context-v5-tempo");

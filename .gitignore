@@ -43,3 +43,8 @@ pictures/
 # Local AI battle experiment output
 AI_BATTLE_LOG.md
 AI_BATTLE_RUNNER.out
+
+# Local secrets
+.env
+.env.*
+!.env.example

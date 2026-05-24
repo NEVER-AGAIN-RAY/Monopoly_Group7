@@ -22,7 +22,6 @@ public final class DeepSeekClient {
     private static final String DEFAULT_BASE_URL = "https://api.deepseek.com";
     private static final String DEFAULT_MODEL = "deepseek-v4-flash";
     private static final String DEFAULT_FALLBACK_MODEL = "deepseek-chat";
-    private static final String PROVIDED_KEY = "sk-1b52f70be84247078aa073b723ee7b81";
     private static final AtomicInteger PREFERRED_JSON_FAILURES = new AtomicInteger();
 
     private final HttpClient http = HttpClient.newBuilder()
@@ -175,9 +174,13 @@ public final class DeepSeekClient {
         return Integer.getInteger("monopoly.deepseek.jsonFailureThreshold", 2);
     }
 
-    private static String apiKey() {
-        return System.getProperty("monopoly.deepseek.apiKey",
-                System.getenv().getOrDefault("DEEPSEEK_API_KEY", PROVIDED_KEY));
+    private static String apiKey() throws IOException {
+        String key = System.getProperty("monopoly.deepseek.apiKey",
+                System.getenv("DEEPSEEK_API_KEY"));
+        if (key == null || key.isBlank()) {
+            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY or monopoly.deepseek.apiKey.");
+        }
+        return key;
     }
 
     private static int timeoutSeconds() {

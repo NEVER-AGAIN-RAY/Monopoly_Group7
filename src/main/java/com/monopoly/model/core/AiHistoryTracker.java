@@ -30,16 +30,19 @@ public final class AiHistoryTracker {
     private static final int MAX_RECENT_EVENTS = 12;
     private static final int PROMPT_RECENT_EVENTS = 10;
     private static final int PROMPT_CONTESTED_COLORS = 6;
+    private static final Map<String, Integer> IMPORTANT_ACTION_TOTALS = importantActionTotals();
 
     private final Deque<HistoryEvent> recentEvents = new ArrayDeque<>();
     private final Map<String, PlayerMemory> playerMemory = new LinkedHashMap<>();
     private final Map<String, ColorMemory> colorMemory = new LinkedHashMap<>();
+    private final Map<String, PublicActionMemory> publicActionMemory = new LinkedHashMap<>();
     private Map<String, PublicPlayerState> previousState = new LinkedHashMap<>();
 
     public void reset() {
         recentEvents.clear();
         playerMemory.clear();
         colorMemory.clear();
+        publicActionMemory.clear();
         previousState = new LinkedHashMap<>();
     }
 
@@ -56,8 +59,10 @@ public final class AiHistoryTracker {
         Map<String, PublicPlayerState> current = capture(players);
         updateCurrentPlayerMemories(current);
         updateColorOwners(current);
+        recordCurrentPublicActions(players);
 
         if (previousState.isEmpty()) {
+            recordPlayedActionCard(playedCard, playedActionType);
             previousState = current;
             return;
         }
@@ -68,6 +73,7 @@ public final class AiHistoryTracker {
         String actorId = playedBy != null ? playedBy.getPlayerId() : currentPlayerId;
         String eventType = classify(phase, actionType, effectCode, delta);
         boolean meaningful = shouldRecord(eventType, playedCard, phase, delta);
+        recordPlayedActionCard(playedCard, actionType);
 
         if (meaningful) {
             Set<String> targetIds = inferTargets(actorId, delta);
@@ -105,6 +111,7 @@ public final class AiHistoryTracker {
         root.add("contestedColors", contestedColorsJson(current));
         root.add("playerPressure", playerPressureJson(perspective, current));
         root.add("strategicWarnings", strategicWarningsJson(perspective, current));
+        root.add("publicCardMemory", publicCardMemoryJson());
         return root;
     }
 
@@ -116,6 +123,7 @@ public final class AiHistoryTracker {
                 "Compact public memory for response/payment decisions; use only for threat context.");
         root.add("recentEvents", compactRecentEventsJson());
         root.add("strategicWarnings", strategicWarningsJson(perspective, current));
+        root.add("publicCardMemory", publicCardMemoryJson());
         return root;
     }
 
@@ -290,8 +298,47 @@ public final class AiHistoryTracker {
         if (selfMemory.attacksTaken > selfMemory.attacksMade) {
             arr.add("You have recently lost more property tempo than you gained; answer with board swing, not passive bank.");
         }
+        PublicActionMemory justSayNo = publicActionMemory.get("RENT_WAIVER");
+        if (justSayNo != null) {
+            int remaining = remainingEstimate(justSayNo);
+            if (remaining <= 0 && justSayNo.seenCount() > 0) {
+                arr.add("All Just Say No cards have been publicly seen; decisive Deal Breaker, steals, and high rent are harder to stop.");
+            } else if (remaining > 0 && self.completeSets >= 1) {
+                arr.add(remaining + " Just Say No card(s) remain unseen by public memory; expect key attacks or rents may be blocked.");
+            }
+        }
+        PublicActionMemory dealBreaker = publicActionMemory.get("DEAL_BREAKER");
+        if (dealBreaker != null && remainingEstimate(dealBreaker) > 0 && self.completeSets >= 1) {
+            arr.add("At least " + remainingEstimate(dealBreaker)
+                    + " Deal Breaker card(s) remain unseen; complete sets still need protection.");
+        }
         arr.add("All seats are independent in normal evaluation: attack any leader or near-winner, including another LLM.");
         return arr;
+    }
+
+    private JsonObject publicCardMemoryJson() {
+        JsonObject root = new JsonObject();
+        root.addProperty("schema", "public-card-memory-v1");
+        root.addProperty("visibility",
+                "Counts only cards publicly observed in action zone, bank, or visible discard/play events; hidden hands and draw pile are not inspected.");
+        JsonObject important = new JsonObject();
+        for (Map.Entry<String, Integer> entry : IMPORTANT_ACTION_TOTALS.entrySet()) {
+            String effect = entry.getKey();
+            PublicActionMemory memory = publicActionMemory.computeIfAbsent(
+                    effect, key -> new PublicActionMemory(key, entry.getValue()));
+            JsonObject row = new JsonObject();
+            row.addProperty("name", importantActionName(effect));
+            row.addProperty("totalInDeck", memory.totalInDeck);
+            row.addProperty("seen", memory.seenCount());
+            row.addProperty("played", memory.playedCardIds.size());
+            row.addProperty("banked", memory.bankedCardIds.size());
+            row.addProperty("discarded", memory.discardedCardIds.size());
+            row.addProperty("currentlyPublic", memory.currentPublicCardIds.size());
+            row.addProperty("remainingEstimate", remainingEstimate(memory));
+            important.add(effect, row);
+        }
+        root.add("importantActions", important);
+        return root;
     }
 
     private void addEvent(HistoryEvent event) {
@@ -358,6 +405,65 @@ public final class AiHistoryTracker {
                     memory.owners.add(state.playerId);
                 }
             }
+        }
+    }
+
+    private void recordCurrentPublicActions(List<Player> players) {
+        for (PublicActionMemory memory : publicActionMemory.values()) {
+            memory.currentPublicCardIds.clear();
+        }
+        if (players == null) {
+            return;
+        }
+        for (Player p : players) {
+            if (p == null) {
+                continue;
+            }
+            for (Card card : p.getBankCardsView()) {
+                if (card instanceof ActionCard actionCard) {
+                    recordActionCard(actionCard, "BANK");
+                }
+            }
+            for (ActionCard actionCard : p.getActionZoneCardsView()) {
+                recordActionCard(actionCard, "ACTION_ZONE");
+            }
+        }
+    }
+
+    private void recordPlayedActionCard(Card playedCard, String playedActionType) {
+        if (!(playedCard instanceof ActionCard actionCard)) {
+            return;
+        }
+        recordActionCard(actionCard, normalize(playedActionType));
+    }
+
+    private void recordActionCard(ActionCard card, String observationType) {
+        if (card == null) {
+            return;
+        }
+        String effect = normalize(card.getEffectCode());
+        if (effect.isBlank() || !IMPORTANT_ACTION_TOTALS.containsKey(effect)) {
+            return;
+        }
+        String id = card.getId();
+        if (id == null || id.isBlank()) {
+            return;
+        }
+        PublicActionMemory memory = publicActionMemory.computeIfAbsent(
+                effect,
+                key -> new PublicActionMemory(key, IMPORTANT_ACTION_TOTALS.getOrDefault(key, 0)));
+        memory.seenCardIds.add(id);
+        String type = normalize(observationType);
+        if ("ACTION".equals(type) || "ACTION_ZONE".equals(type)) {
+            memory.playedCardIds.add(id);
+        } else if ("DEPOSIT".equals(type) || "BANK".equals(type)) {
+            memory.bankedCardIds.add(id);
+        } else if ("DISCARD".equals(type) || "FORCE_DISCARD".equals(type)
+                || "OVERFLOW_DISCARD".equals(type)) {
+            memory.discardedCardIds.add(id);
+        }
+        if ("ACTION_ZONE".equals(type) || "BANK".equals(type)) {
+            memory.currentPublicCardIds.add(id);
         }
     }
 
@@ -632,6 +738,44 @@ public final class AiHistoryTracker {
         return s.length() <= max ? s : s.substring(0, Math.max(0, max - 3)) + "...";
     }
 
+    private static int remainingEstimate(PublicActionMemory memory) {
+        if (memory == null) {
+            return 0;
+        }
+        return Math.max(0, memory.totalInDeck - memory.seenCount());
+    }
+
+    private static Map<String, Integer> importantActionTotals() {
+        Map<String, Integer> totals = new LinkedHashMap<>();
+        totals.put("RENT_WAIVER", 3);
+        totals.put("DEAL_BREAKER", 2);
+        totals.put("STEAL_PROPERTY", 3);
+        totals.put("FORCED_DEAL", 3);
+        totals.put("DOUBLE_RENT", 2);
+        totals.put("PASS_GO", 10);
+        totals.put("DEBT_COLLECTOR", 3);
+        totals.put("BIRTHDAY", 3);
+        totals.put("RENT", 3);
+        totals.put("RENT_DUAL", 10);
+        return totals;
+    }
+
+    private static String importantActionName(String effectCode) {
+        return switch (effectCode) {
+            case "RENT_WAIVER" -> "Just Say No";
+            case "DEAL_BREAKER" -> "Deal Breaker";
+            case "STEAL_PROPERTY" -> "Sly Deal";
+            case "FORCED_DEAL" -> "Forced Deal";
+            case "DOUBLE_RENT" -> "Double The Rent";
+            case "PASS_GO" -> "Pass Go";
+            case "DEBT_COLLECTOR" -> "Debt Collector";
+            case "BIRTHDAY" -> "It's My Birthday";
+            case "RENT" -> "Any-Color Rent";
+            case "RENT_DUAL" -> "Dual-Color Rent";
+            default -> effectCode;
+        };
+    }
+
     private record HistoryEvent(
             long sequence,
             int roundNumber,
@@ -719,6 +863,25 @@ public final class AiHistoryTracker {
 
         private String color() {
             return color;
+        }
+    }
+
+    private static final class PublicActionMemory {
+        private final String effectCode;
+        private final int totalInDeck;
+        private final Set<String> seenCardIds = new LinkedHashSet<>();
+        private final Set<String> playedCardIds = new LinkedHashSet<>();
+        private final Set<String> bankedCardIds = new LinkedHashSet<>();
+        private final Set<String> discardedCardIds = new LinkedHashSet<>();
+        private final Set<String> currentPublicCardIds = new LinkedHashSet<>();
+
+        private PublicActionMemory(String effectCode, int totalInDeck) {
+            this.effectCode = effectCode;
+            this.totalInDeck = Math.max(0, totalInDeck);
+        }
+
+        private int seenCount() {
+            return seenCardIds.size();
         }
     }
 }

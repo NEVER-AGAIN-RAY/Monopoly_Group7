@@ -182,6 +182,8 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         JsonObject prompt = JsonParser.parseString(
                 DeepSeekAiPlayStrategy.buildUserPrompt(bot, context, List.of(candidate))).getAsJsonObject();
 
+        assertEquals("MDSP", prompt.get("protocol").getAsString());
+        assertEquals("1.0", prompt.get("protocolVersion").getAsString());
         assertEquals("deepseek-decision-context-v5-tempo", prompt.get("promptVersion").getAsString());
         assertEquals(2, prompt.getAsJsonObject("gameMeta").get("playerCount").getAsInt());
         assertEquals("PLAY_CARD", prompt.getAsJsonObject("decision").get("kind").getAsString());
@@ -198,7 +200,47 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         assertTrue(tactic.has("selfNearWin"));
         String serialized = prompt.toString();
         assertTrue(serialized.contains("\"handCount\":1"));
-        assertTrue(!serialized.contains("hidden"));
+        assertTrue(!serialized.contains("Hidden 5M"));
+    }
+
+    @Test
+    void publicCardMemoryCountsOnlyObservedImportantActionCards() {
+        AIPlayer bot = new AIPlayer("ai-2", "DeepSeek-AI-2", null);
+        HumanPlayer hard = new HumanPlayer("ai-1", "AI-Hard-1");
+        ActionCard hiddenNo = new ActionCard("hidden-no", "Hidden Just Say No", "RENT_WAIVER");
+        ActionCard bankedNo = new ActionCard("banked-no", "Banked Just Say No", "RENT_WAIVER");
+        ActionCard playedDealBreaker = new ActionCard("db-1", "Deal Breaker", "DEAL_BREAKER");
+        hard.receiveCardToHand(hiddenNo);
+        hard.addToBank(bankedNo);
+        GameContext context = new GameContext();
+        context.bindPlayers(List.of(hard, bot));
+        context.getAiHistoryTracker().recordSnapshot(
+                1, 1, "INIT", hard.getPlayerId(), "start", null, null, null, List.of(hard, bot));
+        context.getAiHistoryTracker().recordSnapshot(
+                2, 1, "ACTION_SUCCESS", bot.getPlayerId(),
+                "DeepSeek played Deal Breaker.",
+                bot,
+                playedDealBreaker,
+                "ACTION",
+                List.of(hard, bot));
+
+        JsonObject prompt = JsonParser.parseString(
+                DeepSeekAiPlayStrategy.buildUserPrompt(bot, context, List.of(
+                        candidate("c1", "ACTION", "pass-go", "Action PASS_GO."))))
+                .getAsJsonObject();
+
+        JsonObject important = prompt.getAsJsonObject("memory")
+                .getAsJsonObject("publicCardMemory")
+                .getAsJsonObject("importantActions");
+        JsonObject justSayNo = important.getAsJsonObject("RENT_WAIVER");
+        assertEquals(1, justSayNo.get("seen").getAsInt());
+        assertEquals(1, justSayNo.get("banked").getAsInt());
+        assertEquals(2, justSayNo.get("remainingEstimate").getAsInt());
+        JsonObject dealBreaker = important.getAsJsonObject("DEAL_BREAKER");
+        assertEquals(1, dealBreaker.get("seen").getAsInt());
+        assertEquals(1, dealBreaker.get("played").getAsInt());
+        assertEquals(1, dealBreaker.get("remainingEstimate").getAsInt());
+        assertTrue(!prompt.toString().contains("hidden-no"));
     }
 
     @Test

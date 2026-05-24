@@ -7,15 +7,18 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DeepSeekClientConfigTest {
 
     private String previousPreference;
+    private String previousApiKey;
 
     @BeforeEach
     void rememberProperty() {
         previousPreference = System.getProperty("monopoly.deepseek.preferFallbackForStrictJson");
+        previousApiKey = System.getProperty("monopoly.deepseek.apiKey");
     }
 
     @AfterEach
@@ -24,6 +27,11 @@ class DeepSeekClientConfigTest {
             System.clearProperty("monopoly.deepseek.preferFallbackForStrictJson");
         } else {
             System.setProperty("monopoly.deepseek.preferFallbackForStrictJson", previousPreference);
+        }
+        if (previousApiKey == null) {
+            System.clearProperty("monopoly.deepseek.apiKey");
+        } else {
+            System.setProperty("monopoly.deepseek.apiKey", previousApiKey);
         }
     }
 
@@ -51,5 +59,13 @@ class DeepSeekClientConfigTest {
     @Test
     void validationErrorsAreNotRetryable() {
         assertFalse(DeepSeekClient.isRetryable(new IOException("DeepSeek HTTP 400: bad request")));
+    }
+
+    @Test
+    void blankApiKeyPropertyDisablesImplicitDefaultKey() {
+        System.setProperty("monopoly.deepseek.apiKey", " ");
+
+        assertThrows(java.io.IOException.class,
+                () -> new DeepSeekClient().complete("system", "user", false));
     }
 }

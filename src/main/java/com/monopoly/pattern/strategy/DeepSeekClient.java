@@ -264,9 +264,13 @@ public final class DeepSeekClient {
         return Integer.getInteger("monopoly.deepseek.jsonFailureThreshold", 2);
     }
 
-    private static String apiKey() {
-        return System.getProperty("monopoly.deepseek.apiKey",
+    private static String apiKey() throws IOException {
+        String key = System.getProperty("monopoly.deepseek.apiKey",
                 System.getenv().getOrDefault("DEEPSEEK_API_KEY", ""));
+        if (key == null || key.isBlank()) {
+            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY or -Dmonopoly.deepseek.apiKey.");
+        }
+        return key.trim();
     }
 
     private static int timeoutSeconds() {

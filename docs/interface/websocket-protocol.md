@@ -47,6 +47,37 @@ Minimum required flow coverage:
 - `SAVE_GAME`
 - `LOAD_GAME`
 
+### START_SESSION
+
+`START_SESSION.payload` starts or replaces one session. `gameMode` accepts:
+
+| Mode | Seats |
+| ---- | ----- |
+| `HVM` | `human-1`, then local AI seats using `aiDifficulty` (`EASY` / `NORMAL` / `HARD`) |
+| `PVP` | all human seats: `pvp-1`, `pvp-2`, ... |
+| `LLM` | `human-1`, then DeepSeek AI seats |
+| `AI_VS_AI` | all DeepSeek AI seats |
+| `CUSTOM` | explicit mixed lineup |
+
+`CUSTOM` accepts either `customLineup` as a comma/space separated string or
+`playerRoles` as an array. Supported roles are `human`, `easy`, `normal`,
+`hard`, and `llm` / `deepseek`. Example:
+
+```json
+{
+  "type": "START_SESSION",
+  "payload": {
+    "sessionId": "friends-and-llm",
+    "gameMode": "CUSTOM",
+    "customLineup": "human,human,llm,llm",
+    "randomizeFirstPlayer": true
+  }
+}
+```
+
+For `CUSTOM`, human seats use `pvp-<seatNumber>` so two-human plus two-LLM games
+use client player ids `pvp-1` and `pvp-2`. Ordinary `PVP` remains unchanged.
+
 ### DRAW
 
 `DRAW.payload.count` is accepted only for legacy compatibility. The server owns

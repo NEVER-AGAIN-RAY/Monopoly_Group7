@@ -66,6 +66,12 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             - Prefer plays that create or defend complete sets over low-impact banking.
             - No change is returned when paying, so avoid large overpayment when smaller legal payments exist.
             - Wild properties are valuable because they complete sets; once assigned here their color is locked.
+            - Plan over the next one or two turns: a move that blocks a near-win or creates a protected set
+              is usually better than a small immediate money gain.
+            - In multiplayer, pressure the current leader or any opponent on 2 complete sets; do not spend
+              high-impact attacks on a trailing player unless it wins now.
+            - Preserve Deal Breaker, Sly Deal, Forced Deal, Just Say No, and flexible wilds until they win,
+              block a win, steal/protect a full set, or create a decisive tempo swing.
             """;
 
     private final DeepSeekClient client = new DeepSeekClient();
@@ -599,13 +605,14 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             String task,
             String output) {
         JsonObject root = new JsonObject();
-        root.addProperty("promptVersion", "deepseek-decision-context-v2");
+        root.addProperty("promptVersion", "deepseek-decision-context-v3");
         root.addProperty("modelRequested", DeepSeekClient.model());
         root.addProperty("rule", "Win immediately at 3 complete property sets. Max 3 plays per turn.");
         root.addProperty("strategy", STRATEGY_CONTEXT);
         root.add("gameMeta", gameMetaJson(bot, context, decisionKind));
         root.add("self", playerJson(bot, true));
         root.add("players", playersJson(bot, context));
+        root.add("riskAssessment", riskAssessmentJson(bot, context));
         root.add("effectStack", effectStackJson(context));
 
         JsonObject decision = new JsonObject();
@@ -652,6 +659,51 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             return context.getPlayers();
         }
         return bot == null ? List.of() : List.of(bot);
+    }
+
+    private static JsonObject riskAssessmentJson(AIPlayer bot, GameContext context) {
+        JsonObject risk = new JsonObject();
+        List<Player> players = playersForContext(bot, context);
+        int selfSets = bot == null ? 0 : bot.countCompletePropertySets();
+        risk.addProperty("selfCompleteSets", selfSets);
+        risk.addProperty("selfSetsNeededToWin", Math.max(0, 3 - selfSets));
+
+        Player leader = null;
+        int leaderSets = -1;
+        int maxOpponentSets = 0;
+        JsonArray nearWin = new JsonArray();
+        for (Player p : players) {
+            int sets = p.countCompletePropertySets();
+            if (leader == null
+                    || sets > leaderSets
+                    || (sets == leaderSets && p.totalBankValueM() > leader.totalBankValueM())) {
+                leader = p;
+                leaderSets = sets;
+            }
+            if (p != bot) {
+                maxOpponentSets = Math.max(maxOpponentSets, sets);
+                if (sets >= 2) {
+                    JsonObject threat = new JsonObject();
+                    threat.addProperty("playerId", p.getPlayerId());
+                    threat.addProperty("name", p.getDisplayName());
+                    threat.addProperty("completeSets", sets);
+                    threat.addProperty("setsNeededToWin", Math.max(0, 3 - sets));
+                    threat.addProperty("bankM", p.totalBankValueM());
+                    nearWin.add(threat);
+                }
+            }
+        }
+        risk.addProperty("leaderPlayerId", leader == null ? null : leader.getPlayerId());
+        risk.addProperty("leaderCompleteSets", Math.max(0, leaderSets));
+        risk.addProperty("maxOpponentCompleteSets", maxOpponentSets);
+        risk.add("opponentsNearWin", nearWin);
+        risk.addProperty("planningPriority",
+                "1 win now; 2 block any opponent at 2+ sets or decisive steal/rent; "
+                        + "3 complete/protect own sets; 4 preserve high-leverage actions and wilds; "
+                        + "5 improve bank only when it does not delay set tempo.");
+        risk.addProperty("shortSightGuard",
+                "Before selecting a candidate, compare board position after this play, not just immediate cash.");
+        return risk;
     }
 
     private static JsonArray effectStackJson(GameContext context) {

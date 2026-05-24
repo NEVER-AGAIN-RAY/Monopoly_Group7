@@ -265,10 +265,12 @@ public final class DeepSeekClient {
     }
 
     private static String apiKey() throws IOException {
+        String envKey = System.getenv().getOrDefault("DEEPSEEK_API_KEY",
+                System.getenv().getOrDefault("MONOPOLY_DEEPSEEK_API_KEY", ""));
         String key = System.getProperty("monopoly.deepseek.apiKey",
-                System.getenv().getOrDefault("DEEPSEEK_API_KEY", ""));
+                envKey);
         if (key == null || key.isBlank()) {
-            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY or -Dmonopoly.deepseek.apiKey.");
+            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY, MONOPOLY_DEEPSEEK_API_KEY, or -Dmonopoly.deepseek.apiKey.");
         }
         return key.trim();
     }

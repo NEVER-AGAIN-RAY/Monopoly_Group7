@@ -31,6 +31,11 @@
 
 ### 记录
 
+#### 2026-05-24 — 自定义真人/LLM 混合对局与 DeepSeek live smoke
+
+- **摘要**：新增 `CUSTOM` 开局模式，支持 `human,human,llm,llm` 等席位配置，普通 `PVP` 保持全真人；JavaFX 快速开局增加自定义席位输入；DeepSeek 决策 prompt 升级到 v3，加入结构化风险评估与长期规划优先级；新增 `MixedAiBattleExperimentRunner`，可跑 `hard,hard,llm,llm` 本体短局并输出本地评估 JSON。
+- **领域**：协议 / UI / AI / 测试
+
 #### 2026-05-24 — 多会话隔离、训练样本平衡与缩放实验
 
 - **摘要**：`GameServer` 将保存/加载确认状态改为按 `sessionId` 隔离，加载跨 `sessionId` 存档时会迁移连接并刷新状态；训练脚本默认对 MLP/linear 学生启用决策类型 loss balancing，降低 `PLAY_CARD` 对稀有决策的淹没；新增 player-count 泛化切分（如 2/3 人训练、4/5 人验证）；新增 deterministic scaling subsets、缩放曲线训练脚本、gameplay matrix 评估脚本、forest-style 离线 baseline、付费 trace 审计脚本、多 trace 合并/去重脚本、训练交付 readiness gate、训练 run summary、多 seed replicate 工具、已有 trace 离线 DeepSeek relabel/选择工具、relabel paid probe 包装脚本与带显式付费确认的一键 DeepSeek production wrapper；补充多会话加载投票回归测试与训练日志。

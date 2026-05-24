@@ -92,6 +92,12 @@ public class MainController {
     @FXML
     private ComboBox<String> aiDifficultyCombo;
     @FXML
+    private HBox customLineupBox;
+    @FXML
+    private Label customLineupLabel;
+    @FXML
+    private ComboBox<String> customLineupCombo;
+    @FXML
     private Label languageLabel;
     @FXML
     private ComboBox<String> languageCombo;
@@ -235,12 +241,22 @@ public class MainController {
     private void initialize() {
         wsUrlField.setText("ws://localhost:8025/ws");
         sessionIdField.setText("demo-pvp");
-        playerCountSpinner.setValueFactory(new javafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory(2, 6, 2));
-        gameModeCombo.getItems().setAll("HVM", "PVP");
+        playerCountSpinner.setValueFactory(new javafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory(2, 5, 2));
+        gameModeCombo.getItems().setAll("HVM", "PVP", "LLM", "CUSTOM");
         gameModeCombo.getSelectionModel().selectFirst();
 
         aiDifficultyCombo.getItems().setAll("EASY", "NORMAL", "HARD");
         aiDifficultyCombo.getSelectionModel().select("NORMAL");
+        customLineupCombo.getItems().setAll(
+                "human,human,llm,llm",
+                "human,human,hard,llm",
+                "human,llm,llm,llm",
+                "hard,hard,llm,llm",
+                "human,human,hard,hard");
+        customLineupCombo.setEditable(true);
+        customLineupCombo.getSelectionModel().selectFirst();
+        customLineupCombo.valueProperty().addListener((obs, prev, val) -> syncCustomLineupCount());
+        customLineupCombo.getEditor().textProperty().addListener((obs, prev, val) -> syncCustomLineupCount());
 
         languageCombo.getItems().setAll("中文", "English");
         languageCombo.getSelectionModel().selectFirst();
@@ -305,15 +321,64 @@ public class MainController {
     private void syncModeUi() {
         String mode = gameModeCombo.getSelectionModel().getSelectedItem();
         boolean hvm = "HVM".equals(mode);
+        boolean custom = "CUSTOM".equals(mode);
         aiDifficultyBox.setVisible(hvm);
         aiDifficultyBox.setManaged(hvm);
+        customLineupBox.setVisible(custom);
+        customLineupBox.setManaged(custom);
         if (hvm) {
             playerIdField.setText("human-1");
             modeHintLabel.setText(I18n.get("hint.hvm"));
+        } else if ("LLM".equals(mode)) {
+            playerIdField.setText("human-1");
+            modeHintLabel.setText(I18n.get("hint.llm"));
+        } else if (custom) {
+            syncCustomLineupCount();
+            playerIdField.setText("pvp-1");
+            modeHintLabel.setText(I18n.get("hint.custom"));
         } else {
             playerIdField.setText("pvp-1");
             modeHintLabel.setText(I18n.get("hint.pvp"));
         }
+    }
+
+    private void syncCustomLineupCount() {
+        String mode = gameModeCombo.getSelectionModel().getSelectedItem();
+        if (!"CUSTOM".equals(mode) || playerCountSpinner.getValueFactory() == null) {
+            return;
+        }
+        int size = customLineupRoles().size();
+        if (size >= 2 && size <= 5 && playerCountSpinner.getValue() != size) {
+            playerCountSpinner.getValueFactory().setValue(size);
+        }
+    }
+
+    private List<String> customLineupRoles() {
+        String raw = customLineupText();
+        if (raw.isBlank()) {
+            return List.of();
+        }
+        List<String> roles = new ArrayList<>();
+        for (String token : raw.split("[,;\\s]+")) {
+            if (!token.isBlank()) {
+                roles.add(token.trim().toLowerCase(Locale.ROOT));
+            }
+        }
+        return roles;
+    }
+
+    private String customLineupText() {
+        if (customLineupCombo == null) {
+            return "";
+        }
+        if (customLineupCombo.isEditable() && customLineupCombo.getEditor() != null) {
+            String editor = customLineupCombo.getEditor().getText();
+            if (editor != null && !editor.isBlank()) {
+                return editor;
+            }
+        }
+        String value = customLineupCombo.getValue();
+        return value == null ? "" : value;
     }
 
     private void applyI18n() {
@@ -325,6 +390,7 @@ public class MainController {
         gameModeLabel.setText(I18n.get("label.gameMode"));
         playerCountLabel.setText(I18n.get("label.playerCount"));
         aiDifficultyLabel.setText(I18n.get("label.aiDifficulty"));
+        customLineupLabel.setText(I18n.get("label.customLineup"));
         languageLabel.setText(I18n.get("label.language"));
         startGameButton.setText(I18n.get("btn.startGame"));
         advancedPane.setText(I18n.get("advanced.title"));
@@ -533,6 +599,13 @@ public class MainController {
         p.put("randomizeFirstPlayer", randomizeFirstCheck.isSelected());
         if ("HVM".equals(mode)) {
             p.put("aiDifficulty", aiDifficultyCombo.getSelectionModel().getSelectedItem());
+        } else if ("CUSTOM".equals(mode)) {
+            List<String> roles = customLineupRoles();
+            if (!roles.isEmpty()) {
+                p.put("playerCount", roles.size());
+                p.put("customLineup", String.join(",", roles));
+                p.put("playerRoles", roles);
+            }
         }
         sendEnvelope("START_SESSION", p);
     }

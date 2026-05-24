@@ -1,8 +1,12 @@
 package com.monopoly.controller;
 
 import com.monopoly.dto.StartSessionRequest;
+import com.monopoly.model.player.AIPlayer;
+import com.monopoly.model.player.HumanPlayer;
 import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
+import com.monopoly.pattern.strategy.DeepSeekAiPlayStrategy;
+import com.monopoly.pattern.strategy.HardAiPlayStrategy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -74,5 +78,62 @@ class GameControllerPlayerNamingTest {
                 .collect(Collectors.toSet());
 
         assertTrue(starters.size() > 1, "随机先手多次开局应能出现不同先手");
+    }
+
+    @Test
+    void customLineupCreatesHumanAndMixedAiSeats() {
+        GameController controller = new GameController(new DefaultGameUpdateSubject());
+        StartSessionRequest req = new StartSessionRequest();
+        req.setSessionId("custom-mixed");
+        req.setPlayerCount(4);
+        req.setGameMode("CUSTOM");
+        req.setCustomLineup("human,human,llm,hard");
+        req.setRandomizeFirstPlayer(false);
+
+        controller.startNewSession(req);
+
+        assertEquals(List.of("pvp-1", "pvp-2", "ai-3", "ai-4"),
+                controller.getSessionPlayersView().stream().map(p -> p.getPlayerId()).toList());
+        assertEquals(List.of("Player-1", "Player-2", "DeepSeek-AI-3", "AI-Hard-4"),
+                controller.getSessionPlayersView().stream().map(p -> p.getDisplayName()).toList());
+        assertTrue(controller.getSessionPlayersView().get(0) instanceof HumanPlayer);
+        assertTrue(controller.getSessionPlayersView().get(1) instanceof HumanPlayer);
+        assertTrue(controller.getSessionPlayersView().get(2) instanceof AIPlayer);
+        assertTrue(((AIPlayer) controller.getSessionPlayersView().get(2)).getPlayStrategy()
+                instanceof DeepSeekAiPlayStrategy);
+        assertTrue(((AIPlayer) controller.getSessionPlayersView().get(3)).getPlayStrategy()
+                instanceof HardAiPlayStrategy);
+    }
+
+    @Test
+    void customPlayerRolesOverridePlayerCount() {
+        GameController controller = new GameController(new DefaultGameUpdateSubject());
+        StartSessionRequest req = new StartSessionRequest();
+        req.setSessionId("custom-roles");
+        req.setPlayerCount(2);
+        req.setGameMode("CUSTOM");
+        req.setPlayerRoles(List.of("hard", "hard", "llm", "llm"));
+        req.setRandomizeFirstPlayer(false);
+
+        controller.startNewSession(req);
+
+        assertEquals(List.of("AI-Hard-1", "AI-Hard-2", "DeepSeek-AI-3", "DeepSeek-AI-4"),
+                controller.getSessionPlayersView().stream().map(p -> p.getDisplayName()).toList());
+        assertEquals(4, controller.getSessionPlayersView().size());
+    }
+
+    @Test
+    void customModeIsPreservedWhenCapturedForSave() {
+        GameController controller = new GameController(new DefaultGameUpdateSubject());
+        StartSessionRequest req = new StartSessionRequest();
+        req.setSessionId("custom-save-mode");
+        req.setPlayerCount(4);
+        req.setGameMode("CUSTOM");
+        req.setCustomLineup("human,human,llm,llm");
+        req.setRandomizeFirstPlayer(false);
+
+        controller.startNewSession(req);
+
+        assertEquals("CUSTOM", GameSessionMemento.capture(controller).getGameMode());
     }
 }

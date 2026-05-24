@@ -153,18 +153,26 @@ public class GameController implements AiGameBridge {
             pushSnapshot(currentSessionId, "RULE_VIOLATION");
             return;
         }
-        int count = req.getPlayerCount();
-        if (count < 2 || count > 5) {
-            throw new IllegalArgumentException("playerCount 必须在 2–5 之间，当前为 " + count + "。");
-        }
         String mode = req.getGameMode() == null ? "" : req.getGameMode().trim().toUpperCase();
         if (mode.isBlank()) {
             mode = "HVM";
         }
+        int requestedCount = req.getPlayerCount() <= 0 ? 2 : req.getPlayerCount();
+        List<String> customRoles = "CUSTOM".equals(mode)
+                ? parseCustomRoles(req)
+                : List.of();
+        int count = customRoles.isEmpty() ? requestedCount : customRoles.size();
+        if (count < 2 || count > 5) {
+            throw new IllegalArgumentException("playerCount 必须在 2–5 之间，当前为 " + count + "。");
+        }
+        if ("CUSTOM".equals(mode) && customRoles.isEmpty()) {
+            customRoles = defaultCustomRoles(count);
+        }
         if (!"HVM".equals(mode) && !"PVP".equals(mode)
-                && !"LLM".equals(mode) && !"AI_VS_AI".equals(mode)) {
+                && !"LLM".equals(mode) && !"AI_VS_AI".equals(mode)
+                && !"CUSTOM".equals(mode)) {
             throw new IllegalArgumentException(
-                    "gameMode 必须为 HVM、PVP、LLM 或 AI_VS_AI，当前为 " + req.getGameMode() + "。");
+                    "gameMode 必须为 HVM、PVP、LLM、AI_VS_AI 或 CUSTOM，当前为 " + req.getGameMode() + "。");
         }
 
         String sid = req.getSessionId();
@@ -203,12 +211,19 @@ public class GameController implements AiGameBridge {
             }
             AiBattleLogger.log("Session", "Started LLM mode session=" + currentSessionId
                     + " players=" + count + " model=" + com.monopoly.pattern.strategy.DeepSeekClient.model());
-        } else {
+        } else if ("AI_VS_AI".equals(mode)) {
             for (int i = 1; i <= count; i++) {
                 sessionPlayers.add(new AIPlayer("ai-" + i, "DeepSeek-AI-" + i, createLlmAiStrategy(i)));
             }
             AiBattleLogger.log("Session", "Started AI_VS_AI mode session=" + currentSessionId
                     + " players=" + count + " model=" + com.monopoly.pattern.strategy.DeepSeekClient.model());
+        } else {
+            for (int i = 0; i < customRoles.size(); i++) {
+                sessionPlayers.add(createCustomSeat(customRoles.get(i), i + 1));
+            }
+            AiBattleLogger.log("Session", "Started CUSTOM mode session=" + currentSessionId
+                    + " lineup=" + String.join(",", customRoles)
+                    + " model=" + com.monopoly.pattern.strategy.DeepSeekClient.model());
         }
 
         turnManager.bindTurnOrder(sessionPlayers);
@@ -248,6 +263,70 @@ public class GameController implements AiGameBridge {
             case "NORMAL" -> new NormalAiPlayStrategy();
             case "HARD" -> new HardAiPlayStrategy();
             default -> new EasyAiPlayStrategy();
+        };
+    }
+
+    private static List<String> parseCustomRoles(StartSessionRequest req) {
+        List<String> rawRoles = new ArrayList<>();
+        if (req.getPlayerRoles() != null) {
+            for (String role : req.getPlayerRoles()) {
+                if (role != null && !role.isBlank()) {
+                    rawRoles.add(role);
+                }
+            }
+        }
+        if (rawRoles.isEmpty() && req.getCustomLineup() != null && !req.getCustomLineup().isBlank()) {
+            for (String token : req.getCustomLineup().split("[,;\\s]+")) {
+                if (!token.isBlank()) {
+                    rawRoles.add(token);
+                }
+            }
+        }
+        if (rawRoles.isEmpty()) {
+            return List.of();
+        }
+        List<String> roles = new ArrayList<>();
+        for (String raw : rawRoles) {
+            roles.add(normalizeCustomRole(raw));
+        }
+        return roles;
+    }
+
+    private static List<String> defaultCustomRoles(int count) {
+        int safeCount = Math.max(2, Math.min(5, count));
+        List<String> roles = new ArrayList<>();
+        for (int i = 1; i <= safeCount; i++) {
+            roles.add(i <= 2 ? "HUMAN" : "LLM");
+        }
+        return roles;
+    }
+
+    private static String normalizeCustomRole(String raw) {
+        String role = raw == null ? "" : raw.trim().toUpperCase(Locale.ROOT)
+                .replace('-', '_')
+                .replace(' ', '_');
+        return switch (role) {
+            case "HUMAN", "PLAYER", "PVP" -> "HUMAN";
+            case "LLM", "DEEPSEEK", "DEEP_SEEK" -> "LLM";
+            case "EASY", "AI_EASY" -> "EASY";
+            case "NORMAL", "MEDIUM", "AI_NORMAL", "AI_MEDIUM" -> "NORMAL";
+            case "HARD", "AI_HARD" -> "HARD";
+            default -> throw new IllegalArgumentException(
+                    "CUSTOM 席位角色不支持: " + raw + "。可用 human/easy/normal/hard/llm。");
+        };
+    }
+
+    private Player createCustomSeat(String role, int seatNumber) {
+        return switch (role) {
+            case "HUMAN" -> new HumanPlayer("pvp-" + seatNumber, "Player-" + seatNumber);
+            case "LLM" -> new AIPlayer("ai-" + seatNumber, "DeepSeek-AI-" + seatNumber,
+                    createLlmAiStrategy(seatNumber));
+            case "HARD" -> new AIPlayer("ai-" + seatNumber, "AI-Hard-" + seatNumber,
+                    new HardAiPlayStrategy());
+            case "NORMAL" -> new AIPlayer("ai-" + seatNumber, "AI-Normal-" + seatNumber,
+                    new NormalAiPlayStrategy());
+            default -> new AIPlayer("ai-" + seatNumber, "AI-Easy-" + seatNumber,
+                    new EasyAiPlayStrategy());
         };
     }
 

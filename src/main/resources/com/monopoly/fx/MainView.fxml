@@ -181,6 +181,12 @@
                     </VBox>
                 </HBox>
 
+                <HBox fx:id="customLineupBox" spacing="8.0" alignment="CENTER"
+                      visible="false" managed="false">
+                    <Label fx:id="customLineupLabel" text="自定义席位" styleClass="setup-label"/>
+                    <ComboBox fx:id="customLineupCombo" prefWidth="260.0"/>
+                </HBox>
+
                 <Label fx:id="modeHintLabel" wrapText="true" styleClass="setup-hint"/>
                 <Button fx:id="startGameButton" mnemonicParsing="false" onAction="#onQuickAuthAndStart"
                         text="开始游戏" styleClass="btn-start-game"/>

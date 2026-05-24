@@ -123,11 +123,12 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         JsonObject prompt = JsonParser.parseString(
                 DeepSeekAiPlayStrategy.buildUserPrompt(bot, context, List.of(candidate))).getAsJsonObject();
 
-        assertEquals("deepseek-decision-context-v2", prompt.get("promptVersion").getAsString());
+        assertEquals("deepseek-decision-context-v3", prompt.get("promptVersion").getAsString());
         assertEquals(2, prompt.getAsJsonObject("gameMeta").get("playerCount").getAsInt());
         assertEquals("PLAY_CARD", prompt.getAsJsonObject("decision").get("kind").getAsString());
         assertEquals(1, prompt.getAsJsonObject("self").getAsJsonArray("handCards").size());
         assertEquals(2, prompt.getAsJsonArray("players").size());
+        assertEquals(3, prompt.getAsJsonObject("riskAssessment").get("selfSetsNeededToWin").getAsInt());
         String serialized = prompt.toString();
         assertTrue(serialized.contains("\"handCount\":1"));
         assertTrue(!serialized.contains("hidden"));

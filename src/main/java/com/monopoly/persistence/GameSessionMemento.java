@@ -254,7 +254,10 @@ public final class GameSessionMemento {
                 sp.setActionZoneCards(mapCards(p.getActionZoneCardsView()));
                 m.sessionPlayers.add(sp);
             }
-            if (anyDeepSeek) {
+            String controllerGameMode = (String) readField(controller, "sessionGameMode");
+            if (controllerGameMode != null && !controllerGameMode.isBlank()) {
+                m.gameMode = controllerGameMode.trim().toUpperCase(java.util.Locale.ROOT);
+            } else if (anyDeepSeek) {
                 m.gameMode = allAi ? "AI_VS_AI" : "LLM";
             } else {
                 m.gameMode = anyAi ? "HVM" : "PVP";

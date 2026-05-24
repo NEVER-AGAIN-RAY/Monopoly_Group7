@@ -1,17 +1,23 @@
 package com.monopoly.dto;
 
+import java.util.List;
+
 /**
- * START_SESSION payload: players, HVM/PVP/LLM/AI_VS_AI, AI difficulty, first player.
+ * START_SESSION payload: players, HVM/PVP/LLM/AI_VS_AI/CUSTOM, AI difficulty, first player.
  */
 public class StartSessionRequest {
 
     private String sessionId;
     /** 2–5 */
     private int playerCount;
-    /** HVM 人机 / PVP 人人 / LLM 真人对 DeepSeek / AI_VS_AI DeepSeek 自战 */
+    /** HVM 人机 / PVP 人人 / LLM 真人对 DeepSeek / AI_VS_AI DeepSeek 自战 / CUSTOM 自定义席位 */
     private String gameMode;
     /** EASY / NORMAL / HARD，仅 HVM 使用 */
     private String aiDifficulty;
+    /** CUSTOM: comma-separated seats, e.g. human,human,llm,llm. */
+    private String customLineup;
+    /** CUSTOM: preferred structured form; same role names as customLineup. */
+    private List<String> playerRoles;
     private boolean randomizeFirstPlayer;
 
     public StartSessionRequest() {
@@ -47,6 +53,22 @@ public class StartSessionRequest {
 
     public void setAiDifficulty(String aiDifficulty) {
         this.aiDifficulty = aiDifficulty;
+    }
+
+    public String getCustomLineup() {
+        return customLineup;
+    }
+
+    public void setCustomLineup(String customLineup) {
+        this.customLineup = customLineup;
+    }
+
+    public List<String> getPlayerRoles() {
+        return playerRoles;
+    }
+
+    public void setPlayerRoles(List<String> playerRoles) {
+        this.playerRoles = playerRoles;
     }
 
     public boolean isRandomizeFirstPlayer() {

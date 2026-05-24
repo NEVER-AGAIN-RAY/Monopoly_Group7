@@ -53,3 +53,4 @@ models/distillation/
 .env
 .env.*
 !.env.example
+gpt.txt

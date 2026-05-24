@@ -18,12 +18,18 @@ class DeepSeekClientConfigTest {
     private String previousPreference;
     private String previousApiKey;
     private String previousEnvFile;
+    private String previousProvider;
+    private String previousOpenAiApiKey;
+    private String previousOpenAiEnvFile;
 
     @BeforeEach
     void rememberProperty() {
         previousPreference = System.getProperty("monopoly.deepseek.preferFallbackForStrictJson");
         previousApiKey = System.getProperty("monopoly.deepseek.apiKey");
         previousEnvFile = System.getProperty("monopoly.deepseek.envFile");
+        previousProvider = System.getProperty("monopoly.llm.provider");
+        previousOpenAiApiKey = System.getProperty("monopoly.openai.apiKey");
+        previousOpenAiEnvFile = System.getProperty("monopoly.openai.envFile");
     }
 
     @AfterEach
@@ -43,6 +49,9 @@ class DeepSeekClientConfigTest {
         } else {
             System.setProperty("monopoly.deepseek.envFile", previousEnvFile);
         }
+        restore("monopoly.llm.provider", previousProvider);
+        restore("monopoly.openai.apiKey", previousOpenAiApiKey);
+        restore("monopoly.openai.envFile", previousOpenAiEnvFile);
     }
 
     @Test
@@ -90,5 +99,27 @@ class DeepSeekClientConfigTest {
         System.setProperty("monopoly.deepseek.envFile", env.toString());
 
         assertEquals("local-test-key", DeepSeekClient.configuredApiKeyForTest());
+    }
+
+    @Test
+    void colonStyleGatewayConfigCanProvideOpenAiApiKey() throws IOException {
+        Path env = Files.createTempFile("monopoly-openai", ".txt");
+        Files.writeString(env, """
+                gateway: example.local
+                Apikey: local-openai-key
+                """);
+        System.setProperty("monopoly.llm.provider", "openai");
+        System.clearProperty("monopoly.openai.apiKey");
+        System.setProperty("monopoly.openai.envFile", env.toString());
+
+        assertEquals("local-openai-key", DeepSeekClient.configuredApiKeyForTest());
+    }
+
+    private static void restore(String property, String previous) {
+        if (previous == null) {
+            System.clearProperty(property);
+        } else {
+            System.setProperty(property, previous);
+        }
     }
 }

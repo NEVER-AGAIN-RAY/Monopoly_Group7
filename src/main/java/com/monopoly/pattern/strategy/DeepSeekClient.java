@@ -17,14 +17,17 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * DeepSeek OpenAI-compatible chat client.
+ * OpenAI-compatible chat client used by the LLM strategy.
  */
 public final class DeepSeekClient {
 
     private static final Gson GSON = new Gson();
+    private static final String DEFAULT_PROVIDER = "deepseek";
     private static final String DEFAULT_BASE_URL = "https://api.deepseek.com";
+    private static final String DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
     private static final String DEFAULT_MODEL = "deepseek-v4-flash";
     private static final String DEFAULT_FALLBACK_MODEL = "deepseek-chat";
+    private static final String DEFAULT_OPENAI_MODEL = "gpt-5.1";
     private static final AtomicInteger PREFERRED_JSON_FAILURES = new AtomicInteger();
     private static final ThreadLocal<JsonObject> LAST_USAGE = new ThreadLocal<>();
 
@@ -37,16 +40,16 @@ public final class DeepSeekClient {
         LAST_USAGE.remove();
         if (strictJson && preferFallbackForStrictJson()) {
             AiBattleLogger.log("DeepSeek",
-                    "strict JSON configured for fallback; using fallback model=" + fallbackModel()
+                    providerLabel() + " strict JSON configured for fallback; using fallback model=" + fallbackModel()
                             + " preferred=" + model());
             return completeFallback(systemPrompt, userPrompt, true);
         }
         if (strictJson && preferredJsonCircuitOpen()) {
             AiBattleLogger.log("DeepSeek",
-                    "preferred JSON circuit open; using fallback model=" + fallbackModel());
+                    providerLabel() + " preferred JSON circuit open; using fallback model=" + fallbackModel());
             return completeFallback(systemPrompt, userPrompt, true);
         }
-        int attempts = Math.max(1, Integer.getInteger("monopoly.deepseek.maxAttempts", 3));
+        int attempts = maxAttempts();
         IOException last = null;
         for (int attempt = 1; attempt <= attempts; attempt++) {
             try {
@@ -61,7 +64,7 @@ public final class DeepSeekClient {
                 }
                 long sleepMs = retrySleepMs(attempt);
                 AiBattleLogger.log("DeepSeek",
-                        "retryable error attempt=" + attempt + "/" + attempts
+                        providerLabel() + " retryable error attempt=" + attempt + "/" + attempts
                                 + " sleepMs=" + sleepMs
                                 + " reason=" + ex.getMessage());
                 sleep(sleepMs);
@@ -92,8 +95,10 @@ public final class DeepSeekClient {
     }
 
     private static long retrySleepMs(int attempt) {
-        long base = Long.getLong("monopoly.deepseek.retryBaseMs", 750L);
-        long cap = Long.getLong("monopoly.deepseek.retryMaxMs", 8000L);
+        long base = Long.getLong(providerProperty("retryBaseMs"),
+                Long.getLong("monopoly.deepseek.retryBaseMs", 750L));
+        long cap = Long.getLong(providerProperty("retryMaxMs"),
+                Long.getLong("monopoly.deepseek.retryMaxMs", 8000L));
         long value = base;
         for (int i = 1; i < Math.max(1, attempt); i++) {
             value = Math.min(cap, value * 2L);
@@ -120,7 +125,7 @@ public final class DeepSeekClient {
                 throw ex;
             }
             AiBattleLogger.log("DeepSeek",
-                    "model fallback " + preferredModel + " -> " + fallback
+                    providerLabel() + " model fallback " + preferredModel + " -> " + fallback
                             + " after " + ex.getMessage());
             return completeWithModel(fallback, systemPrompt, userPrompt, strictJson);
         }
@@ -138,7 +143,7 @@ public final class DeepSeekClient {
     public String completeFallback(String systemPrompt, String userPrompt, boolean strictJson)
             throws IOException, InterruptedException {
         LAST_USAGE.remove();
-        int attempts = Math.max(1, Integer.getInteger("monopoly.deepseek.maxAttempts", 3));
+        int attempts = maxAttempts();
         IOException last = null;
         for (int attempt = 1; attempt <= attempts; attempt++) {
             try {
@@ -150,7 +155,7 @@ public final class DeepSeekClient {
                 }
                 long sleepMs = retrySleepMs(attempt);
                 AiBattleLogger.log("DeepSeek",
-                        "retryable fallback error attempt=" + attempt + "/" + attempts
+                        providerLabel() + " retryable fallback error attempt=" + attempt + "/" + attempts
                                 + " sleepMs=" + sleepMs
                                 + " reason=" + ex.getMessage());
                 sleep(sleepMs);
@@ -165,11 +170,11 @@ public final class DeepSeekClient {
     void recordPreferredJsonFailure(String reason) {
         int failures = PREFERRED_JSON_FAILURES.incrementAndGet();
         AiBattleLogger.log("DeepSeek",
-                "preferred JSON failure " + failures + "/" + jsonFailureThreshold()
+                providerLabel() + " preferred JSON failure " + failures + "/" + jsonFailureThreshold()
                         + ": " + reason);
         if (failures == jsonFailureThreshold()) {
             AiBattleLogger.log("DeepSeek",
-                    "preferred JSON circuit opened; future strict JSON calls use fallback model="
+                    providerLabel() + " preferred JSON circuit opened; future strict JSON calls use fallback model="
                             + fallbackModel());
         }
     }
@@ -187,14 +192,33 @@ public final class DeepSeekClient {
             throws IOException, InterruptedException {
         String key = apiKey();
         if (key.isBlank()) {
-            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY, MONOPOLY_DEEPSEEK_API_KEY, .env, or -Dmonopoly.deepseek.apiKey.");
+            throw new IOException(missingKeyMessage());
         }
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
-        body.addProperty("temperature", 0.2);
-        body.addProperty("max_tokens", Integer.getInteger("monopoly.deepseek.maxTokens", 512));
+        if (isOpenAiProvider()) {
+            String temperature = System.getProperty("monopoly.openai.temperature", "").trim();
+            if (!temperature.isBlank()) {
+                body.addProperty("temperature", Double.parseDouble(temperature));
+            }
+            body.addProperty("max_completion_tokens", maxTokens());
+        } else {
+            body.addProperty("temperature", 0.2);
+            body.addProperty("max_tokens", maxTokens());
+        }
         body.addProperty("stream", false);
-        if (strictJson) {
+        if (isOpenAiProvider()) {
+            body.addProperty("store", false);
+            String serviceTier = openAiServiceTier();
+            if (!serviceTier.isBlank()) {
+                body.addProperty("service_tier", serviceTier);
+            }
+            String reasoningEffort = openAiReasoningEffort();
+            if (!reasoningEffort.isBlank()) {
+                body.addProperty("reasoning_effort", reasoningEffort);
+            }
+        }
+        if (strictJson && responseFormatEnabled()) {
             JsonObject responseFormat = new JsonObject();
             responseFormat.addProperty("type", "json_object");
             body.add("response_format", responseFormat);
@@ -214,7 +238,8 @@ public final class DeepSeekClient {
 
         HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IOException("DeepSeek HTTP " + response.statusCode() + ": " + abbreviate(response.body(), 500));
+            throw new IOException(providerLabel() + " HTTP " + response.statusCode() + ": "
+                    + abbreviate(response.body(), 500));
         }
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
         JsonArray choices = root.getAsJsonArray("choices");
@@ -228,35 +253,76 @@ public final class DeepSeekClient {
         if (root.has("usage")) {
             JsonObject usage = root.getAsJsonObject("usage").deepCopy();
             usage.addProperty("model", model);
+            usage.addProperty("provider", provider());
             LAST_USAGE.set(usage);
-            AiBattleLogger.log("DeepSeek", "usage model=" + model + " " + root.get("usage"));
+            AiBattleLogger.log("DeepSeek", "usage model=" + model + " provider=" + provider() + " "
+                    + root.get("usage"));
         }
         return message.get("content").getAsString();
     }
 
+    public static String provider() {
+        String raw = System.getProperty("monopoly.llm.provider",
+                System.getenv().getOrDefault("MONOPOLY_LLM_PROVIDER", DEFAULT_PROVIDER));
+        raw = raw == null ? "" : raw.trim().toLowerCase(java.util.Locale.ROOT);
+        return switch (raw) {
+            case "openai", "gpt" -> "openai";
+            default -> "deepseek";
+        };
+    }
+
+    public static String providerLabel() {
+        return isOpenAiProvider() ? "OpenAI" : "DeepSeek";
+    }
+
     public static String model() {
+        if (isOpenAiProvider()) {
+            return System.getProperty("monopoly.openai.model",
+                    System.getenv().getOrDefault("OPENAI_MODEL", DEFAULT_OPENAI_MODEL));
+        }
         return System.getProperty("monopoly.deepseek.model",
                 System.getenv().getOrDefault("DEEPSEEK_MODEL", DEFAULT_MODEL));
     }
 
     public static String fallbackModel() {
+        if (isOpenAiProvider()) {
+            return System.getProperty("monopoly.openai.fallbackModel",
+                    System.getenv().getOrDefault("OPENAI_FALLBACK_MODEL", model()));
+        }
         return System.getProperty("monopoly.deepseek.fallbackModel",
                 System.getenv().getOrDefault("DEEPSEEK_FALLBACK_MODEL", DEFAULT_FALLBACK_MODEL));
     }
 
     public static String baseUrl() {
-        String raw = System.getProperty("monopoly.deepseek.baseUrl",
-                System.getenv().getOrDefault("DEEPSEEK_BASE_URL", DEFAULT_BASE_URL));
+        String raw;
+        if (isOpenAiProvider()) {
+            raw = System.getProperty("monopoly.openai.baseUrl",
+                    System.getenv().getOrDefault("OPENAI_BASE_URL", DEFAULT_OPENAI_BASE_URL));
+        } else {
+            raw = System.getProperty("monopoly.deepseek.baseUrl",
+                    System.getenv().getOrDefault("DEEPSEEK_BASE_URL", DEFAULT_BASE_URL));
+        }
         return raw.endsWith("/") ? raw.substring(0, raw.length() - 1) : raw;
     }
 
     public static boolean enabled() {
+        String providerEnabled = System.getProperty(providerProperty("enabled"));
+        if (providerEnabled != null) {
+            return Boolean.parseBoolean(providerEnabled);
+        }
+        String llmEnabled = System.getProperty("monopoly.llm.enabled");
+        if (llmEnabled != null) {
+            return Boolean.parseBoolean(llmEnabled);
+        }
         return Boolean.parseBoolean(System.getProperty("monopoly.deepseek.enabled", "true"));
     }
 
     public static boolean preferFallbackForStrictJson() {
-        return Boolean.parseBoolean(System.getProperty("monopoly.deepseek.preferFallbackForStrictJson",
-                System.getenv().getOrDefault("MONOPOLY_DEEPSEEK_PREFER_FALLBACK_JSON", "false")));
+        String envName = isOpenAiProvider()
+                ? "MONOPOLY_OPENAI_PREFER_FALLBACK_JSON"
+                : "MONOPOLY_DEEPSEEK_PREFER_FALLBACK_JSON";
+        return Boolean.parseBoolean(System.getProperty(providerProperty("preferFallbackForStrictJson"),
+                System.getenv().getOrDefault(envName, "false")));
     }
 
     private static boolean preferredJsonCircuitOpen() {
@@ -272,25 +338,36 @@ public final class DeepSeekClient {
     }
 
     private static String apiKey() throws IOException {
-        String propertyKey = System.getProperty("monopoly.deepseek.apiKey");
+        String propertyKey = System.getProperty(providerProperty("apiKey"));
+        if (propertyKey == null && !isOpenAiProvider()) {
+            propertyKey = System.getProperty("monopoly.deepseek.apiKey");
+        }
         if (propertyKey != null) {
             if (propertyKey.isBlank()) {
-                throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY, MONOPOLY_DEEPSEEK_API_KEY, .env, or -Dmonopoly.deepseek.apiKey.");
+                throw new IOException(missingKeyMessage());
             }
             return propertyKey.trim();
         }
-        String key = firstNonBlank(
-                System.getenv("DEEPSEEK_API_KEY"),
-                System.getenv("MONOPOLY_DEEPSEEK_API_KEY"),
-                apiKeyFromDotEnv());
+        String key = isOpenAiProvider()
+                ? firstNonBlank(
+                        System.getenv("OPENAI_API_KEY"),
+                        System.getenv("MONOPOLY_OPENAI_API_KEY"),
+                        apiKeyFromDotEnv())
+                : firstNonBlank(
+                        System.getenv("DEEPSEEK_API_KEY"),
+                        System.getenv("MONOPOLY_DEEPSEEK_API_KEY"),
+                        apiKeyFromDotEnv());
         if (key == null || key.isBlank()) {
-            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY, MONOPOLY_DEEPSEEK_API_KEY, .env, or -Dmonopoly.deepseek.apiKey.");
+            throw new IOException(missingKeyMessage());
         }
         return key.trim();
     }
 
     private static String apiKeyFromDotEnv() throws IOException {
-        String rawPath = System.getProperty("monopoly.deepseek.envFile", ".env");
+        String rawPath = System.getProperty(providerProperty("envFile"),
+                isOpenAiProvider()
+                        ? System.getProperty("monopoly.llm.envFile", ".env.openai")
+                        : System.getProperty("monopoly.llm.envFile", ".env"));
         if (rawPath == null || rawPath.isBlank()) {
             return "";
         }
@@ -311,10 +388,13 @@ public final class DeepSeekClient {
             }
             int idx = trimmed.indexOf('=');
             if (idx <= 0) {
+                idx = trimmed.indexOf(':');
+            }
+            if (idx <= 0) {
                 continue;
             }
             String name = trimmed.substring(0, idx).trim();
-            if (!"DEEPSEEK_API_KEY".equals(name) && !"MONOPOLY_DEEPSEEK_API_KEY".equals(name)) {
+            if (!isSupportedKeyName(name)) {
                 continue;
             }
             String value = unquote(trimmed.substring(idx + 1).trim());
@@ -347,7 +427,74 @@ public final class DeepSeekClient {
     }
 
     private static int timeoutSeconds() {
-        return Integer.getInteger("monopoly.deepseek.timeoutSeconds", 18);
+        return Integer.getInteger(providerProperty("timeoutSeconds"),
+                Integer.getInteger("monopoly.deepseek.timeoutSeconds", 18));
+    }
+
+    private static int maxAttempts() {
+        return Math.max(1, Integer.getInteger(providerProperty("maxAttempts"),
+                Integer.getInteger("monopoly.deepseek.maxAttempts", 3)));
+    }
+
+    private static int maxTokens() {
+        return Integer.getInteger(providerProperty("maxTokens"),
+                Integer.getInteger("monopoly.deepseek.maxTokens", 512));
+    }
+
+    private static boolean isOpenAiProvider() {
+        return "openai".equals(provider());
+    }
+
+    private static String providerProperty(String name) {
+        return "monopoly." + provider() + "." + name;
+    }
+
+    private static String openAiServiceTier() {
+        String raw = System.getProperty("monopoly.openai.serviceTier",
+                System.getenv().getOrDefault("OPENAI_SERVICE_TIER", ""));
+        raw = raw == null ? "" : raw.trim().toLowerCase(java.util.Locale.ROOT);
+        if ("fast".equals(raw)) {
+            return "auto";
+        }
+        return raw;
+    }
+
+    private static String openAiReasoningEffort() {
+        String raw = System.getProperty("monopoly.openai.reasoningEffort",
+                System.getenv().getOrDefault("OPENAI_REASONING_EFFORT", ""));
+        raw = raw == null ? "" : raw.trim().toLowerCase(java.util.Locale.ROOT);
+        if ("xhigh".equals(raw) && !model().toLowerCase(java.util.Locale.ROOT).contains("codex")) {
+            return "high";
+        }
+        return raw;
+    }
+
+    private static boolean isSupportedKeyName(String name) {
+        String normalized = name == null ? "" : name.trim()
+                .toUpperCase(java.util.Locale.ROOT)
+                .replace("_", "")
+                .replace("-", "")
+                .replace(" ", "");
+        if (isOpenAiProvider()) {
+            return "OPENAIAPIKEY".equals(normalized)
+                    || "MONOPOLYOPENAIAPIKEY".equals(normalized)
+                    || "APIKEY".equals(normalized);
+        }
+        return "DEEPSEEKAPIKEY".equals(normalized)
+                || "MONOPOLYDEEPSEEKAPIKEY".equals(normalized)
+                || "APIKEY".equals(normalized);
+    }
+
+    private static boolean responseFormatEnabled() {
+        return Boolean.parseBoolean(System.getProperty(providerProperty("responseFormatEnabled"),
+                System.getProperty("monopoly.llm.responseFormatEnabled", "true")));
+    }
+
+    private static String missingKeyMessage() {
+        if (isOpenAiProvider()) {
+            return "OpenAI API key is not configured. Set OPENAI_API_KEY, MONOPOLY_OPENAI_API_KEY, .env.openai, or -Dmonopoly.openai.apiKey.";
+        }
+        return "DeepSeek API key is not configured. Set DEEPSEEK_API_KEY, MONOPOLY_DEEPSEEK_API_KEY, .env, or -Dmonopoly.deepseek.apiKey.";
     }
 
     private static JsonObject message(String role, String content) {

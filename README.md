@@ -50,6 +50,8 @@ Monopoly Deal: Java WebSocket server plus a **JavaFX + FXML** desktop client (`m
 - Start WebSocket server: `mvn -q exec:java`
 - Start desktop client (after server is up): `mvn javafx:run`
 - Default endpoint: `ws://localhost:8025/ws`
+- DeepSeek mode reads the key from `DEEPSEEK_API_KEY`, `MONOPOLY_DEEPSEEK_API_KEY`, `-Dmonopoly.deepseek.apiKey=...`, or a local `.env` copied from `.env.example`.
+- Custom mixed games are free-for-all by default, for example `human,human,llm,llm` or `hard,hard,llm,llm`; only set `-Dmonopoly.deepseek.teamAware=true` for explicit team evaluation.
 - Quick connectivity check:
   - `wscat -c ws://localhost:8025/ws`
   - Send: `{"type":"PING","payload":{}}`

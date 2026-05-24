@@ -10,6 +10,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -184,7 +187,7 @@ public final class DeepSeekClient {
             throws IOException, InterruptedException {
         String key = apiKey();
         if (key.isBlank()) {
-            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY or -Dmonopoly.deepseek.apiKey.");
+            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY, MONOPOLY_DEEPSEEK_API_KEY, .env, or -Dmonopoly.deepseek.apiKey.");
         }
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
@@ -264,15 +267,83 @@ public final class DeepSeekClient {
         return Integer.getInteger("monopoly.deepseek.jsonFailureThreshold", 2);
     }
 
+    static String configuredApiKeyForTest() throws IOException {
+        return apiKey();
+    }
+
     private static String apiKey() throws IOException {
-        String envKey = System.getenv().getOrDefault("DEEPSEEK_API_KEY",
-                System.getenv().getOrDefault("MONOPOLY_DEEPSEEK_API_KEY", ""));
-        String key = System.getProperty("monopoly.deepseek.apiKey",
-                envKey);
+        String propertyKey = System.getProperty("monopoly.deepseek.apiKey");
+        if (propertyKey != null) {
+            if (propertyKey.isBlank()) {
+                throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY, MONOPOLY_DEEPSEEK_API_KEY, .env, or -Dmonopoly.deepseek.apiKey.");
+            }
+            return propertyKey.trim();
+        }
+        String key = firstNonBlank(
+                System.getenv("DEEPSEEK_API_KEY"),
+                System.getenv("MONOPOLY_DEEPSEEK_API_KEY"),
+                apiKeyFromDotEnv());
         if (key == null || key.isBlank()) {
-            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY, MONOPOLY_DEEPSEEK_API_KEY, or -Dmonopoly.deepseek.apiKey.");
+            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY, MONOPOLY_DEEPSEEK_API_KEY, .env, or -Dmonopoly.deepseek.apiKey.");
         }
         return key.trim();
+    }
+
+    private static String apiKeyFromDotEnv() throws IOException {
+        String rawPath = System.getProperty("monopoly.deepseek.envFile", ".env");
+        if (rawPath == null || rawPath.isBlank()) {
+            return "";
+        }
+        Path path = Paths.get(rawPath);
+        if (!path.isAbsolute()) {
+            path = Paths.get("").toAbsolutePath().resolve(path).normalize();
+        }
+        if (!Files.isRegularFile(path)) {
+            return "";
+        }
+        for (String line : Files.readAllLines(path)) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+                continue;
+            }
+            if (trimmed.startsWith("export ")) {
+                trimmed = trimmed.substring("export ".length()).trim();
+            }
+            int idx = trimmed.indexOf('=');
+            if (idx <= 0) {
+                continue;
+            }
+            String name = trimmed.substring(0, idx).trim();
+            if (!"DEEPSEEK_API_KEY".equals(name) && !"MONOPOLY_DEEPSEEK_API_KEY".equals(name)) {
+                continue;
+            }
+            String value = unquote(trimmed.substring(idx + 1).trim());
+            if (!value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private static String unquote(String value) {
+        if (value == null || value.length() < 2) {
+            return value == null ? "" : value;
+        }
+        char first = value.charAt(0);
+        char last = value.charAt(value.length() - 1);
+        if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+            return value.substring(1, value.length() - 1);
+        }
+        return value;
     }
 
     private static int timeoutSeconds() {

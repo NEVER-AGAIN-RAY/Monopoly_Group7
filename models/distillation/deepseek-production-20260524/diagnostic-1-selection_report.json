@@ -1,0 +1,63 @@
+{
+  "schema": "monopoly-deal-relabel-selection-v1",
+  "ok": true,
+  "warningCount": 0,
+  "failureCount": 0,
+  "inputPath": "data/distillation/local-enhanced-20260524.jsonl",
+  "outputPath": "models/distillation/deepseek-production-20260524/diagnostic-1-selected.jsonl",
+  "rowsRead": 6372,
+  "duplicateRowsSkipped": 0,
+  "rowsEligible": 6372,
+  "rowsSelected": 1,
+  "includeSources": [],
+  "requestedMaxByKind": {
+    "PAYMENT": 1
+  },
+  "quotaDeficits": {
+    "PAYMENT": 0
+  },
+  "availableByDecisionKind": {
+    "JUST_SAY_NO": 378,
+    "OVERFLOW_DISCARD": 164,
+    "PAYMENT": 1340,
+    "PLAY_CARD": 4490
+  },
+  "selectedByDecisionKind": {
+    "PAYMENT": 1
+  },
+  "selectedByPlayerCount": {
+    "4": 1
+  },
+  "selectedByTeacherSource": {
+    "local_heuristic": 1
+  },
+  "selectedSessions": 1,
+  "selectedActors": 1,
+  "candidateCounts": {
+    "min": 32,
+    "p50": 32,
+    "p90": 32,
+    "max": 32,
+    "avg": 32.0
+  },
+  "checks": [
+    {
+      "name": "min_rows",
+      "ok": true,
+      "severity": "error",
+      "detail": "1 / 1"
+    },
+    {
+      "name": "required_kinds",
+      "ok": true,
+      "severity": "error",
+      "detail": "{'PAYMENT': 1}"
+    },
+    {
+      "name": "quota_rows_available",
+      "ok": true,
+      "severity": "warn",
+      "detail": "{'PAYMENT': 0}"
+    }
+  ]
+}

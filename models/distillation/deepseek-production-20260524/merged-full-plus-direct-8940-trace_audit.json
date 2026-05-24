@@ -1,0 +1,115 @@
+{
+  "schema": "monopoly-deal-trace-audit-v1",
+  "rows": 8940,
+  "ok": true,
+  "warningCount": 0,
+  "failureCount": 0,
+  "checks": [
+    {
+      "name": "min_rows",
+      "ok": true,
+      "severity": "error",
+      "detail": "8940 / 5000"
+    },
+    {
+      "name": "preferred_source_ratio",
+      "ok": true,
+      "severity": "error",
+      "detail": "100.0% / 95.0%"
+    },
+    {
+      "name": "all_decision_kinds",
+      "ok": true,
+      "severity": "error",
+      "detail": "{'JUST_SAY_NO': 501, 'OVERFLOW_DISCARD': 173, 'PAYMENT': 1747, 'PLAY_CARD': 6519}"
+    },
+    {
+      "name": "rare_kind_rows",
+      "ok": true,
+      "severity": "error",
+      "detail": "min rare rows 100; counts={'JUST_SAY_NO': 501, 'OVERFLOW_DISCARD': 173, 'PAYMENT': 1747, 'PLAY_CARD': 6519}"
+    },
+    {
+      "name": "valid_choice_ids",
+      "ok": true,
+      "severity": "error",
+      "detail": "invalid rows=0"
+    },
+    {
+      "name": "duplicate_decision_ids",
+      "ok": true,
+      "severity": "error",
+      "detail": "duplicates=0"
+    },
+    {
+      "name": "first_choice_bias",
+      "ok": true,
+      "severity": "error",
+      "detail": "39.4% / 80.0%"
+    },
+    {
+      "name": "token_usage_present",
+      "ok": true,
+      "severity": "error",
+      "detail": "rowsWithUsage=8940 / 8940"
+    }
+  ],
+  "byTeacherSource": {
+    "deepseek": 8940
+  },
+  "preferredSource": "deepseek",
+  "preferredSourceRatio": 1.0,
+  "byDecisionKind": {
+    "JUST_SAY_NO": 501,
+    "OVERFLOW_DISCARD": 173,
+    "PAYMENT": 1747,
+    "PLAY_CARD": 6519
+  },
+  "byPlayerCount": {
+    "2": 2049,
+    "3": 2320,
+    "4": 2273,
+    "5": 2298
+  },
+  "candidateCounts": {
+    "min": 1,
+    "p50": 7,
+    "p90": 22,
+    "max": 32,
+    "avg": 9.30738255033557
+  },
+  "chosenIndex": {
+    "0": 3526,
+    "1": 1158,
+    "10": 35,
+    "11": 34,
+    "12": 35,
+    "13": 29,
+    "14": 26,
+    "15": 19,
+    "16": 19,
+    "17": 13,
+    "18": 7,
+    "19": 2,
+    "2": 946,
+    "20": 7,
+    "21": 5,
+    "23": 3,
+    "24": 10,
+    "25": 2,
+    "26": 3,
+    "27": 1,
+    "28": 2,
+    "29": 1,
+    "3": 915,
+    "30": 4,
+    "4": 836,
+    "5": 524,
+    "6": 344,
+    "7": 216,
+    "8": 143,
+    "9": 75
+  },
+  "firstChoiceRatio": 0.39440715883668903,
+  "rowsWithTokenUsage": 8940
+}

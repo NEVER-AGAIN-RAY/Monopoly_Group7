@@ -1,0 +1,867 @@
+{
+  "modelPath": "models/distillation/deepseek-production-20260524/full-relabel-6372-mlp/candidate_ranker_mlp.json",
+  "gamesRequested": 20,
+  "players": 3,
+  "maxSnapshotsPerGame": 500,
+  "timeoutSecondsPerGame": 30,
+  "rankerSeat": 1,
+  "opponentStrategy": "hard",
+  "evaluatedGames": 20,
+  "completedGames": 20,
+  "naturalWinRate": 1.0,
+  "rankerWinRate": 0.3,
+  "averageSnapshots": 177.1,
+  "averageRankerBoardRank": 2.05,
+  "rankerBoardLeadRate": 0.3,
+  "rankerBoardTiedLeadRate": 0.0,
+  "winsByPlayerId": {
+    "ai-3": 10,
+    "ai-1": 6,
+    "ai-2": 4
+  },
+  "endReasons": {
+    "NATURAL_OR_LIMIT": 20
+  },
+  "games": [
+    {
+      "gameIndex": 1,
+      "sessionId": "local-ranker-eval-1779614183471-g1",
+      "snapshots": 180,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-3",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 1402,
+      "rankerBoardRank": 3,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 4634,
+          "completeSets": 3,
+          "propertyCount": 15,
+          "bankValueM": 13,
+          "handCount": 4
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 1623,
+          "completeSets": 1,
+          "propertyCount": 6,
+          "bankValueM": 2,
+          "handCount": 3
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 1402,
+          "completeSets": 0,
+          "propertyCount": 12,
+          "bankValueM": 20,
+          "handCount": 2
+        }
+      ]
+    },
+    {
+      "gameIndex": 2,
+      "sessionId": "local-ranker-eval-1779614183471-g2",
+      "snapshots": 204,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-3",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 1667,
+      "rankerBoardRank": 2,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 4721,
+          "completeSets": 3,
+          "propertyCount": 17,
+          "bankValueM": 18,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 1667,
+          "completeSets": 1,
+          "propertyCount": 6,
+          "bankValueM": 6,
+          "handCount": 7
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 1181,
+          "completeSets": 0,
+          "propertyCount": 9,
+          "bankValueM": 28,
+          "handCount": 1
+        }
+      ]
+    },
+    {
+      "gameIndex": 3,
+      "sessionId": "local-ranker-eval-1779614183471-g3",
+      "snapshots": 137,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-3",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 761,
+      "rankerBoardRank": 3,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 4022,
+          "completeSets": 3,
+          "propertyCount": 9,
+          "bankValueM": 12,
+          "handCount": 2
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 1963,
+          "completeSets": 1,
+          "propertyCount": 9,
+          "bankValueM": 6,
+          "handCount": 3
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 761,
+          "completeSets": 0,
+          "propertyCount": 7,
+          "bankValueM": 6,
+          "handCount": 1
+        }
+      ]
+    },
+    {
+      "gameIndex": 4,
+      "sessionId": "local-ranker-eval-1779614183471-g4",
+      "snapshots": 150,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-3",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 1880,
+      "rankerBoardRank": 2,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 4453,
+          "completeSets": 3,
+          "propertyCount": 15,
+          "bankValueM": 3,
+          "handCount": 3
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 1880,
+          "completeSets": 1,
+          "propertyCount": 7,
+          "bankValueM": 18,
+          "handCount": 0
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 1606,
+          "completeSets": 1,
+          "propertyCount": 4,
+          "bankValueM": 20,
+          "handCount": 6
+        }
+      ]
+    },
+    {
+      "gameIndex": 5,
+      "sessionId": "local-ranker-eval-1779614183471-g5",
+      "snapshots": 209,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-1",
+      "naturalWin": true,
+      "rankerWon": true,
+      "rankerBoardScore": 4585,
+      "rankerBoardRank": 1,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 4585,
+          "completeSets": 3,
+          "propertyCount": 16,
+          "bankValueM": 6,
+          "handCount": 5
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 1723,
+          "completeSets": 1,
+          "propertyCount": 8,
+          "bankValueM": 0,
+          "handCount": 3
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 1192,
+          "completeSets": 0,
+          "propertyCount": 9,
+          "bankValueM": 29,
+          "handCount": 2
+        }
+      ]
+    },
+    {
+      "gameIndex": 6,
+      "sessionId": "local-ranker-eval-1779614183471-g6",
+      "snapshots": 182,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-2",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 1031,
+      "rankerBoardRank": 3,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 4027,
+          "completeSets": 3,
+          "propertyCount": 11,
+          "bankValueM": 0,
+          "handCount": 7
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 1862,
+          "completeSets": 1,
+          "propertyCount": 8,
+          "bankValueM": 14,
+          "handCount": 2
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 1031,
+          "completeSets": 0,
+          "propertyCount": 8,
+          "bankValueM": 23,
+          "handCount": 1
+        }
+      ]
+    },
+    {
+      "gameIndex": 7,
+      "sessionId": "local-ranker-eval-1779614183471-g7",
+      "snapshots": 196,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-3",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 2022,
+      "rankerBoardRank": 2,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 4615,
+          "completeSets": 3,
+          "propertyCount": 17,
+          "bankValueM": 15,
+          "handCount": 5
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 2022,
+          "completeSets": 1,
+          "propertyCount": 10,
+          "bankValueM": 10,
+          "handCount": 2
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 1020,
+          "completeSets": 0,
+          "propertyCount": 8,
+          "bankValueM": 22,
+          "handCount": 0
+        }
+      ]
+    },
+    {
+      "gameIndex": 8,
+      "sessionId": "local-ranker-eval-1779614183471-g8",
+      "snapshots": 223,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-2",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 991,
+      "rankerBoardRank": 3,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 4631,
+          "completeSets": 3,
+          "propertyCount": 17,
+          "bankValueM": 9,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 3621,
+          "completeSets": 2,
+          "propertyCount": 13,
+          "bankValueM": 32,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 991,
+          "completeSets": 0,
+          "propertyCount": 7,
+          "bankValueM": 29,
+          "handCount": 1
+        }
+      ]
+    },
+    {
+      "gameIndex": 9,
+      "sessionId": "local-ranker-eval-1779614183471-g9",
+      "snapshots": 116,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-2",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 341,
+      "rankerBoardRank": 3,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 4243,
+          "completeSets": 3,
+          "propertyCount": 13,
+          "bankValueM": 2,
+          "handCount": 3
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 771,
+          "completeSets": 0,
+          "propertyCount": 5,
+          "bankValueM": 27,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 341,
+          "completeSets": 0,
+          "propertyCount": 2,
+          "bankValueM": 14,
+          "handCount": 1
+        }
+      ]
+    },
+    {
+      "gameIndex": 10,
+      "sessionId": "local-ranker-eval-1779614183471-g10",
+      "snapshots": 149,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-3",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 694,
+      "rankerBoardRank": 3,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 4750,
+          "completeSets": 3,
+          "propertyCount": 16,
+          "bankValueM": 23,
+          "handCount": 0
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 1822,
+          "completeSets": 1,
+          "propertyCount": 8,
+          "bankValueM": 2,
+          "handCount": 2
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 694,
+          "completeSets": 0,
+          "propertyCount": 6,
+          "bankValueM": 9,
+          "handCount": 4
+        }
+      ]
+    },
+    {
+      "gameIndex": 11,
+      "sessionId": "local-ranker-eval-1779614183471-g11",
+      "snapshots": 270,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-3",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 3551,
+      "rankerBoardRank": 2,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 5344,
+          "completeSets": 4,
+          "propertyCount": 12,
+          "bankValueM": 22,
+          "handCount": 4
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 3551,
+          "completeSets": 2,
+          "propertyCount": 16,
+          "bankValueM": 11,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 2332,
+          "completeSets": 1,
+          "propertyCount": 11,
+          "bankValueM": 23,
+          "handCount": 2
+        }
+      ]
+    },
+    {
+      "gameIndex": 12,
+      "sessionId": "local-ranker-eval-1779614183471-g12",
+      "snapshots": 168,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-3",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 1221,
+      "rankerBoardRank": 2,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 4424,
+          "completeSets": 3,
+          "propertyCount": 15,
+          "bankValueM": 16,
+          "handCount": 4
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 1221,
+          "completeSets": 0,
+          "propertyCount": 11,
+          "bankValueM": 12,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 361,
+          "completeSets": 0,
+          "propertyCount": 3,
+          "bankValueM": 6,
+          "handCount": 1
+        }
+      ]
+    },
+    {
+      "gameIndex": 13,
+      "sessionId": "local-ranker-eval-1779614183471-g13",
+      "snapshots": 206,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-1",
+      "naturalWin": true,
+      "rankerWon": true,
+      "rankerBoardScore": 4732,
+      "rankerBoardRank": 1,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 4732,
+          "completeSets": 3,
+          "propertyCount": 18,
+          "bankValueM": 17,
+          "handCount": 2
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 1434,
+          "completeSets": 0,
+          "propertyCount": 10,
+          "bankValueM": 43,
+          "handCount": 4
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 931,
+          "completeSets": 0,
+          "propertyCount": 9,
+          "bankValueM": 3,
+          "handCount": 1
+        }
+      ]
+    },
+    {
+      "gameIndex": 14,
+      "sessionId": "local-ranker-eval-1779614183471-g14",
+      "snapshots": 117,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-1",
+      "naturalWin": true,
+      "rankerWon": true,
+      "rankerBoardScore": 4444,
+      "rankerBoardRank": 1,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 4444,
+          "completeSets": 3,
+          "propertyCount": 14,
+          "bankValueM": 4,
+          "handCount": 4
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 1422,
+          "completeSets": 1,
+          "propertyCount": 2,
+          "bankValueM": 22,
+          "handCount": 2
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 401,
+          "completeSets": 0,
+          "propertyCount": 4,
+          "bankValueM": 0,
+          "handCount": 1
+        }
+      ]
+    },
+    {
+      "gameIndex": 15,
+      "sessionId": "local-ranker-eval-1779614183471-g15",
+      "snapshots": 215,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-2",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 2026,
+      "rankerBoardRank": 3,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 4532,
+          "completeSets": 3,
+          "propertyCount": 14,
+          "bankValueM": 29,
+          "handCount": 2
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 3222,
+          "completeSets": 2,
+          "propertyCount": 13,
+          "bankValueM": 0,
+          "handCount": 2
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 2026,
+          "completeSets": 1,
+          "propertyCount": 8,
+          "bankValueM": 22,
+          "handCount": 6
+        }
+      ]
+    },
+    {
+      "gameIndex": 16,
+      "sessionId": "local-ranker-eval-1779614183471-g16",
+      "snapshots": 135,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-3",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 1601,
+      "rankerBoardRank": 2,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 4451,
+          "completeSets": 3,
+          "propertyCount": 13,
+          "bankValueM": 15,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 1601,
+          "completeSets": 1,
+          "propertyCount": 5,
+          "bankValueM": 10,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 941,
+          "completeSets": 0,
+          "propertyCount": 9,
+          "bankValueM": 4,
+          "handCount": 1
+        }
+      ]
+    },
+    {
+      "gameIndex": 17,
+      "sessionId": "local-ranker-eval-1779614183471-g17",
+      "snapshots": 124,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-3",
+      "naturalWin": true,
+      "rankerWon": false,
+      "rankerBoardScore": 1607,
+      "rankerBoardRank": 2,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 4473,
+          "completeSets": 3,
+          "propertyCount": 16,
+          "bankValueM": 3,
+          "handCount": 3
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 1607,
+          "completeSets": 1,
+          "propertyCount": 6,
+          "bankValueM": 0,
+          "handCount": 7
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 412,
+          "completeSets": 0,
+          "propertyCount": 3,
+          "bankValueM": 11,
+          "handCount": 2
+        }
+      ]
+    },
+    {
+      "gameIndex": 18,
+      "sessionId": "local-ranker-eval-1779614183471-g18",
+      "snapshots": 184,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-1",
+      "naturalWin": true,
+      "rankerWon": true,
+      "rankerBoardScore": 4466,
+      "rankerBoardRank": 1,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 4466,
+          "completeSets": 3,
+          "propertyCount": 14,
+          "bankValueM": 14,
+          "handCount": 6
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 3015,
+          "completeSets": 2,
+          "propertyCount": 8,
+          "bankValueM": 21,
+          "handCount": 5
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 1991,
+          "completeSets": 1,
+          "propertyCount": 9,
+          "bankValueM": 9,
+          "handCount": 1
+        }
+      ]
+    },
+    {
+      "gameIndex": 19,
+      "sessionId": "local-ranker-eval-1779614183471-g19",
+      "snapshots": 185,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-1",
+      "naturalWin": true,
+      "rankerWon": true,
+      "rankerBoardScore": 4271,
+      "rankerBoardRank": 1,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 4271,
+          "completeSets": 3,
+          "propertyCount": 13,
+          "bankValueM": 5,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 2131,
+          "completeSets": 1,
+          "propertyCount": 11,
+          "bankValueM": 11,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 811,
+          "completeSets": 0,
+          "propertyCount": 6,
+          "bankValueM": 21,
+          "handCount": 1
+        }
+      ]
+    },
+    {
+      "gameIndex": 20,
+      "sessionId": "local-ranker-eval-1779614183471-g20",
+      "snapshots": 192,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-1",
+      "naturalWin": true,
+      "rankerWon": true,
+      "rankerBoardScore": 4320,
+      "rankerBoardRank": 1,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 4320,
+          "completeSets": 3,
+          "propertyCount": 11,
+          "bankValueM": 22,
+          "handCount": 0
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 3050,
+          "completeSets": 2,
+          "propertyCount": 10,
+          "bankValueM": 13,
+          "handCount": 0
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 2376,
+          "completeSets": 1,
+          "propertyCount": 12,
+          "bankValueM": 17,
+          "handCount": 6
+        }
+      ]
+    }
+  ]
+}

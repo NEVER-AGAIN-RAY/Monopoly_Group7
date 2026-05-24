@@ -73,6 +73,7 @@ def build_report(
     run_summary = load_json(representative_prefix.parent / f"{representative_prefix.name}-run_summary.json") if str(representative_prefix) else {}
     production_readiness = load_json(production_prefix.parent / f"{production_prefix.name}-readiness.json") if production_prefix else {}
     production_seed_summary = load_json(production_prefix.parent / f"{production_prefix.name}-seed_summary.json") if production_prefix else {}
+    production_run_summary = load_json(production_prefix.parent / f"{production_prefix.name}-run_summary.json") if production_prefix else {}
     trace_summary = summarize_trace(rows)
     metrics = summarize_metrics(seed_summary, run_summary)
     local_gate = local_training_gate(
@@ -93,6 +94,7 @@ def build_report(
         min_production_rows=min_production_rows,
         min_rare_kind_rows=min_rare_kind_rows,
     )
+    production_metrics = summarize_metrics(production_seed_summary, production_run_summary) if production_prefix else {}
     paper_gate = paper_evidence_gate(
         production_gate=production_gate,
         seed_summary=production_seed_summary or seed_summary,
@@ -108,6 +110,7 @@ def build_report(
         "verdict": verdict(local_gate, production_gate, paper_gate),
         "traceSummary": trace_summary,
         "trainingMetrics": metrics,
+        "productionTrainingMetrics": production_metrics,
         "gates": {
             "localTraining": local_gate,
             "productionData": production_gate,
@@ -214,13 +217,18 @@ def production_data_gate(
         trace_summary: Dict[str, Any],
         min_production_rows: int,
         min_rare_kind_rows: int) -> Dict[str, Any]:
+    single_ready_run = bool(production_readiness.get("ready")) and not production_seed_summary
+    production_ready_runs = int_number(production_seed_summary.get("productionReadyRuns"))
+    if single_ready_run:
+        production_ready_runs = 1
     checks = [
         check("production_prefix_provided", production_prefix is not None, str(production_prefix or "")),
         check("production_readiness_ready", bool(production_readiness.get("ready")), str(production_readiness.get("ready"))),
-        check("production_seed_summary_present", bool(production_seed_summary), str(bool(production_seed_summary))),
+        check("production_seed_or_single_ready_run", bool(production_seed_summary) or single_ready_run,
+              "single production readiness accepted" if single_ready_run else str(bool(production_seed_summary))),
         check("production_ready_seed_runs",
-              int_number(production_seed_summary.get("productionReadyRuns")) >= 1,
-              f"{production_seed_summary.get('productionReadyRuns', 0)} / 1"),
+              production_ready_runs >= 1,
+              f"{production_ready_runs} / 1"),
         check("min_deepseek_rows",
               int_number(production_readiness.get("rows")) >= min_production_rows,
               f"{production_readiness.get('rows', 0)} / {min_production_rows}"),

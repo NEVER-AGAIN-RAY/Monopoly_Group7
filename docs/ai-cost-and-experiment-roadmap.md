@@ -1,8 +1,27 @@
 # AI Cost and Experiment Roadmap
 
-## Current Constraint
+## Current Production Snapshot
 
-No DeepSeek key is configured in the current shell. The code can generate local heuristic data and train students now; DeepSeek-quality data starts when `DEEPSEEK_API_KEY` or `MONOPOLY_DEEPSEEK_API_KEY` is set.
+A paid DeepSeek relabel run has completed for the enhanced local legal-candidate trace, and a smaller DeepSeek direct-simulation supplement added fresh simulated states. The resulting production dataset is stored under `deepseek-production-20260524`, separate from all `local-*` heuristic artifacts.
+
+Primary trace and prefix:
+
+- Trace: `data/distillation/deepseek-production-20260524/merged-full-plus-direct-8940.jsonl`
+- Prefix: `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940`
+
+Result:
+
+- Rows: 8940
+- Source mix: 6371 relabeled legal-candidate rows plus 2569 direct-simulation rows
+- Teacher source: `deepseek`
+- Token usage rows: 8940 / 8940
+- Production readiness: true
+- Quality gate: `production-training-ready`
+- MLP validation top-1 / MRR: 0.733 / 0.841
+- Gameplay vs hard: 20 games, ranker win rate 0.300, average board rank 2.10
+- Estimated cost from recorded usage and configured prices: 1.498805
+
+The relabel run isolated one problem row in `models/distillation/deepseek-production-20260524/full-relabel-6372-problem-ids.jsonl` rather than allowing local fallback labels into the production trace.
 
 ## Practical Run Levels
 

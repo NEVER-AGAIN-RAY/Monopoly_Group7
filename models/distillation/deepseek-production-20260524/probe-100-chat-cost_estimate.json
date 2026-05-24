@@ -1,0 +1,19 @@
+{
+  "inputs": [
+    "models/distillation/deepseek-production-20260524/probe-100-chat-dataset_manifest.json"
+  ],
+  "rows": 100,
+  "rowsWithUsage": 100,
+  "promptTokensShare": 200363.0,
+  "completionTokensShare": 3227.0,
+  "totalTokensShare": 203590.0,
+  "avgTotalTokensPerDecision": 2035.9,
+  "promptPricePerMillion": 0.14,
+  "completionPricePerMillion": 0.28,
+  "estimatedPromptCost": 0.028051,
+  "estimatedCompletionCost": 0.000904,
+  "estimatedTotalCost": 0.028954,
+  "estimatedCostPerLabel": 0.00028954,
+  "targetLabels": 6372,
+  "projectedTargetCost": 1.844973
+}

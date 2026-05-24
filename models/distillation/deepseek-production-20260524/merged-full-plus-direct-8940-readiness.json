@@ -1,0 +1,133 @@
+{
+  "schema": "monopoly-deal-training-readiness-v1",
+  "mode": "production",
+  "ready": true,
+  "failureCount": 0,
+  "trace": "data/distillation/deepseek-production-20260524/merged-full-plus-direct-8940.jsonl",
+  "outputPrefix": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940",
+  "preferredSource": "deepseek",
+  "rows": 8940,
+  "byTeacherSource": {
+    "deepseek": 8940
+  },
+  "byDecisionKind": {
+    "JUST_SAY_NO": 501,
+    "OVERFLOW_DISCARD": 173,
+    "PAYMENT": 1747,
+    "PLAY_CARD": 6519
+  },
+  "rowsWithTokenUsage": 8940,
+  "modelType": "mlp",
+  "artifacts": {
+    "manifest": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-dataset_manifest.json",
+    "qualityReport": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-quality_report.json",
+    "metrics": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/metrics.json",
+    "modelJson": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/candidate_ranker_mlp.json",
+    "gameplay": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/gameplay_vs_hard.json",
+    "traceAudit": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-trace_audit.json"
+  },
+  "thresholds": {
+    "minRows": 5000,
+    "minRareKindRows": 100,
+    "minValidationTop1": 0.55,
+    "minGameplayGames": 20,
+    "requireNaturalGameplay": false
+  },
+  "checks": [
+    {
+      "name": "trace_exists",
+      "ok": true,
+      "detail": "data/distillation/deepseek-production-20260524/merged-full-plus-direct-8940.jsonl"
+    },
+    {
+      "name": "trace_min_rows",
+      "ok": true,
+      "detail": "8940 / 5000"
+    },
+    {
+      "name": "all_decision_kinds",
+      "ok": true,
+      "detail": "{'JUST_SAY_NO': 501, 'OVERFLOW_DISCARD': 173, 'PAYMENT': 1747, 'PLAY_CARD': 6519}"
+    },
+    {
+      "name": "rare_kind_rows",
+      "ok": true,
+      "detail": "min 100; counts={'JUST_SAY_NO': 501, 'OVERFLOW_DISCARD': 173, 'PAYMENT': 1747, 'PLAY_CARD': 6519}"
+    },
+    {
+      "name": "deepseek_source_ratio",
+      "ok": true,
+      "detail": "100.0% / 95.0%"
+    },
+    {
+      "name": "token_usage_present",
+      "ok": true,
+      "detail": "8940 / 8940"
+    },
+    {
+      "name": "manifest_exists",
+      "ok": true,
+      "detail": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-dataset_manifest.json"
+    },
+    {
+      "name": "quality_report_exists",
+      "ok": true,
+      "detail": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-quality_report.json"
+    },
+    {
+      "name": "quality_readyForProductionTraining",
+      "ok": true,
+      "detail": "True"
+    },
+    {
+      "name": "metrics_exists",
+      "ok": true,
+      "detail": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/metrics.json"
+    },
+    {
+      "name": "validation_top1_floor",
+      "ok": true,
+      "detail": "0.733 / 0.550"
+    },
+    {
+      "name": "validation_beats_first_candidate",
+      "ok": true,
+      "detail": "0.733 vs 0.398"
+    },
+    {
+      "name": "validation_beats_random",
+      "ok": true,
+      "detail": "0.733 vs 0.212"
+    },
+    {
+      "name": "model_json_exists",
+      "ok": true,
+      "detail": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/candidate_ranker_mlp.json"
+    },
+    {
+      "name": "gameplay_exists",
+      "ok": true,
+      "detail": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/gameplay_vs_hard.json"
+    },
+    {
+      "name": "gameplay_min_games",
+      "ok": true,
+      "detail": "20 / 20"
+    },
+    {
+      "name": "gameplay_evaluated",
+      "ok": true,
+      "detail": "20 / 20"
+    },
+    {
+      "name": "trace_audit_exists",
+      "ok": true,
+      "detail": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-trace_audit.json"
+    },
+    {
+      "name": "trace_audit_ok",
+      "ok": true,
+      "detail": "True"
+    }
+  ]
+}

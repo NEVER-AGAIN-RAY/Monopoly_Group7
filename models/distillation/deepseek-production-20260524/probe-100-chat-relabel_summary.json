@@ -1,0 +1,18 @@
+{
+  "inputPath": "models/distillation/deepseek-production-20260524/probe-100-chat-selected.jsonl",
+  "outputPath": "data/distillation/deepseek-production-20260524/probe-100-chat.jsonl",
+  "teacher": "deepseek",
+  "rowsRead": 100,
+  "rowsSkipped": 0,
+  "rowsRelabeled": 100,
+  "teacherCalls": 13,
+  "byResultSource": {
+    "deepseek": 100
+  },
+  "byDecisionKind": {
+    "JUST_SAY_NO": 20,
+    "OVERFLOW_DISCARD": 15,
+    "PAYMENT": 25,
+    "PLAY_CARD": 40
+  }
+}

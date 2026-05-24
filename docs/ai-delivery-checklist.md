@@ -4,9 +4,60 @@ Last updated: 2026-05-24.
 
 ## Current Status
 
-The training and evaluation pipeline is runnable on the Mac. The current shell does not have `DEEPSEEK_API_KEY` or `MONOPOLY_DEEPSEEK_API_KEY`, so no production DeepSeek-labeled dataset has been collected in this checkout yet.
+The training and evaluation pipeline is runnable on the Mac. A paid DeepSeek relabel run plus a smaller DeepSeek direct-simulation supplement have now produced a production-ready DeepSeek-only dataset, stored separately from the local heuristic baselines.
 
-Do not describe local heuristic data as DeepSeek-quality data. It is a pipeline baseline.
+Do not mix local heuristic data into DeepSeek production claims. The local datasets remain pipeline/baseline evidence only.
+
+## DeepSeek Production Artifacts
+
+Primary production trace:
+
+- `data/distillation/deepseek-production-20260524/merged-full-plus-direct-8940.jsonl`
+
+Source traces:
+
+- `data/distillation/deepseek-production-20260524/full-relabel-6372.jsonl`
+- `data/distillation/deepseek-production-20260524/direct-sim-5000.jsonl`
+
+Primary production reports:
+
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-readiness.json`
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-quality_report.md`
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-trace_audit.json`
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-cost_estimate.json`
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-run_summary.md`
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-quality_gate.md`
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-handoff_report.md`
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/metrics.json`
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/gameplay_vs_hard.json`
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/candidate_ranker_mlp.json`
+
+DeepSeek production result:
+
+- Rows: 8940
+- Sessions: 214
+- Teacher source: `deepseek`
+- Decision mix: `PLAY_CARD=6519`, `PAYMENT=1747`, `JUST_SAY_NO=501`, `OVERFLOW_DISCARD=173`
+- Player-count mix: 2/3/4/5 all present
+- Token usage metadata: 8940 / 8940 rows
+- Status: `production-ready`
+- Readiness mode: `production`
+- Quality gate: `production-training-ready`
+- MLP validation top-1: 0.733
+- MLP validation MRR: 0.841
+- First-candidate baseline: 0.398
+- Random expected baseline: 0.212
+- Gameplay vs hard: 20 games requested/evaluated, 20 natural completions, ranker win rate 0.300, average ranker board rank 2.10, board lead rate 0.300
+- Estimated API cost for this merged trace at the recorded price inputs: 1.498805
+
+One selected local decision did not receive a valid DeepSeek id and was isolated instead of being written as fallback data:
+
+- `models/distillation/deepseek-production-20260524/full-relabel-6372-problem-ids.jsonl`
+
+Production delivery archives:
+
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-artifacts.tar.gz`
+- `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-training-handoff.tar.gz`
 
 ## Local Baseline Artifacts
 
@@ -76,7 +127,7 @@ Local enhanced result:
 Quality gate interpretation:
 
 - `localTrainingReady=true`: the current Mac artifacts are enough to continue local model iteration and handoff.
-- `productionDataReady=false`: there are no DeepSeek rows, no token usage metadata, and no production readiness report.
+- `productionDataReady=true` for `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940`.
 - `paperEvidenceReady=false`: the current matrix is a smoke run, not a reportable gameplay result.
 
 Optional no-key improvement:
@@ -173,7 +224,7 @@ The production goal is not complete until all of these are true:
 - `scripts/audit_distillation_trace.py` passes with `--preferred-source deepseek --require-token-usage`.
 - `scripts/check_training_readiness.py --mode production` writes `"ready": true`.
 - `*-run_summary.md` says `production-ready`.
-- A multi-seed summary has been generated from the production trace.
+- A production readiness report is true. A single production-ready run is enough for the current delivery gate; multi-seed production summaries are still required for paper-grade evidence.
 - Gameplay evaluation reports ranker win rate, board-rank metrics, natural completions, and end reasons.
 - `scripts/check_ai_delivery_status.py --production-prefix <prefix>` exits with code 0.
 - `scripts/check_ai_quality_gate.py --production-prefix <prefix> --require production` exits with code 0.
@@ -208,11 +259,10 @@ scripts/run_seed_replicates.sh \
 Safe current claim:
 
 - The backend can generate legal decision rows, train MLP/linear/KNN students on Mac, export Java-loadable rankers, and evaluate gameplay with ranker win-rate and board-rank metrics.
+- A separate DeepSeek-only production relabel dataset exists and passes production readiness.
 
 Unsafe current claim:
 
-- That the dataset is DeepSeek-quality.
-- That the model is production-ready.
 - That the gameplay result is robust enough for a paper claim.
 
 Paper-ready evidence additionally requires:

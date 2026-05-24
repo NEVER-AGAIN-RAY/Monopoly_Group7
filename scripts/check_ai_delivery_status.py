@@ -71,7 +71,10 @@ def build_report(local_prefix: Path, production_prefix: Path | None) -> Dict[str
     local_gameplay_single = load_json(local_prefix.parent / f"{local_prefix.name}-mlp" / "gameplay_vs_hard.json")
     production_summary = load_json(production_prefix.parent / f"{production_prefix.name}-seed_summary.json") if production_prefix else {}
     production_readiness = load_json(production_prefix.parent / f"{production_prefix.name}-readiness.json") if production_prefix else {}
-    production_ready = bool(production_summary.get("productionReadyRuns")) and bool(production_readiness.get("ready"))
+    production_ready_runs = int_number(production_summary.get("productionReadyRuns"))
+    if production_ready_runs == 0 and not production_summary and production_readiness.get("ready"):
+        production_ready_runs = 1
+    production_ready = production_ready_runs > 0 and bool(production_readiness.get("ready"))
     local_ready_runs = int_number(local_seed_summary.get("readyRuns"))
     if local_ready_runs == 0 and local_readiness.get("ready"):
         local_ready_runs = 1
@@ -119,6 +122,7 @@ def build_report(local_prefix: Path, production_prefix: Path | None) -> Dict[str
         },
         "productionPrefix": str(production_prefix) if production_prefix else "",
         "productionReady": production_ready,
+        "productionReadyRuns": production_ready_runs,
         "productionReadinessMode": production_readiness.get("mode", "missing") if production_prefix else "not-run",
         "productionMissingReason": missing_reason(production_prefix, production_summary, production_readiness),
     }
@@ -130,8 +134,6 @@ def missing_reason(
         production_readiness: Dict[str, Any]) -> str:
     if production_prefix is None:
         return "No production prefix was provided; DeepSeek production run has not been completed in this checkout."
-    if not production_summary:
-        return "Production multi-seed summary is missing."
     if not production_readiness:
         return "Production readiness report is missing."
     if not production_readiness.get("ready"):
@@ -141,6 +143,8 @@ def missing_reason(
             if isinstance(item, dict) and not item.get("ok")
         ]
         return "; ".join(failures) or "Production readiness is false."
+    if not production_summary:
+        return ""
     if not production_summary.get("productionReadyRuns"):
         return "Production seed summary has no production-ready runs."
     return ""

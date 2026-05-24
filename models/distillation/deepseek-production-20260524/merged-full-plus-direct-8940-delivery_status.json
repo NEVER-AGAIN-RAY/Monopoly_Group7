@@ -1,0 +1,27 @@
+{
+  "schema": "monopoly-deal-ai-delivery-status-v1",
+  "deepseekKeyPresent": false,
+  "localPrefix": "models/distillation/local-enhanced-20260524-multiseed",
+  "localReadyRuns": 3,
+  "localProductionReadyRuns": 0,
+  "localRows": 6372,
+  "localValidationTop1Mean": 0.8144117121589542,
+  "localRankerWinRate": 0.16666666666666666,
+  "localRankerBoardRankMean": 1.8888888888888886,
+  "localArtifacts": {
+    "runSummary": "models/distillation/local-enhanced-20260524-multiseed-seed73-run_summary.md",
+    "readiness": "models/distillation/local-enhanced-20260524-multiseed-seed73-readiness.json",
+    "traceAudit": "models/distillation/local-enhanced-20260524-multiseed-seed73-trace_audit.json",
+    "modelJson": "models/distillation/local-enhanced-20260524-multiseed-seed73-mlp/candidate_ranker_mlp.json",
+    "gameplay": "models/distillation/local-enhanced-20260524-multiseed-seed73-mlp/gameplay_vs_hard.json",
+    "seedSummary": "models/distillation/local-enhanced-20260524-multiseed-seed_summary.md",
+    "gameplayMatrix": "models/distillation/local-enhanced-20260524-multiseed-gameplay-matrix-smoke/summary.md",
+    "artifactsArchive": "models/distillation/local-enhanced-20260524-multiseed-artifacts.tar.gz",
+    "handoffArchive": "models/distillation/local-enhanced-20260524-multiseed-training-handoff.tar.gz"
+  },
+  "productionPrefix": "models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940",
+  "productionReady": true,
+  "productionReadyRuns": 1,
+  "productionReadinessMode": "production",
+  "productionMissingReason": ""
+}

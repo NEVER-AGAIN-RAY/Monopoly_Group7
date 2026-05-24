@@ -1282,11 +1282,21 @@ public final class AiHeuristics {
             if (entry.isActionLike()) {
                 String relevant = counterRole ? entry.getActorPlayerId() : entry.getTenantPlayerId();
                 if (bot.getPlayerId().equals(relevant)) {
-                    best = Math.max(best, 5);
+                    best = Math.max(best, actionResponseImpact(entry));
                 }
             }
         }
         return best;
+    }
+
+    private static int actionResponseImpact(com.monopoly.model.effects.EffectStackEntry entry) {
+        String effect = entry == null || entry.getActionEffectCode() == null
+                ? "" : entry.getActionEffectCode().trim().toUpperCase(Locale.ROOT);
+        return switch (effect) {
+            case "DEAL_BREAKER" -> 9;
+            case "STEAL_PROPERTY", "FORCED_DEAL" -> 7;
+            default -> 5;
+        };
     }
 
     private static String describeCandidate(

@@ -480,6 +480,8 @@ public final class GameSessionMemento {
                 String.class,
                 String.class,
                 int.class,
+                String.class,
+                String.class,
                 String.class);
         ctor.setAccessible(true);
         return ctor.newInstance(
@@ -489,7 +491,9 @@ public final class GameSessionMemento {
                 m.getTenantPlayerId(),
                 m.getColorKey(),
                 m.getAmountDue(),
-                m.getWaiverTargetEntryId());
+                m.getWaiverTargetEntryId(),
+                m.getActionCardName(),
+                m.getActionEffectCode());
     }
 
     private static StackResponseState restoreResponseState(StackResponseStateMemento m) {

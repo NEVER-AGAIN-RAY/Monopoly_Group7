@@ -14,6 +14,8 @@ public final class EffectStackEntryMemento {
     private String colorKey;
     private int amountDue;
     private String waiverTargetEntryId;
+    private String actionCardName;
+    private String actionEffectCode;
 
     public static EffectStackEntryMemento fromEntry(EffectStackEntry e) {
         if (e == null) {
@@ -27,6 +29,8 @@ public final class EffectStackEntryMemento {
         m.colorKey = e.getColorKey();
         m.amountDue = e.getAmountDue();
         m.waiverTargetEntryId = e.getWaiverTargetEntryId();
+        m.actionCardName = e.getActionCardName();
+        m.actionEffectCode = e.getActionEffectCode();
         return m;
     }
 
@@ -84,5 +88,21 @@ public final class EffectStackEntryMemento {
 
     public void setWaiverTargetEntryId(String waiverTargetEntryId) {
         this.waiverTargetEntryId = waiverTargetEntryId;
+    }
+
+    public String getActionCardName() {
+        return actionCardName;
+    }
+
+    public void setActionCardName(String actionCardName) {
+        this.actionCardName = actionCardName;
+    }
+
+    public String getActionEffectCode() {
+        return actionEffectCode;
+    }
+
+    public void setActionEffectCode(String actionEffectCode) {
+        this.actionEffectCode = actionEffectCode;
     }
 }

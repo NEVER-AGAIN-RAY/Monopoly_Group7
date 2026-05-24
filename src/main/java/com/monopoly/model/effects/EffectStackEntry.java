@@ -24,6 +24,8 @@ public final class EffectStackEntry {
     private final int amountDue;
     /** 免租指向的栈条目 id（另一条收租或上一条免租） */
     private final String waiverTargetEntryId;
+    private final String actionCardName;
+    private final String actionEffectCode;
 
     private EffectStackEntry(
             String id,
@@ -32,7 +34,9 @@ public final class EffectStackEntry {
             String tenantPlayerId,
             String colorKey,
             int amountDue,
-            String waiverTargetEntryId) {
+            String waiverTargetEntryId,
+            String actionCardName,
+            String actionEffectCode) {
         this.id = id;
         this.kind = kind;
         this.actorPlayerId = actorPlayerId;
@@ -40,28 +44,47 @@ public final class EffectStackEntry {
         this.colorKey = colorKey;
         this.amountDue = amountDue;
         this.waiverTargetEntryId = waiverTargetEntryId;
+        this.actionCardName = actionCardName;
+        this.actionEffectCode = actionEffectCode;
     }
 
     public static EffectStackEntry pendingRent(
             String landlordId, String tenantId, String colorKey, int amountDue) {
         String id = UUID.randomUUID().toString();
-        return new EffectStackEntry(id, Kind.RENT, landlordId, tenantId, colorKey, amountDue, null);
+        return new EffectStackEntry(id, Kind.RENT, landlordId, tenantId, colorKey, amountDue, null, null, null);
     }
 
     public static EffectStackEntry pendingDoubleRent(
             String landlordId, String tenantId, String colorKey, int amountDue) {
         String id = UUID.randomUUID().toString();
-        return new EffectStackEntry(id, Kind.DOUBLE_RENT, landlordId, tenantId, colorKey, amountDue, null);
+        return new EffectStackEntry(id, Kind.DOUBLE_RENT, landlordId, tenantId, colorKey, amountDue, null, null, null);
     }
 
     public static EffectStackEntry waiver(String actorPlayerId, String targetEntryId) {
         String id = UUID.randomUUID().toString();
-        return new EffectStackEntry(id, Kind.WAIVER, actorPlayerId, null, null, 0, targetEntryId);
+        return new EffectStackEntry(id, Kind.WAIVER, actorPlayerId, null, null, 0, targetEntryId, null, null);
     }
 
     public static EffectStackEntry pendingAction(String actorPlayerId, String targetPlayerId) {
+        return pendingAction(actorPlayerId, targetPlayerId, null, null);
+    }
+
+    public static EffectStackEntry pendingAction(
+            String actorPlayerId,
+            String targetPlayerId,
+            String actionCardName,
+            String actionEffectCode) {
         String id = UUID.randomUUID().toString();
-        return new EffectStackEntry(id, Kind.ACTION, actorPlayerId, targetPlayerId, null, 0, null);
+        return new EffectStackEntry(
+                id,
+                Kind.ACTION,
+                actorPlayerId,
+                targetPlayerId,
+                null,
+                0,
+                null,
+                actionCardName,
+                actionEffectCode);
     }
 
     public String getId() {
@@ -90,6 +113,14 @@ public final class EffectStackEntry {
 
     public String getWaiverTargetEntryId() {
         return waiverTargetEntryId;
+    }
+
+    public String getActionCardName() {
+        return actionCardName;
+    }
+
+    public String getActionEffectCode() {
+        return actionEffectCode;
     }
 
     public boolean isRentLike() {

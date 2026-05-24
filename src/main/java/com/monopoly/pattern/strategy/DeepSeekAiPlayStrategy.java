@@ -1015,9 +1015,28 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             row.addProperty("colorKey", entry.getColorKey());
             row.addProperty("amountDue", entry.getAmountDue());
             row.addProperty("waiverTargetEntryId", entry.getWaiverTargetEntryId());
+            row.addProperty("actionCardName", entry.getActionCardName());
+            row.addProperty("actionEffectCode", entry.getActionEffectCode());
+            row.addProperty("threatLevel", effectThreatLevel(entry));
             stack.add(row);
         }
         return stack;
+    }
+
+    private static String effectThreatLevel(com.monopoly.model.effects.EffectStackEntry entry) {
+        if (entry == null) {
+            return "unknown";
+        }
+        if (entry.isRentLike()) {
+            return entry.getAmountDue() >= 5 ? "high-rent" : "cash";
+        }
+        String effect = entry.getActionEffectCode() == null
+                ? "" : entry.getActionEffectCode().toUpperCase(Locale.ROOT);
+        return switch (effect) {
+            case "DEAL_BREAKER" -> "critical-full-set-steal";
+            case "STEAL_PROPERTY", "FORCED_DEAL" -> "high-property-tempo";
+            default -> entry.isActionLike() ? "action" : "low";
+        };
     }
 
     private static JsonObject playerJson(Player p, boolean includeHand) {
@@ -1247,6 +1266,7 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             GameContext context,
             List<AiHeuristics.AiPlayCandidate> candidates) {
         candidates = filterSameTeamDestructiveCandidates(bot, context, candidates);
+        candidates = filterLowTempoCandidatesWhenBoardSwingExists(bot, context, candidates);
         int limit = Math.max(8, MAX_MODEL_CANDIDATES);
         if (candidates.size() <= limit) {
             return candidates;
@@ -1269,6 +1289,62 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         AiBattleLogger.log("DeepSeek",
                 "pruned candidates " + candidates.size() + " -> " + pruned.size());
         return pruned;
+    }
+
+    private static List<AiHeuristics.AiPlayCandidate> filterLowTempoCandidatesWhenBoardSwingExists(
+            AIPlayer bot,
+            GameContext context,
+            List<AiHeuristics.AiPlayCandidate> candidates) {
+        if (bot == null || candidates == null || candidates.size() <= 4) {
+            return candidates == null ? List.of() : candidates;
+        }
+        boolean hasBoardSwing = candidates.stream().anyMatch(DeepSeekAiPlayStrategy::isBoardSwingCandidate);
+        if (!hasBoardSwing) {
+            return candidates;
+        }
+        boolean pressure = bot.countCompletePropertySets() >= 1
+                || maxOpponentCompleteSets(bot, context) >= 1
+                || bot.totalBankValueM() >= 12;
+        if (!pressure) {
+            return candidates;
+        }
+        List<AiHeuristics.AiPlayCandidate> filtered = new ArrayList<>();
+        int removed = 0;
+        for (AiHeuristics.AiPlayCandidate candidate : candidates) {
+            if (isLowTempoCandidate(candidate)) {
+                removed++;
+                continue;
+            }
+            filtered.add(candidate);
+        }
+        if (removed == 0 || filtered.size() < 3) {
+            return candidates;
+        }
+        AiBattleLogger.log("DeepSeek",
+                "tempo removed low-tempo candidates while board swing exists: " + removed);
+        return renumberCandidates(filtered);
+    }
+
+    private static boolean isBoardSwingCandidate(AiHeuristics.AiPlayCandidate candidate) {
+        String summary = candidate == null || candidate.summary() == null
+                ? "" : candidate.summary().toUpperCase(Locale.ROOT);
+        return summary.contains("DEAL_BREAKER")
+                || summary.contains("FORCED_DEAL")
+                || summary.contains("STEAL_PROPERTY")
+                || summary.contains("COMPLETIONSCORE=1000");
+    }
+
+    private static boolean isLowTempoCandidate(AiHeuristics.AiPlayCandidate candidate) {
+        String summary = candidate == null || candidate.summary() == null
+                ? "" : candidate.summary().toUpperCase(Locale.ROOT);
+        String actionType = candidate == null || candidate.request() == null
+                ? "" : String.valueOf(candidate.request().getActionType()).toUpperCase(Locale.ROOT);
+        boolean deposit = "DEPOSIT".equals(actionType) || summary.contains("BANK ");
+        boolean passGo = summary.contains("PASS_GO");
+        boolean cashOnly = summary.contains("DEBT_COLLECTOR")
+                || summary.contains("BIRTHDAY")
+                || (summary.contains("RENT") && !summary.contains("DEAL_BREAKER"));
+        return deposit || passGo || cashOnly;
     }
 
     private static List<AiHeuristics.AiPlayCandidate> filterSameTeamDestructiveCandidates(

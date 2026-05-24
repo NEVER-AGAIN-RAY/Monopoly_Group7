@@ -113,7 +113,11 @@ final class EffectStackOrchestrator {
             pendingAction = new PendingAction(card, resolver, actionCountAfterPlay);
             ctx.setResponseState(
                     new StackResponseState(StackResponseState.Role.TENANT, target.getPlayerId(), 0L));
-            ctx.pushEffect(EffectStackEntry.pendingAction(turnFlow.currentTurnPlayerId, target.getPlayerId()));
+            ctx.pushEffect(EffectStackEntry.pendingAction(
+                    turnFlow.currentTurnPlayerId,
+                    target.getPlayerId(),
+                    card.getName(),
+                    card.getEffectCode()));
             Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
             String actorName = actor != null ? actor.getDisplayName() : turnFlow.currentTurnPlayerId;
             controller.pushSnapshot(controller.getCurrentSessionId(),
@@ -136,7 +140,11 @@ final class EffectStackOrchestrator {
                 new StackResponseState(StackResponseState.Role.TENANT, target.getPlayerId(), deadline));
         turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
         scheduleResponseTimeoutIfNeeded(deadline);
-        ctx.pushEffect(EffectStackEntry.pendingAction(turnFlow.currentTurnPlayerId, target.getPlayerId()));
+        ctx.pushEffect(EffectStackEntry.pendingAction(
+                turnFlow.currentTurnPlayerId,
+                target.getPlayerId(),
+                card.getName(),
+                card.getEffectCode()));
         Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
         String actorName = actor != null ? actor.getDisplayName() : turnFlow.currentTurnPlayerId;
         controller.pushSnapshot(controller.getCurrentSessionId(),

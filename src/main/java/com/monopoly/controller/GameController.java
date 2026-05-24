@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntFunction;
@@ -187,7 +188,14 @@ public class GameController implements AiGameBridge {
         playEventSequence = 0L;
         stateSequence = 0L;
         List<Card> deck = new ArrayList<>(cardFactory.createStandardDeck108());
-        Collections.shuffle(deck, ThreadLocalRandom.current());
+        Long deckSeed = Long.getLong("monopoly.deck.seed");
+        if (deckSeed != null) {
+            Collections.shuffle(deck, new Random(deckSeed));
+            engine.useDeterministicReshuffleSeed(reshuffleSeed(deckSeed));
+        } else {
+            Collections.shuffle(deck, ThreadLocalRandom.current());
+            engine.clearDeterministicReshuffleSeed();
+        }
         engine.attachDrawPile(deck);
 
         sessionPlayers.clear();
@@ -246,7 +254,11 @@ public class GameController implements AiGameBridge {
         }
 
         if (req.isRandomizeFirstPlayer()) {
-            turnManager.setCurrentIndex(ThreadLocalRandom.current().nextInt(sessionPlayers.size()));
+            Long firstPlayerSeed = Long.getLong("monopoly.firstPlayer.seed");
+            int firstIndex = firstPlayerSeed != null
+                    ? new Random(firstPlayerSeed).nextInt(sessionPlayers.size())
+                    : ThreadLocalRandom.current().nextInt(sessionPlayers.size());
+            turnManager.setCurrentIndex(firstIndex);
         }
 
         Player current = turnManager.getCurrentPlayer();
@@ -265,6 +277,10 @@ public class GameController implements AiGameBridge {
             case "HARD" -> new HardAiPlayStrategy();
             default -> new EasyAiPlayStrategy();
         };
+    }
+
+    private static long reshuffleSeed(long deckSeed) {
+        return deckSeed ^ 0x9E3779B97F4A7C15L;
     }
 
     private static List<String> parseCustomRoles(StartSessionRequest req) {

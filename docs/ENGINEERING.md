@@ -31,6 +31,11 @@
 
 ### 记录
 
+#### 2026-05-24 — 固定牌堆 seed 与 paired policy 实验
+
+- **摘要**：新增 `monopoly.deck.seed` 与 `monopoly.firstPlayer.seed`，支持固定初始牌堆、弃牌堆回洗与随机先手；新增 `PairedSeedPolicyExperimentRunner`，可在同一批 seed 下对照 `hard,hard` 与 `hard,llm` 等 lineup，衡量同一座位只替换策略后的结果差异，用于更严格地评估 DeepSeek 与 hard 的强弱。
+- **领域**：AI / 测试 / 文档
+
 #### 2026-05-24 — MDSP v1.0 与公开记牌
 
 - **摘要**：DeepSeek 决策上下文正式命名为 `MDSP`（Monopoly Deal Strategy Protocol）`v1.0`；AI prompt 顶层增加协议名与版本；历史摘要新增 `publicCardMemory`，只基于公开可见区域与出牌事件统计 Just Say No、Deal Breaker、Sly Deal、Forced Deal 等重要行动牌的已见/已出/已银行/剩余估计，帮助 LLM 进行非作弊式记牌与长期规划。

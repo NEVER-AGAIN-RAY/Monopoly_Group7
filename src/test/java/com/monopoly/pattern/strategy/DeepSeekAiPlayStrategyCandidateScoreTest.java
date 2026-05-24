@@ -19,6 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DeepSeekAiPlayStrategyCandidateScoreTest {
 
+    @org.junit.jupiter.api.AfterEach
+    void clearTeamAwareFlag() {
+        System.clearProperty("monopoly.deepseek.teamAware");
+    }
+
     @Test
     void invalidModelChoiceFallsBackToHighestScoredLocalCandidate() {
         AiHeuristics.AiPlayCandidate bankOne = candidate(
@@ -123,15 +128,80 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         JsonObject prompt = JsonParser.parseString(
                 DeepSeekAiPlayStrategy.buildUserPrompt(bot, context, List.of(candidate))).getAsJsonObject();
 
-        assertEquals("deepseek-decision-context-v3", prompt.get("promptVersion").getAsString());
+        assertEquals("deepseek-decision-context-v4", prompt.get("promptVersion").getAsString());
         assertEquals(2, prompt.getAsJsonObject("gameMeta").get("playerCount").getAsInt());
         assertEquals("PLAY_CARD", prompt.getAsJsonObject("decision").get("kind").getAsString());
         assertEquals(1, prompt.getAsJsonObject("self").getAsJsonArray("handCards").size());
         assertEquals(2, prompt.getAsJsonArray("players").size());
         assertEquals(3, prompt.getAsJsonObject("riskAssessment").get("selfSetsNeededToWin").getAsInt());
+        JsonObject decision = prompt.getAsJsonObject("decision");
+        assertTrue(decision.getAsJsonArray("candidateSelectionProtocol").size() > 0);
+        JsonObject tactic = decision.getAsJsonArray("legalCandidates")
+                .get(0).getAsJsonObject().getAsJsonObject("tactics");
+        assertEquals("ACTION", tactic.get("actionType").getAsString());
+        assertEquals("card-draw-tempo", tactic.getAsJsonArray("tags").get(0).getAsString());
         String serialized = prompt.toString();
         assertTrue(serialized.contains("\"handCount\":1"));
         assertTrue(!serialized.contains("hidden"));
+    }
+
+    @Test
+    void teamAwarePromptMarksSameTeamLlmTargets() {
+        System.setProperty("monopoly.deepseek.teamAware", "true");
+        AIPlayer bot = new AIPlayer("ai-3", "DeepSeek-AI-3", null);
+        bot.receiveCardToHand(new ActionCard("deal-breaker", "Deal Breaker", "DEAL_BREAKER"));
+        AIPlayer teammate = new AIPlayer("ai-4", "DeepSeek-AI-4", null);
+        teammate.addToPropertyZone(new PropertyCard("team-blue-1", "Team Blue 1", "DARK_BLUE"));
+        teammate.addToPropertyZone(new PropertyCard("team-blue-2", "Team Blue 2", "DARK_BLUE"));
+        HumanPlayer hard = new HumanPlayer("ai-1", "AI-Hard-1");
+        GameContext context = new GameContext();
+        context.bindPlayers(List.of(hard, bot, teammate));
+        context.setTurnState(bot.getPlayerId(), "PLAY", 3, 1, 3);
+        PlayActionRequest request = new PlayActionRequest();
+        request.setActionType("ACTION");
+        request.setCardId("deal-breaker");
+        request.setTargetPlayerId("ai-4");
+        request.setTargetColorKey("DARK_BLUE");
+        AiHeuristics.AiPlayCandidate candidate = new AiHeuristics.AiPlayCandidate(
+                "c1", request, "Action DEAL_BREAKER target=ai-4 completeSet=DARK_BLUE.");
+
+        JsonObject prompt = JsonParser.parseString(
+                DeepSeekAiPlayStrategy.buildUserPrompt(bot, context, List.of(candidate))).getAsJsonObject();
+
+        assertEquals("deepseek-decision-context-v4-team-aware", prompt.get("promptVersion").getAsString());
+        assertTrue(prompt.getAsJsonObject("evaluationMode").get("teamAware").getAsBoolean());
+        JsonObject tactic = prompt.getAsJsonObject("decision").getAsJsonArray("legalCandidates")
+                .get(0).getAsJsonObject().getAsJsonObject("tactics");
+        assertTrue(tactic.get("targetSameTeam").getAsBoolean());
+        assertTrue(tactic.get("modelHint").getAsString().contains("Do not choose"));
+    }
+
+    @Test
+    void teamAwarePruningRemovesSameTeamDestructiveTargetsOnly() {
+        System.setProperty("monopoly.deepseek.teamAware", "true");
+        AIPlayer bot = new AIPlayer("ai-3", "DeepSeek-AI-3", null);
+        AIPlayer teammate = new AIPlayer("ai-4", "DeepSeek-AI-4", null);
+        HumanPlayer hard = new HumanPlayer("ai-1", "AI-Hard-1");
+        GameContext context = new GameContext();
+        context.bindPlayers(List.of(hard, bot, teammate));
+        context.setTurnState(bot.getPlayerId(), "PLAY", 3, 1, 3);
+
+        AiHeuristics.AiPlayCandidate sameTeamSteal = targetedCandidate(
+                "c1", "STEAL_PROPERTY", "steal-team", "ai-4",
+                "Action STEAL_PROPERTY target=ai-4 card=team-blue.");
+        AiHeuristics.AiPlayCandidate hardSteal = targetedCandidate(
+                "c2", "STEAL_PROPERTY", "steal-hard", "ai-1",
+                "Action STEAL_PROPERTY target=ai-1 card=hard-red.");
+        AiHeuristics.AiPlayCandidate passGo = candidate(
+                "c3", "ACTION", "pass-go", "Action PASS_GO.");
+
+        List<AiHeuristics.AiPlayCandidate> pruned = DeepSeekAiPlayStrategy.pruneCandidates(
+                bot, context, List.of(sameTeamSteal, hardSteal, passGo));
+
+        assertEquals(2, pruned.size());
+        assertEquals("ai-1", pruned.get(0).request().getTargetPlayerId());
+        assertEquals("c1", pruned.get(0).id());
+        assertEquals("pass-go", pruned.get(1).request().getCardId());
     }
 
     @Test
@@ -168,6 +238,19 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         PlayActionRequest request = new PlayActionRequest();
         request.setActionType(actionType);
         request.setCardId(cardId);
+        return new AiHeuristics.AiPlayCandidate(id, request, summary);
+    }
+
+    private static AiHeuristics.AiPlayCandidate targetedCandidate(
+            String id,
+            String actionType,
+            String cardId,
+            String targetPlayerId,
+            String summary) {
+        PlayActionRequest request = new PlayActionRequest();
+        request.setActionType(actionType);
+        request.setCardId(cardId);
+        request.setTargetPlayerId(targetPlayerId);
         return new AiHeuristics.AiPlayCandidate(id, request, summary);
     }
 

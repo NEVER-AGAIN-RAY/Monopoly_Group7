@@ -38,6 +38,8 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
     private static final String SYSTEM_PROMPT = """
             You are a strong Monopoly Deal AI controller.
             Choose exactly one candidate id from the provided legal candidates.
+            Silently evaluate the tactical fields before choosing: win now, block a near-win,
+            attack the leader, steal/exchange key property, protect complete sets, then cash.
             Return only compact JSON: {"candidateId":"c1"}.
             Do not include reason, confidence, markdown, or extra text.
             Do not invent candidates or card ids.
@@ -72,6 +74,12 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
               high-impact attacks on a trailing player unless it wins now.
             - Preserve Deal Breaker, Sly Deal, Forced Deal, Just Say No, and flexible wilds until they win,
               block a win, steal/protect a full set, or create a decisive tempo swing.
+            - Strong local opponents often gain tempo by stealing and swapping property before banking cash.
+              Match that tempo: if a legal Sly Deal, Forced Deal, or Deal Breaker improves your set race or
+              damages the leader's set race, prefer it over passive draw/bank moves.
+            - Forced Deal should not be treated as a generic exchange. Prefer swaps that take a wild/key color,
+              complete or nearly complete your set, or break an opponent's near-complete set while giving away
+              a low-leverage duplicate.
             """;
 
     private final DeepSeekClient client = new DeepSeekClient();
@@ -84,7 +92,10 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         if (candidates.isEmpty()) {
             return false;
         }
-        candidates = pruneCandidates(candidates);
+        candidates = pruneCandidates(bot, context, candidates);
+        if (candidates.isEmpty()) {
+            return false;
+        }
         if (!DeepSeekClient.enabled()) {
             return fallback.tryPlayOneCard(bot, context, bridge);
         }
@@ -513,11 +524,13 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
                 "Choose one legal Monopoly Deal play candidate.",
                 "{\"candidateId\":\"c1\"}");
         JsonObject decision = root.getAsJsonObject("decision");
+        decision.add("candidateSelectionProtocol", candidateSelectionProtocolJson(bot, context));
         JsonArray cands = new JsonArray();
         for (AiHeuristics.AiPlayCandidate c : candidates) {
             JsonObject row = new JsonObject();
             row.addProperty("id", c.id());
             row.addProperty("summary", compactSummary(c.summary()));
+            row.add("tactics", candidateTacticsJson(bot, context, c));
             cands.add(row);
         }
         decision.add("legalCandidates", cands);
@@ -605,10 +618,13 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             String task,
             String output) {
         JsonObject root = new JsonObject();
-        root.addProperty("promptVersion", "deepseek-decision-context-v3");
+        root.addProperty("promptVersion", teamAwareMode()
+                ? "deepseek-decision-context-v4-team-aware"
+                : "deepseek-decision-context-v4");
         root.addProperty("modelRequested", DeepSeekClient.model());
         root.addProperty("rule", "Win immediately at 3 complete property sets. Max 3 plays per turn.");
         root.addProperty("strategy", STRATEGY_CONTEXT);
+        root.add("evaluationMode", evaluationModeJson(bot));
         root.add("gameMeta", gameMetaJson(bot, context, decisionKind));
         root.add("self", playerJson(bot, true));
         root.add("players", playersJson(bot, context));
@@ -621,6 +637,32 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         decision.addProperty("output", output);
         root.add("decision", decision);
         return root;
+    }
+
+    private static JsonArray candidateSelectionProtocolJson(AIPlayer bot, GameContext context) {
+        JsonArray arr = new JsonArray();
+        arr.add("If any candidate wins immediately by reaching 3 complete sets, choose it.");
+        arr.add("If an opponent has 2+ sets, choose a candidate that blocks, steals, swaps, rents, or Deal Breaks them when legal.");
+        arr.add("Prefer property swing over passive cash: key steals/exchanges beat banking unless cash prevents an immediate loss.");
+        arr.add("Attack the current leader before a trailing player unless the trailing target gives you an immediate set.");
+        arr.add("Keep Deal Breaker, Sly Deal, Forced Deal, Just Say No, and wilds for decisive board swings; do not bank them casually.");
+        arr.add("Use Pass Go mainly when no high-impact property/rent candidate is available or when it can find missing combo pieces.");
+        if (teamAwareMode()) {
+            arr.add("Team-aware evaluation is enabled: do not attack same-team LLM players with Deal Breaker, Sly Deal, Forced Deal, rent, or Debt Collector. A same-team LLM win is team-positive.");
+            arr.add("When choosing between similar board swings, prefer attacking a hard/local opponent over a same-team LLM opponent.");
+        }
+        return arr;
+    }
+
+    private static JsonObject evaluationModeJson(AIPlayer bot) {
+        JsonObject mode = new JsonObject();
+        mode.addProperty("teamAware", teamAwareMode());
+        mode.addProperty("botTeam", teamOf(bot));
+        if (teamAwareMode()) {
+            mode.addProperty("sameTeamPolicy",
+                    "Treat same-team LLM players as allies for evaluation. Do not give hard/local opponents tempo by weakening another LLM; a same-team LLM win is a good outcome in team-aware evaluation.");
+        }
+        return mode;
     }
 
     private static JsonObject gameMetaJson(AIPlayer bot, GameContext context, String decisionKind) {
@@ -659,6 +701,206 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             return context.getPlayers();
         }
         return bot == null ? List.of() : List.of(bot);
+    }
+
+    private static JsonObject candidateTacticsJson(
+            AIPlayer bot,
+            GameContext context,
+            AiHeuristics.AiPlayCandidate candidate) {
+        JsonObject tactics = new JsonObject();
+        PlayActionRequest req = candidate == null ? null : candidate.request();
+        String summary = candidate == null || candidate.summary() == null
+                ? "" : candidate.summary().toUpperCase(Locale.ROOT);
+        String actionType = req == null || req.getActionType() == null
+                ? "" : req.getActionType().trim().toUpperCase(Locale.ROOT);
+        String targetPlayerId = req == null ? null : req.getTargetPlayerId();
+        Player target = findPlayer(playersForContext(bot, context), targetPlayerId);
+
+        JsonArray tags = new JsonArray();
+        boolean deposit = "DEPOSIT".equals(actionType) || summary.contains("BANK ");
+        boolean deploy = "DEPLOY".equals(actionType) || summary.contains("DEPLOY");
+        boolean dealBreaker = summary.contains("DEAL_BREAKER");
+        boolean forcedDeal = summary.contains("FORCED_DEAL");
+        boolean slyDeal = summary.contains("STEAL_PROPERTY");
+        boolean rent = summary.contains("RENT") || summary.contains("BIRTHDAY")
+                || summary.contains("DEBT_COLLECTOR");
+        boolean passGo = summary.contains("PASS_GO");
+        boolean completesSet = summary.contains("COMPLETIONSCORE=1000");
+        if (completesSet) {
+            tags.add("creates-or-completes-set");
+        }
+        if (deploy) {
+            tags.add("property-development");
+        }
+        if (dealBreaker) {
+            tags.add("deal-breaker-full-set-swing");
+        }
+        if (forcedDeal) {
+            tags.add("forced-deal-property-swing");
+        }
+        if (slyDeal) {
+            tags.add("sly-deal-property-acquisition");
+        }
+        if (rent) {
+            tags.add("cash-pressure");
+        }
+        if (passGo) {
+            tags.add("card-draw-tempo");
+        }
+        if (deposit) {
+            tags.add("passive-bank-cash");
+        }
+
+        int targetSets = target == null ? 0 : target.countCompletePropertySets();
+        boolean targetLeader = target != null && isLeader(target, playersForContext(bot, context));
+        boolean targetNearWin = target != null && targetSets >= 2;
+        boolean targetSameTeam = teamAwareMode() && sameTeam(bot, target);
+        boolean targetHardOpponent = teamAwareMode()
+                && target != null
+                && "hard".equals(teamOf(target))
+                && !sameTeam(bot, target);
+        if (targetLeader) {
+            tags.add("attacks-current-leader");
+        }
+        if (targetNearWin) {
+            tags.add("blocks-near-win-opponent");
+        }
+        if (targetSameTeam) {
+            tags.add("same-team-target");
+        }
+        if (targetHardOpponent) {
+            tags.add("hard-opponent-target");
+        }
+        if ((forcedDeal || slyDeal || dealBreaker) && target == bot) {
+            tags.add("self-target-check");
+        }
+
+        tactics.addProperty("localScore", candidateScore(candidate));
+        tactics.addProperty("actionType", actionType);
+        tactics.addProperty("targetPlayerId", targetPlayerId);
+        tactics.addProperty("targetCompleteSets", targetSets);
+        tactics.addProperty("targetIsLeader", targetLeader);
+        tactics.addProperty("targetNearWin", targetNearWin);
+        tactics.addProperty("targetSameTeam", targetSameTeam);
+        tactics.addProperty("targetHardOpponent", targetHardOpponent);
+        tactics.addProperty("netScore", numberAfter(summary, "NETSCORE="));
+        tactics.addProperty("materialGain", numberAfter(summary, "MATERIALGAIN="));
+        tactics.addProperty("completionGain", numberAfter(summary, "COMPLETIONGAIN="));
+        tactics.addProperty("opponentCompletionLoss", numberAfter(summary, "OPPCOMPLETIONLOSS="));
+        tactics.addProperty("expectedPaidM", numberAfter(summary, "EXPECTEDPAID="));
+        tactics.addProperty("isPassiveCash", deposit);
+        tactics.add("tags", tags);
+        tactics.addProperty("modelHint", candidateHint(
+                deposit,
+                completesSet,
+                targetLeader,
+                targetNearWin,
+                targetSameTeam,
+                targetHardOpponent,
+                dealBreaker,
+                forcedDeal,
+                slyDeal,
+                passGo));
+        return tactics;
+    }
+
+    private static String candidateHint(
+            boolean deposit,
+            boolean completesSet,
+            boolean targetLeader,
+            boolean targetNearWin,
+            boolean targetSameTeam,
+            boolean targetHardOpponent,
+            boolean dealBreaker,
+            boolean forcedDeal,
+            boolean slyDeal,
+            boolean passGo) {
+        if (completesSet) {
+            return "High priority: this improves the set race directly.";
+        }
+        if (targetSameTeam && (dealBreaker || forcedDeal || slyDeal)) {
+            return "Do not choose in team-aware evaluation: this weakens same-team LLM board tempo.";
+        }
+        if (targetHardOpponent && (dealBreaker || forcedDeal || slyDeal)) {
+            return "High priority team-aware board swing: takes tempo from a hard/local opponent.";
+        }
+        if (dealBreaker) {
+            return "High priority if target owns a complete set, especially leader or near-win opponent.";
+        }
+        if (forcedDeal || slyDeal) {
+            if (targetLeader || targetNearWin) {
+                return "High priority board swing: attacks leader/near-win opponent property tempo.";
+            }
+            return "Prefer only if it creates your set progress or steals a key wild/color.";
+        }
+        if (deposit) {
+            return "Low priority unless no board-swing or set-progress candidate exists.";
+        }
+        if (passGo) {
+            return "Medium priority: draw for options after checking property/rent swings first.";
+        }
+        return "Compare resulting board position against the current leader and set race.";
+    }
+
+    private static Player findPlayer(List<Player> players, String playerId) {
+        if (playerId == null || playerId.isBlank()) {
+            return null;
+        }
+        for (Player p : players) {
+            if (playerId.equals(p.getPlayerId())) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isLeader(Player player, List<Player> players) {
+        if (player == null) {
+            return false;
+        }
+        Player leader = null;
+        for (Player p : players) {
+            if (leader == null
+                    || p.countCompletePropertySets() > leader.countCompletePropertySets()
+                    || (p.countCompletePropertySets() == leader.countCompletePropertySets()
+                    && p.totalBankValueM() > leader.totalBankValueM())) {
+                leader = p;
+            }
+        }
+        return leader == player;
+    }
+
+    private static boolean teamAwareMode() {
+        return Boolean.parseBoolean(System.getProperty("monopoly.deepseek.teamAware", "false"));
+    }
+
+    private static boolean sameTeam(Player a, Player b) {
+        String left = teamOf(a);
+        String right = teamOf(b);
+        return !left.isBlank() && left.equals(right);
+    }
+
+    private static String teamOf(Player player) {
+        if (player == null || player.getDisplayName() == null) {
+            return "";
+        }
+        String name = player.getDisplayName().toLowerCase(Locale.ROOT);
+        if (name.contains("deepseek") || name.contains("llm")) {
+            return "llm";
+        }
+        if (name.contains("hard")) {
+            return "hard";
+        }
+        if (name.contains("normal")) {
+            return "normal";
+        }
+        if (name.contains("easy")) {
+            return "easy";
+        }
+        if (name.contains("player") || name.contains("human")) {
+            return "human";
+        }
+        return "";
     }
 
     private static JsonObject riskAssessmentJson(AIPlayer bot, GameContext context) {
@@ -869,8 +1111,11 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         return n;
     }
 
-    private static List<AiHeuristics.AiPlayCandidate> pruneCandidates(
+    static List<AiHeuristics.AiPlayCandidate> pruneCandidates(
+            AIPlayer bot,
+            GameContext context,
             List<AiHeuristics.AiPlayCandidate> candidates) {
+        candidates = filterSameTeamDestructiveCandidates(bot, context, candidates);
         int limit = Math.max(8, MAX_MODEL_CANDIDATES);
         if (candidates.size() <= limit) {
             return candidates;
@@ -893,6 +1138,63 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         AiBattleLogger.log("DeepSeek",
                 "pruned candidates " + candidates.size() + " -> " + pruned.size());
         return pruned;
+    }
+
+    private static List<AiHeuristics.AiPlayCandidate> filterSameTeamDestructiveCandidates(
+            AIPlayer bot,
+            GameContext context,
+            List<AiHeuristics.AiPlayCandidate> candidates) {
+        if (!teamAwareMode() || candidates == null || candidates.isEmpty()) {
+            return candidates == null ? List.of() : candidates;
+        }
+        List<AiHeuristics.AiPlayCandidate> filtered = new ArrayList<>();
+        int removed = 0;
+        for (AiHeuristics.AiPlayCandidate candidate : candidates) {
+            if (sameTeamDestructiveCandidate(bot, context, candidate)) {
+                removed++;
+                continue;
+            }
+            filtered.add(candidate);
+        }
+        if (removed == 0) {
+            return candidates;
+        }
+        AiBattleLogger.log("DeepSeek",
+                "team-aware removed same-team destructive candidates: " + removed);
+        return renumberCandidates(filtered);
+    }
+
+    private static boolean sameTeamDestructiveCandidate(
+            AIPlayer bot,
+            GameContext context,
+            AiHeuristics.AiPlayCandidate candidate) {
+        if (bot == null || candidate == null || candidate.request() == null) {
+            return false;
+        }
+        String targetPlayerId = candidate.request().getTargetPlayerId();
+        if (targetPlayerId == null || targetPlayerId.isBlank()) {
+            return false;
+        }
+        Player target = findPlayer(playersForContext(bot, context), targetPlayerId);
+        if (!sameTeam(bot, target)) {
+            return false;
+        }
+        String summary = candidate.summary() == null ? "" : candidate.summary().toUpperCase(Locale.ROOT);
+        return summary.contains("DEAL_BREAKER")
+                || summary.contains("FORCED_DEAL")
+                || summary.contains("STEAL_PROPERTY")
+                || summary.contains("DEBT_COLLECTOR")
+                || summary.contains("RENT");
+    }
+
+    private static List<AiHeuristics.AiPlayCandidate> renumberCandidates(
+            List<AiHeuristics.AiPlayCandidate> candidates) {
+        List<AiHeuristics.AiPlayCandidate> out = new ArrayList<>();
+        int seq = 1;
+        for (AiHeuristics.AiPlayCandidate c : candidates) {
+            out.add(new AiHeuristics.AiPlayCandidate("c" + seq++, c.request(), c.summary()));
+        }
+        return out;
     }
 
     static int candidateScore(AiHeuristics.AiPlayCandidate candidate) {

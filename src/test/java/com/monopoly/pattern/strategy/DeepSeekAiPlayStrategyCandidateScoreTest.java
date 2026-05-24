@@ -7,6 +7,8 @@ import com.monopoly.model.card.ActionCard;
 import com.monopoly.model.card.MoneyCard;
 import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.core.GameContext;
+import com.monopoly.model.effects.EffectStackEntry;
+import com.monopoly.model.effects.StackResponseState;
 import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.player.HumanPlayer;
 import com.monopoly.model.settlement.PaymentSettlement;
@@ -227,6 +229,38 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
     }
 
     @Test
+    void pruningRemovesLowTempoCandidatesWhenBoardSwingExistsUnderPressure() {
+        AIPlayer bot = new AIPlayer("ai-2", "DeepSeek-AI-2", null);
+        bot.addToBank(new MoneyCard("cash-10", "10M", 10));
+        bot.addToBank(new MoneyCard("cash-5", "5M", 5));
+        HumanPlayer hard = new HumanPlayer("ai-1", "AI-Hard-1");
+        GameContext context = new GameContext();
+        context.bindPlayers(List.of(hard, bot));
+        AiHeuristics.AiPlayCandidate passGo = candidate(
+                "c1", "ACTION", "pass-go", "Action PASS_GO.");
+        AiHeuristics.AiPlayCandidate rent = targetedCandidate(
+                "c2", "ACTION", "rent", "ai-1",
+                "Action RENT target=ai-1 color=RED due=4M expectedPaid=4M.");
+        AiHeuristics.AiPlayCandidate steal = targetedCandidate(
+                "c3", "ACTION", "steal", "ai-1",
+                "Action STEAL_PROPERTY target=ai-1 card=hard-blue.");
+        AiHeuristics.AiPlayCandidate forced = targetedCandidate(
+                "c4", "ACTION", "forced", "ai-1",
+                "Action FORCED_DEAL netScore=500 materialGain=1 completionGain=1 oppCompletionLoss=0 target=ai-1.");
+        AiHeuristics.AiPlayCandidate dealBreaker = targetedCandidate(
+                "c5", "ACTION", "deal-breaker", "ai-1",
+                "Action DEAL_BREAKER target=ai-1 completeSet=GREEN.");
+
+        List<AiHeuristics.AiPlayCandidate> pruned = DeepSeekAiPlayStrategy.pruneCandidates(
+                bot, context, List.of(passGo, rent, steal, forced, dealBreaker));
+
+        assertEquals(3, pruned.size());
+        assertEquals("steal", pruned.get(0).request().getCardId());
+        assertEquals("forced", pruned.get(1).request().getCardId());
+        assertEquals("deal-breaker", pruned.get(2).request().getCardId());
+    }
+
+    @Test
     void paymentAndDiscardPromptsReuseSharedContext() {
         AIPlayer bot = new AIPlayer("ai-1", "DeepSeek-AI-1", null);
         MoneyCard cash = new MoneyCard("cash-1", "1M", 1);
@@ -275,6 +309,32 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
                 .getAsJsonArray("payableCards").get(1).getAsJsonObject();
         assertTrue(property.get("breaksCompleteSet").getAsBoolean());
         assertTrue(property.get("paymentRisk").getAsInt() >= 1000);
+    }
+
+    @Test
+    void responsePromptIncludesPendingActionEffectMetadata() {
+        AIPlayer bot = new AIPlayer("ai-2", "DeepSeek-AI-2", null);
+        bot.receiveCardToHand(new ActionCard("no-1", "Just Say No", "RENT_WAIVER"));
+        HumanPlayer hard = new HumanPlayer("ai-1", "AI-Hard-1");
+        GameContext context = new GameContext();
+        context.bindPlayers(List.of(hard, bot));
+        context.pushEffect(EffectStackEntry.pendingAction(
+                hard.getPlayerId(),
+                bot.getPlayerId(),
+                "Deal Breaker",
+                "DEAL_BREAKER"));
+        context.setResponseState(
+                new StackResponseState(StackResponseState.Role.TENANT, bot.getPlayerId(), 0L));
+        AiHeuristics.AiResponseDecision fallback =
+                AiHeuristics.chooseResponse(bot, context, false);
+
+        JsonObject prompt = JsonParser.parseString(
+                DeepSeekAiPlayStrategy.buildResponsePrompt(bot, context, false, fallback)).getAsJsonObject();
+
+        JsonObject effect = prompt.getAsJsonArray("effectStack").get(0).getAsJsonObject();
+        assertEquals("DEAL_BREAKER", effect.get("actionEffectCode").getAsString());
+        assertEquals("critical-full-set-steal", effect.get("threatLevel").getAsString());
+        assertTrue(fallback.playWaiver());
     }
 
     private static AiHeuristics.AiPlayCandidate candidate(

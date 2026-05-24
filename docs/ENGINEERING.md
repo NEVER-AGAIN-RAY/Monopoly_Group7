@@ -31,6 +31,11 @@
 
 ### 记录
 
+#### 2026-05-24 — DeepSeek 节奏决策与响应栈元数据增强
+
+- **摘要**：DeepSeek 决策 prompt 升级到 `v5-tempo`，强化三套胜利优先、现金饱和时降低存钱/纯收钱优先级，并在有抢地/换地/抢整套候选时过滤低节奏候选；Just Say No 响应栈为 ACTION 增加行动牌名称与 effectCode 元数据，AI 可区分 Deal Breaker、Sly Deal、Forced Deal 等高威胁行动；付款 prompt 标记拆完整套与 wild 风险，并在模型付款方案明显更伤局面时回退到本地兜底。
+- **领域**：AI / 效果栈 / 存档 / 测试
+
 #### 2026-05-24 — 自定义真人/LLM 混合对局与 DeepSeek live smoke
 
 - **摘要**：新增 `CUSTOM` 开局模式，支持 `human,human,llm,llm` 等席位配置，普通 `PVP` 保持全真人；JavaFX 快速开局增加自定义席位输入；DeepSeek 决策 prompt 升级到 v3，加入结构化风险评估与长期规划优先级；新增 `MixedAiBattleExperimentRunner`，可跑 `hard,hard,llm,llm` 本体短局并输出本地评估 JSON。

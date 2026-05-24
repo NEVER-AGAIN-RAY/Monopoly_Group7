@@ -119,12 +119,13 @@ public final class PairedSeedPolicyExperimentRunner {
         report.addProperty("randomizeFirstPlayer", randomizeFirstPlayer);
         report.addProperty("maxSnapshotsPerGame", maxSnapshotsPerGame);
         report.addProperty("timeoutSeconds", timeoutSeconds);
-        report.addProperty("deepSeekEnabled", DeepSeekClient.enabled());
-        report.addProperty("deepSeekModel", DeepSeekClient.model());
-        report.addProperty("deepSeekFallbackModel", DeepSeekClient.fallbackModel());
+        report.addProperty("llmEnabled", DeepSeekClient.enabled());
+        report.addProperty("llmProvider", DeepSeekClient.provider());
+        report.addProperty("llmModel", DeepSeekClient.model());
+        report.addProperty("llmFallbackModel", DeepSeekClient.fallbackModel());
         report.addProperty("note",
                 "Each pair reuses the same deck seed, first-player setting, and hard-AI seed. "
-                        + "DeepSeek remote sampling can still add model-side nondeterminism.");
+                        + "Remote LLM sampling can still add model-side nondeterminism.");
         report.add("metrics", metrics.toJson());
         report.add("pairs", pairReports);
         report.add("summary", summary(pairReports));
@@ -409,6 +410,9 @@ public final class PairedSeedPolicyExperimentRunner {
         String name = player.getDisplayName() == null ? "" : player.getDisplayName().toLowerCase(Locale.ROOT);
         if (name.contains("deepseek")) {
             return "deepseek";
+        }
+        if (name.contains("openai") || name.contains("gpt")) {
+            return "openai";
         }
         if (name.contains("hard")) {
             return "hard";

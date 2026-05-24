@@ -214,14 +214,16 @@ public class GameController implements AiGameBridge {
             }
         } else if ("LLM".equals(mode)) {
             sessionPlayers.add(new HumanPlayer("human-1", "Human"));
+            String llmLabel = llmProviderLabel();
             for (int i = 1; i < count; i++) {
-                sessionPlayers.add(new AIPlayer("ai-" + i, "DeepSeek-AI-" + i, createLlmAiStrategy(i)));
+                sessionPlayers.add(new AIPlayer("ai-" + i, llmLabel + "-AI-" + i, createLlmAiStrategy(i)));
             }
             AiBattleLogger.log("Session", "Started LLM mode session=" + currentSessionId
                     + " players=" + count + " model=" + com.monopoly.pattern.strategy.DeepSeekClient.model());
         } else if ("AI_VS_AI".equals(mode)) {
+            String llmLabel = llmProviderLabel();
             for (int i = 1; i <= count; i++) {
-                sessionPlayers.add(new AIPlayer("ai-" + i, "DeepSeek-AI-" + i, createLlmAiStrategy(i)));
+                sessionPlayers.add(new AIPlayer("ai-" + i, llmLabel + "-AI-" + i, createLlmAiStrategy(i)));
             }
             AiBattleLogger.log("Session", "Started AI_VS_AI mode session=" + currentSessionId
                     + " players=" + count + " model=" + com.monopoly.pattern.strategy.DeepSeekClient.model());
@@ -336,7 +338,7 @@ public class GameController implements AiGameBridge {
     private Player createCustomSeat(String role, int seatNumber) {
         return switch (role) {
             case "HUMAN" -> new HumanPlayer("pvp-" + seatNumber, "Player-" + seatNumber);
-            case "LLM" -> new AIPlayer("ai-" + seatNumber, "DeepSeek-AI-" + seatNumber,
+            case "LLM" -> new AIPlayer("ai-" + seatNumber, llmProviderLabel() + "-AI-" + seatNumber,
                     createLlmAiStrategy(seatNumber));
             case "HARD" -> new AIPlayer("ai-" + seatNumber, "AI-Hard-" + seatNumber,
                     new HardAiPlayStrategy());
@@ -350,6 +352,10 @@ public class GameController implements AiGameBridge {
     private AiPlayStrategy createLlmAiStrategy(int playerNumber) {
         AiPlayStrategy strategy = llmAiStrategyFactory.apply(playerNumber);
         return strategy == null ? new DeepSeekAiPlayStrategy() : strategy;
+    }
+
+    private static String llmProviderLabel() {
+        return com.monopoly.pattern.strategy.DeepSeekClient.providerLabel();
     }
 
     private static String formatAiDifficultyLabel(String normalizedDifficulty) {

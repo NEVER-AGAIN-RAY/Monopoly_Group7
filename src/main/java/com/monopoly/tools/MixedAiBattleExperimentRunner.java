@@ -79,9 +79,10 @@ public final class MixedAiBattleExperimentRunner {
         report.addProperty("gamesRequested", games);
         report.addProperty("maxSnapshotsPerGame", maxSnapshotsPerGame);
         report.addProperty("timeoutSeconds", timeoutSeconds);
-        report.addProperty("deepSeekEnabled", DeepSeekClient.enabled());
-        report.addProperty("deepSeekModel", DeepSeekClient.model());
-        report.addProperty("deepSeekFallbackModel", DeepSeekClient.fallbackModel());
+        report.addProperty("llmEnabled", DeepSeekClient.enabled());
+        report.addProperty("llmProvider", DeepSeekClient.provider());
+        report.addProperty("llmModel", DeepSeekClient.model());
+        report.addProperty("llmFallbackModel", DeepSeekClient.fallbackModel());
         report.addProperty("preferFallbackForStrictJson", DeepSeekClient.preferFallbackForStrictJson());
         report.add("metrics", metrics.toJson());
         report.add("games", gameReports);
@@ -179,6 +180,9 @@ public final class MixedAiBattleExperimentRunner {
         String name = player.getDisplayName() == null ? "" : player.getDisplayName().toLowerCase(Locale.ROOT);
         if (name.contains("deepseek")) {
             return "deepseek";
+        }
+        if (name.contains("openai") || name.contains("gpt")) {
+            return "openai";
         }
         if (name.contains("hard")) {
             return "hard";

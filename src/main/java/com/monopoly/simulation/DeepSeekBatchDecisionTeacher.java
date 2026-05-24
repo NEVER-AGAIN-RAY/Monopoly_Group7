@@ -40,9 +40,16 @@ public final class DeepSeekBatchDecisionTeacher implements SimulationDecisionTea
             String raw = client.complete(SYSTEM_PROMPT, prompt, true);
             return completeMissingOrInvalid(requests, parse(raw), raw, client.consumeLastUsage());
         } catch (Exception e) {
+            if (strictMode()) {
+                throw e;
+            }
             return fallbackForBatch(requests, "local_fallback_error", e.getClass().getSimpleName()
                     + ": " + String.valueOf(e.getMessage()));
         }
+    }
+
+    private static boolean strictMode() {
+        return Boolean.parseBoolean(System.getProperty("monopoly.deepseek.strict", "false"));
     }
 
     private static String buildPrompt(List<SimulationDecisionRequest> requests) {
@@ -153,6 +160,11 @@ public final class DeepSeekBatchDecisionTeacher implements SimulationDecisionTea
                         raw,
                         metadata));
                 continue;
+            }
+            if (strictMode()) {
+                String reason = result == null ? "missing" : "invalid";
+                throw new IllegalStateException("DeepSeek returned " + reason
+                        + " choice for " + request.getDecisionId());
             }
             SimulationDecisionResult fallbackResult = fallbackForOne(request);
             JsonObject metadata = sourceMetadata(result == null ? "local_fallback_missing" : "local_fallback_invalid");

@@ -1,0 +1,80 @@
+{
+  "schema": "monopoly-deal-trace-audit-v1",
+  "rows": 1,
+  "ok": false,
+  "warningCount": 0,
+  "failureCount": 2,
+  "checks": [
+    {
+      "name": "min_rows",
+      "ok": true,
+      "severity": "error",
+      "detail": "1 / 1"
+    },
+    {
+      "name": "preferred_source_ratio",
+      "ok": true,
+      "severity": "error",
+      "detail": "100.0% / 95.0%"
+    },
+    {
+      "name": "all_decision_kinds",
+      "ok": false,
+      "severity": "error",
+      "detail": "{'PAYMENT': 1}"
+    },
+    {
+      "name": "rare_kind_rows",
+      "ok": true,
+      "severity": "error",
+      "detail": "min rare rows 0; counts={'PAYMENT': 1}"
+    },
+    {
+      "name": "valid_choice_ids",
+      "ok": true,
+      "severity": "error",
+      "detail": "invalid rows=0"
+    },
+    {
+      "name": "duplicate_decision_ids",
+      "ok": true,
+      "severity": "error",
+      "detail": "duplicates=0"
+    },
+    {
+      "name": "first_choice_bias",
+      "ok": false,
+      "severity": "error",
+      "detail": "100.0% / 85.0%"
+    },
+    {
+      "name": "token_usage_present",
+      "ok": true,
+      "severity": "error",
+      "detail": "rowsWithUsage=1 / 1"
+    }
+  ],
+  "byTeacherSource": {
+    "deepseek": 1
+  },
+  "preferredSource": "deepseek",
+  "preferredSourceRatio": 1.0,
+  "byDecisionKind": {
+    "PAYMENT": 1
+  },
+  "byPlayerCount": {
+    "4": 1
+  },
+  "candidateCounts": {
+    "min": 32,
+    "p50": 32,
+    "p90": 32,
+    "max": 32,
+    "avg": 32.0
+  },
+  "chosenIndex": {
+    "0": 1
+  },
+  "firstChoiceRatio": 1.0,
+  "rowsWithTokenUsage": 1
+}

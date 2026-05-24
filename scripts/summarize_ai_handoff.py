@@ -129,8 +129,12 @@ def load_production(production_prefix: Path | None) -> Dict[str, Any]:
         return {}
     readiness = load_json(production_prefix.parent / f"{production_prefix.name}-readiness.json")
     seed_summary = load_json(production_prefix.parent / f"{production_prefix.name}-seed_summary.json")
+    ready_runs = int_number(seed_summary.get("productionReadyRuns"))
+    if ready_runs == 0 and not seed_summary and readiness.get("ready"):
+        ready_runs = 1
     return {
-        "ready": bool(readiness.get("ready")) and bool(seed_summary.get("productionReadyRuns")),
+        "ready": bool(readiness.get("ready")) and ready_runs > 0,
+        "readyRuns": ready_runs,
         "readiness": readiness,
         "seedSummary": seed_summary,
     }

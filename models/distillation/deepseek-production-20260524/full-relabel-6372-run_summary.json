@@ -1,0 +1,89 @@
+{
+  "schema": "monopoly-deal-training-run-summary-v1",
+  "outputPrefix": "models/distillation/deepseek-production-20260524/full-relabel-6372",
+  "handoffReady": true,
+  "productionReady": true,
+  "readinessMode": "production",
+  "readinessFailures": [],
+  "auditOk": true,
+  "auditFailures": [],
+  "rows": 6371,
+  "sessions": 134,
+  "teacherSources": {
+    "deepseek": 6371
+  },
+  "decisionKinds": {
+    "JUST_SAY_NO": 378,
+    "OVERFLOW_DISCARD": 164,
+    "PAYMENT": 1340,
+    "PLAY_CARD": 4489
+  },
+  "playerCounts": {
+    "2": 1417,
+    "3": 1670,
+    "4": 1627,
+    "5": 1657
+  },
+  "rowsWithTokenUsage": 6371,
+  "tokenUsage": {
+    "rowsWithUsage": 6371,
+    "promptTokensShare": 7628648.000000001,
+    "completionTokensShare": 203327.0,
+    "totalTokensShare": 7831975.000000001,
+    "avgTotalTokensPerDecision": 1229.3164338408415
+  },
+  "validation": {
+    "top1": 0.7219369038884813,
+    "mrr": 0.8302131776269713,
+    "firstCandidateTop1": 0.3873807776962582,
+    "randomExpectedTop1": 0.2228653036012578,
+    "byKind": {
+      "JUST_SAY_NO": {
+        "top1": 0.5862068965517241,
+        "decisions": 87
+      },
+      "OVERFLOW_DISCARD": {
+        "top1": 0.6666666666666666,
+        "decisions": 24
+      },
+      "PAYMENT": {
+        "top1": 0.9465648854961832,
+        "decisions": 262
+      },
+      "PLAY_CARD": {
+        "top1": 0.6757575757575758,
+        "decisions": 990
+      }
+    }
+  },
+  "model": {
+    "type": "mlp",
+    "device": "mps",
+    "inputDim": 119,
+    "epochs": 40,
+    "splitBy": "session",
+    "balanceByKind": true
+  },
+  "gameplay": {
+    "opponentStrategy": "hard",
+    "gamesRequested": 20,
+    "evaluatedGames": 20,
+    "completedGames": 20,
+    "naturalWinRate": 1.0,
+    "rankerWinRate": 0.3,
+    "averageSnapshots": 177.1,
+    "averageRankerBoardRank": 2.05,
+    "rankerBoardLeadRate": 0.3,
+    "endReasons": {
+      "NATURAL_OR_LIMIT": 20
+    }
+  },
+  "artifacts": {
+    "manifest": "models/distillation/deepseek-production-20260524/full-relabel-6372-dataset_manifest.json",
+    "audit": "models/distillation/deepseek-production-20260524/full-relabel-6372-trace_audit.json",
+    "quality": "models/distillation/deepseek-production-20260524/full-relabel-6372-quality_report.json",
+    "readiness": "models/distillation/deepseek-production-20260524/full-relabel-6372-readiness.json",
+    "metrics": "models/distillation/deepseek-production-20260524/full-relabel-6372-mlp/metrics.json",
+    "gameplay": "models/distillation/deepseek-production-20260524/full-relabel-6372-mlp/gameplay_vs_hard.json"
+  }
+}

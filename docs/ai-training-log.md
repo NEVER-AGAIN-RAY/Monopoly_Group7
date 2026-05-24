@@ -1183,3 +1183,96 @@ Result:
 Interpretation:
 
 The strategic probe is a real trainable no-key dataset and model, not just a code path. It gives a second local baseline with more balanced rare-decision coverage and a Java-loadable MLP. The validation score is lower than the larger `local_heuristic` dataset because this probe has fewer rows and a more diverse candidate distribution; it still beats first-candidate and random baselines and passes local readiness. It remains non-production because the labels are local and have no token usage metadata.
+
+## 2026-05-24 DeepSeek Production Relabel
+
+Purpose: replace the local-teacher-only handoff with a real DeepSeek-labeled production trace while keeping all DeepSeek outputs in a separate directory from the local heuristic baselines.
+
+Primary paths:
+
+- Trace: `data/distillation/deepseek-production-20260524/full-relabel-6372.jsonl`
+- Prefix: `models/distillation/deepseek-production-20260524/full-relabel-6372`
+- Problem row quarantine: `models/distillation/deepseek-production-20260524/full-relabel-6372-problem-ids.jsonl`
+- Artifacts archive: `models/distillation/deepseek-production-20260524/full-relabel-6372-artifacts.tar.gz`
+- Handoff archive: `models/distillation/deepseek-production-20260524/full-relabel-6372-training-handoff.tar.gz`
+
+Run shape:
+
+- Used DeepSeek as the teacher through `TraceRelabeler`.
+- Used strict DeepSeek mode so fallback rows are rejected instead of mixed into production data.
+- Reused the existing backend-legal local candidate envelope only as unlabeled input.
+- Skipped one row where DeepSeek did not return a valid `decisionId`; it was quarantined and not added to the production trace.
+
+Result:
+
+- Rows: 6371
+- Sessions: 134
+- Teacher source: `deepseek`
+- Decision mix: `PLAY_CARD=4489`, `PAYMENT=1340`, `JUST_SAY_NO=378`, `OVERFLOW_DISCARD=164`
+- Player-count mix: 2-player 1417, 3-player 1670, 4-player 1627, 5-player 1657
+- Token usage rows: 6371 / 6371
+- Trace audit: passed
+- Production readiness: passed
+- Estimated cost with recorded price inputs: 1.124942
+
+Best student:
+
+- Model: `models/distillation/deepseek-production-20260524/full-relabel-6372-mlp/candidate_ranker_mlp.json`
+- Validation top-1: 0.722
+- Validation MRR: 0.830
+- First-candidate baseline: 0.387
+- Random expected baseline: 0.223
+- Per-kind validation top-1: `PLAY_CARD=0.676`, `PAYMENT=0.947`, `JUST_SAY_NO=0.586`, `OVERFLOW_DISCARD=0.667`
+- Gameplay vs hard: 20 games requested/evaluated, 20 natural completions, ranker win rate 0.300, average ranker board rank 2.05, board lead rate 0.300
+
+Interpretation:
+
+This is the first production-ready DeepSeek-only dataset and model in this checkout. It is appropriate to describe as DeepSeek policy distillation over Java-generated legal candidate actions. It is still not paper-grade gameplay evidence: the fixed-seat gameplay run is a 20-game smoke against hard opponents, not a full multi-player/opponent matrix with large cell counts.
+
+## 2026-05-24 DeepSeek Direct-Sim Supplement And Merged Production Model
+
+Purpose: add fresh DeepSeek decisions from direct simulated game states, keep them separate from local heuristic data, then merge them with the full DeepSeek relabel trace for the final current production student.
+
+Primary paths:
+
+- Relabel trace: `data/distillation/deepseek-production-20260524/full-relabel-6372.jsonl`
+- Direct-sim supplement: `data/distillation/deepseek-production-20260524/direct-sim-5000.jsonl`
+- Merged trace: `data/distillation/deepseek-production-20260524/merged-full-plus-direct-8940.jsonl`
+- Prefix: `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940`
+- Model: `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/candidate_ranker_mlp.json`
+- Handoff report: `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-handoff_report.md`
+
+Run shape:
+
+- The supplement used `DeepSeekBatchDecisionTeacher` in strict mode.
+- The long direct simulation was stopped after enough supplemental rows had landed, because each batch waited on game runtime limits.
+- No local fallback rows were accepted into the supplement or merged production trace.
+- The merge used `scripts/merge_distillation_traces.py --include-sources deepseek`.
+- The final student used `MONOPOLY_TRAIN_SOURCES=deepseek`, 40 epochs, batch size 512, seed 42.
+
+Result:
+
+- Rows: 8940
+- Sessions: 214
+- Teacher source: `deepseek`
+- Decision mix: `PLAY_CARD=6519`, `PAYMENT=1747`, `JUST_SAY_NO=501`, `OVERFLOW_DISCARD=173`
+- Player-count mix: 2-player 2049, 3-player 2320, 4-player 2273, 5-player 2298
+- Token usage rows: 8940 / 8940
+- Trace audit: passed
+- Production readiness: passed
+- Quality gate: `production-training-ready`
+- Estimated cost with recorded price inputs: 1.498805
+
+Best student:
+
+- Model: `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/candidate_ranker_mlp.json`
+- Validation top-1: 0.733
+- Validation MRR: 0.841
+- First-candidate baseline: 0.398
+- Random expected baseline: 0.212
+- Per-kind validation top-1: `PLAY_CARD=0.685`, `PAYMENT=0.931`, `JUST_SAY_NO=0.625`, `OVERFLOW_DISCARD=0.725`
+- Gameplay vs hard: 20 games requested/evaluated, 20 natural completions, ranker win rate 0.300, average ranker board rank 2.10, board lead rate 0.300
+
+Interpretation:
+
+This merged model is the current DeepSeek production handoff. It improves imitation metrics over the relabel-only model while preserving the no-fallback production boundary. It is still not paper-grade gameplay evidence: the next step is a 2/3/4/5-player by easy/normal/hard gameplay matrix with at least 50 games per cell, followed by multi-seed and scaling-curve evidence.

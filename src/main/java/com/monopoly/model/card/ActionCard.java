@@ -139,9 +139,25 @@ public class ActionCard extends Card implements Payable {
                 return false;
             }
             Player target = context.findPlayer(params.getTargetPlayerId());
-            return target != null && target != actor
-                    && target.getPropertyCardCount() > 0
-                    && actor.getPropertyCardCount() > 0;
+            if (target == null || target == actor
+                    || target.getPropertyCardCount() == 0
+                    || actor.getPropertyCardCount() == 0) {
+                return false;
+            }
+            String targetCardId = params.getTargetCardId();
+            String actorCardId = params.getActorCardId();
+            if (blank(targetCardId) && blank(actorCardId)) {
+                return hasTradableProperty(target) && hasTradableProperty(actor);
+            }
+            if (blank(targetCardId) || blank(actorCardId)) {
+                return false;
+            }
+            PropertyCard targetProperty = findPropertyById(target, targetCardId);
+            PropertyCard actorProperty = findPropertyById(actor, actorCardId);
+            return targetProperty != null
+                    && actorProperty != null
+                    && PropertyStealRules.mayStealPropertyFromTarget(target, targetProperty)
+                    && PropertyStealRules.mayStealPropertyFromTarget(actor, actorProperty);
         }
 
         if ("DEBT_COLLECTOR".equals(code)) {
@@ -181,7 +197,20 @@ public class ActionCard extends Card implements Payable {
         }
 
         if ("DEAL_BREAKER".equals(code)) {
-            return true;
+            if (params == null || blank(params.getTargetPlayerId())) {
+                return false;
+            }
+            Player target = context.findPlayer(params.getTargetPlayerId());
+            if (target == null || target == actor) {
+                return false;
+            }
+            String colorKey = normalizeColorKey(params.getTargetColorKey());
+            if (colorKey == null && !blank(params.getTargetCardId())) {
+                PropertyCard targetProperty = findPropertyById(target, params.getTargetCardId());
+                colorKey = colorKeyForProperty(targetProperty);
+            }
+            return colorKey != null
+                    && PropertySetCalculator.hasCompleteSetForColor(target.getPropertyCardsView(), colorKey);
         }
 
         return true;
@@ -250,18 +279,17 @@ public class ActionCard extends Card implements Payable {
     }
 
     private static String resolveColorKeyForUpgrade(PropertyCard card) {
+        return colorKeyForProperty(card);
+    }
+
+    private static String colorKeyForProperty(PropertyCard card) {
         if (card == null) {
             return null;
         }
         if (card.isWildProperty() && card instanceof PropertyWildCard w) {
-            String a = w.getAssignedColorKey();
-            return a == null || a.isBlank() ? null : a.trim().toUpperCase(Locale.ROOT);
+            return normalizeColorKey(w.getAssignedColorKey());
         }
-        String cg = card.getColorGroup();
-        if (cg == null || cg.isBlank()) {
-            return null;
-        }
-        return cg.trim().toUpperCase(Locale.ROOT);
+        return normalizeColorKey(card.getColorGroup());
     }
 
     private static boolean canPlaySteal(Player actor, ActionParamContext params, GameContext context) {
@@ -293,8 +321,39 @@ public class ActionCard extends Card implements Payable {
         return false;
     }
 
+    private static boolean hasTradableProperty(Player owner) {
+        if (owner == null) {
+            return false;
+        }
+        for (PropertyCard property : owner.getPropertyCardsView()) {
+            if (PropertyStealRules.mayStealPropertyFromTarget(owner, property)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static PropertyCard findPropertyById(Player owner, String propertyCardId) {
+        if (owner == null || blank(propertyCardId)) {
+            return null;
+        }
+        for (PropertyCard property : owner.getPropertyCardsView()) {
+            if (property != null && propertyCardId.equals(property.getId())) {
+                return property;
+            }
+        }
+        return null;
+    }
+
     private static boolean blank(String s) {
         return s == null || s.isBlank();
+    }
+
+    private static String normalizeColorKey(String colorKey) {
+        if (colorKey == null || colorKey.isBlank()) {
+            return null;
+        }
+        return colorKey.trim().toUpperCase(Locale.ROOT);
     }
 
     @Override

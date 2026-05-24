@@ -1,0 +1,97 @@
+{
+  "schema": "monopoly-deal-training-run-summary-v1",
+  "outputPrefix": "models/distillation/local-enhanced-20260524-multiseed-seed11",
+  "handoffReady": true,
+  "productionReady": false,
+  "readinessMode": "local",
+  "readinessFailures": [],
+  "auditOk": true,
+  "auditFailures": [
+    {
+      "name": "token_usage_observed",
+      "ok": false,
+      "severity": "warn",
+      "detail": "rowsWithUsage=0 / 6372"
+    }
+  ],
+  "rows": 6372,
+  "sessions": 134,
+  "teacherSources": {
+    "local_heuristic": 6372
+  },
+  "decisionKinds": {
+    "JUST_SAY_NO": 378,
+    "OVERFLOW_DISCARD": 164,
+    "PAYMENT": 1340,
+    "PLAY_CARD": 4490
+  },
+  "playerCounts": {
+    "2": 1417,
+    "3": 1670,
+    "4": 1628,
+    "5": 1657
+  },
+  "rowsWithTokenUsage": 0,
+  "tokenUsage": {
+    "rowsWithUsage": 0,
+    "promptTokensShare": 0.0,
+    "completionTokensShare": 0.0,
+    "totalTokensShare": 0.0,
+    "avgTotalTokensPerDecision": 0.0
+  },
+  "validation": {
+    "top1": 0.8085106382978723,
+    "mrr": 0.8885431058303402,
+    "firstCandidateTop1": 0.40135396518375244,
+    "randomExpectedTop1": 0.20798895619379237,
+    "byKind": {
+      "JUST_SAY_NO": {
+        "top1": 0.6451612903225806,
+        "decisions": 62
+      },
+      "OVERFLOW_DISCARD": {
+        "top1": 0.7878787878787878,
+        "decisions": 33
+      },
+      "PAYMENT": {
+        "top1": 0.904,
+        "decisions": 250
+      },
+      "PLAY_CARD": {
+        "top1": 0.7895500725689405,
+        "decisions": 689
+      }
+    }
+  },
+  "model": {
+    "type": "mlp",
+    "device": "mps",
+    "inputDim": 119,
+    "epochs": 6,
+    "splitBy": "session",
+    "balanceByKind": true
+  },
+  "gameplay": {
+    "opponentStrategy": "hard",
+    "gamesRequested": 6,
+    "evaluatedGames": 6,
+    "completedGames": 5,
+    "naturalWinRate": 0.8333333333333334,
+    "rankerWinRate": 0.16666666666666666,
+    "averageSnapshots": 204.66666666666666,
+    "averageRankerBoardRank": 1.8333333333333333,
+    "rankerBoardLeadRate": 0.3333333333333333,
+    "endReasons": {
+      "NATURAL_OR_LIMIT": 5,
+      "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT": 1
+    }
+  },
+  "artifacts": {
+    "manifest": "models/distillation/local-enhanced-20260524-multiseed-seed11-dataset_manifest.json",
+    "audit": "models/distillation/local-enhanced-20260524-multiseed-seed11-trace_audit.json",
+    "quality": "models/distillation/local-enhanced-20260524-multiseed-seed11-quality_report.json",
+    "readiness": "models/distillation/local-enhanced-20260524-multiseed-seed11-readiness.json",
+    "metrics": "models/distillation/local-enhanced-20260524-multiseed-seed11-mlp/metrics.json",
+    "gameplay": "models/distillation/local-enhanced-20260524-multiseed-seed11-mlp/gameplay_vs_hard.json"
+  }
+}

@@ -14,7 +14,7 @@ import com.monopoly.model.effects.StackResponseState;
 import com.monopoly.dto.ActionParamContext;
 import com.monopoly.dto.PlayActionRequest;
 import com.monopoly.pattern.strategy.AiHeuristics;
-import com.monopoly.pattern.strategy.DeepSeekAiPlayStrategy;
+import com.monopoly.pattern.strategy.AiChoiceAdvisor;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 
 import java.util.ArrayList;
@@ -39,7 +39,7 @@ final class EffectStackOrchestrator {
 
     private final GameController controller;
     private final TurnFlowService turnFlow;
-    private final GameEngineSingleton engine = GameEngineSingleton.getInstance();
+    private final GameEngineSingleton engine;
     private PendingAction pendingAction;
 
     private final ScheduledExecutorService responseScheduler =
@@ -53,6 +53,7 @@ final class EffectStackOrchestrator {
     EffectStackOrchestrator(GameController controller, TurnFlowService turnFlow) {
         this.controller = controller;
         this.turnFlow = turnFlow;
+        this.engine = controller.getEngine();
     }
 
     // --- response window ---
@@ -70,12 +71,18 @@ final class EffectStackOrchestrator {
             GameContext ctx = controller.getGameContext();
             ctx.setResponseState(
                     new StackResponseState(StackResponseState.Role.TENANT, tenant.getPlayerId(), 0L));
+            if (playedCard != null) {
+                controller.pushSnapshot(controller.getCurrentSessionId(),
+                        "RENT_AWAITING_RESPONSE",
+                        "Rent awaiting automatic response from " + tenant.getDisplayName() + ".",
+                        playedBy,
+                        playedCard,
+                        "ACTION");
+            }
             autoRespondFromCurrentWindow(
                     (AIPlayer) tenant,
                     "RENT_AI_RESPONSE_PASS",
-                    tenant.getDisplayName() + " auto-accepted the charge.",
-                    playedBy,
-                    playedCard);
+                    tenant.getDisplayName() + " auto-accepted the charge.");
             return;
         }
         GameContext ctx = controller.getGameContext();
@@ -108,12 +115,18 @@ final class EffectStackOrchestrator {
                     new StackResponseState(StackResponseState.Role.TENANT, target.getPlayerId(), 0L));
             ctx.pushEffect(EffectStackEntry.pendingAction(turnFlow.currentTurnPlayerId, target.getPlayerId()));
             Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
+            String actorName = actor != null ? actor.getDisplayName() : turnFlow.currentTurnPlayerId;
+            controller.pushSnapshot(controller.getCurrentSessionId(),
+                    "ACTION_AWAITING_RESPONSE",
+                    actorName + " played ACTION (" + card.getName()
+                            + ") — awaiting automatic response from " + target.getDisplayName() + ".",
+                    actor,
+                    card,
+                    "ACTION");
             autoRespondFromCurrentWindow(
                     (AIPlayer) target,
                     "ACTION_AI_RESPONSE_PASS",
-                    target.getDisplayName() + " auto-accepted " + card.getName() + ".",
-                    actor,
-                    card);
+                    target.getDisplayName() + " auto-accepted " + card.getName() + ".");
             return;
         }
         GameContext ctx = controller.getGameContext();
@@ -273,12 +286,15 @@ final class EffectStackOrchestrator {
             if (shouldAutoRespond(landlord)) {
                 ctx.setResponseState(new StackResponseState(
                         StackResponseState.Role.LANDLORD_COUNTER, landlord.getPlayerId(), 0L));
+                controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_AWAITING_COUNTER",
+                        actor.getDisplayName() + " played Just Say No; landlord may counter.",
+                        actor,
+                        actionCard,
+                        "ACTION");
                 autoRespondFromCurrentWindow(
                         (AIPlayer) landlord,
                         "JSN_AI_COUNTER_PASS",
-                        landlord.getDisplayName() + " auto-passed Just Say No counter.",
-                        actor,
-                        actionCard);
+                        landlord.getDisplayName() + " auto-passed Just Say No counter.");
                 return;
             }
             long deadline = responseDeadlineEpochMs();
@@ -328,7 +344,8 @@ final class EffectStackOrchestrator {
                 controller.getSessionPlayersView(),
                 engine,
                 explicitPaymentCardIds,
-                actingTenantIdForExplicit);
+                actingTenantIdForExplicit,
+                ctx);
 
         if (rentSeq != null) {
             boolean moreTenants = rentSeq.advanceToNextTenant();
@@ -426,9 +443,7 @@ final class EffectStackOrchestrator {
     private void autoRespondFromCurrentWindow(
             AIPlayer ai,
             String passPhase,
-            String passSummary,
-            Player playedBy,
-            ActionCard playedCard) {
+            String passSummary) {
         StackResponseState st = controller.getGameContext().getResponseState();
         boolean counterRole = st != null && st.getRole() == StackResponseState.Role.LANDLORD_COUNTER;
         AiHeuristics.AiResponseDecision decision = chooseAiResponse(ai, counterRole);
@@ -438,16 +453,13 @@ final class EffectStackOrchestrator {
         }
         controller.pushSnapshot(controller.getCurrentSessionId(),
                 passPhase,
-                passSummary,
-                playedBy,
-                playedCard,
-                "ACTION");
+                passSummary);
         performResponsePass(ai.getPlayerId());
     }
 
     private AiHeuristics.AiResponseDecision chooseAiResponse(AIPlayer ai, boolean counterRole) {
-        if (ai.getPlayStrategy() instanceof DeepSeekAiPlayStrategy deepSeek) {
-            return deepSeek.chooseResponse(ai, controller.getGameContext(), counterRole);
+        if (ai.getPlayStrategy() instanceof AiChoiceAdvisor advisor) {
+            return advisor.chooseResponse(ai, controller.getGameContext(), counterRole);
         }
         return AiHeuristics.chooseResponse(ai, controller.getGameContext(), counterRole);
     }

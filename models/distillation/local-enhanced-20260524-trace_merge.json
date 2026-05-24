@@ -1,0 +1,73 @@
+{
+  "schema": "monopoly-deal-trace-merge-v1",
+  "ok": true,
+  "inputs": [
+    "data/distillation/local-baseline-20260524-080604.jsonl",
+    "data/distillation/local-supplement-20260524-overflow.jsonl"
+  ],
+  "includeSources": [
+    "local_heuristic"
+  ],
+  "onConflict": "fail",
+  "rowsRead": 6372,
+  "blankLines": 0,
+  "rowsWritten": 6372,
+  "rowsFilteredBySource": {},
+  "duplicateRowsSkipped": 0,
+  "conflictCount": 0,
+  "conflicts": [],
+  "duplicateSamples": [],
+  "byInput": {
+    "data/distillation/local-baseline-20260524-080604.jsonl": {
+      "rowsRead": 4774,
+      "blankLines": 0,
+      "rowsAccepted": 4774,
+      "rowsFilteredBySource": 0,
+      "duplicateRowsSkipped": 0,
+      "conflictingRows": 0,
+      "byTeacherSource": {
+        "local_heuristic": 4774
+      },
+      "byDecisionKind": {
+        "JUST_SAY_NO": 178,
+        "OVERFLOW_DISCARD": 66,
+        "PAYMENT": 840,
+        "PLAY_CARD": 3690
+      }
+    },
+    "data/distillation/local-supplement-20260524-overflow.jsonl": {
+      "rowsRead": 1598,
+      "blankLines": 0,
+      "rowsAccepted": 1598,
+      "rowsFilteredBySource": 0,
+      "duplicateRowsSkipped": 0,
+      "conflictingRows": 0,
+      "byTeacherSource": {
+        "local_heuristic": 1598
+      },
+      "byDecisionKind": {
+        "JUST_SAY_NO": 200,
+        "OVERFLOW_DISCARD": 98,
+        "PAYMENT": 500,
+        "PLAY_CARD": 800
+      }
+    }
+  },
+  "byTeacherSource": {
+    "local_heuristic": 6372
+  },
+  "byDecisionKind": {
+    "JUST_SAY_NO": 378,
+    "OVERFLOW_DISCARD": 164,
+    "PAYMENT": 1340,
+    "PLAY_CARD": 4490
+  },
+  "byPlayerCount": {
+    "2": 1417,
+    "3": 1670,
+    "4": 1628,
+    "5": 1657
+  },
+  "sessionCount": 134,
+  "sha256": "ceac877151082e1027d28841717cf403c508e038ff016e9e7c742d507f7d74c5"
+}

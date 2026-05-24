@@ -1,0 +1,19 @@
+{
+  "schema": "monopoly-deal-ai-delivery-status-v1",
+  "deepseekKeyPresent": false,
+  "localPrefix": "models/distillation/local-baseline-20260524-080604-multiseed",
+  "localReadyRuns": 3,
+  "localProductionReadyRuns": 0,
+  "localValidationTop1Mean": 0.8098369659439743,
+  "localRankerWinRate": 0.25,
+  "localArtifacts": {
+    "seedSummary": "models/distillation/local-baseline-20260524-080604-multiseed-seed_summary.md",
+    "gameplayMatrix": "models/distillation/local-baseline-20260524-080604-multiseed-gameplay_matrix.md",
+    "artifactsArchive": "models/distillation/local-baseline-20260524-080604-multiseed-artifacts.tar.gz",
+    "handoffArchive": "models/distillation/local-baseline-20260524-080604-multiseed-training-handoff.tar.gz"
+  },
+  "productionPrefix": "",
+  "productionReady": false,
+  "productionReadinessMode": "not-run",
+  "productionMissingReason": "No production prefix was provided; DeepSeek production run has not been completed in this checkout."
+}

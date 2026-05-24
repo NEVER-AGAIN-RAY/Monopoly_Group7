@@ -1,0 +1,97 @@
+{
+  "schema": "monopoly-deal-training-run-summary-v1",
+  "outputPrefix": "models/distillation/local-enhanced-20260524-strategic-probe",
+  "handoffReady": true,
+  "productionReady": false,
+  "readinessMode": "local",
+  "readinessFailures": [],
+  "auditOk": true,
+  "auditFailures": [
+    {
+      "name": "token_usage_observed",
+      "ok": false,
+      "severity": "warn",
+      "detail": "rowsWithUsage=0 / 2070"
+    }
+  ],
+  "rows": 2070,
+  "sessions": 134,
+  "teacherSources": {
+    "strategic_heuristic": 2070
+  },
+  "decisionKinds": {
+    "JUST_SAY_NO": 250,
+    "OVERFLOW_DISCARD": 120,
+    "PAYMENT": 500,
+    "PLAY_CARD": 1200
+  },
+  "playerCounts": {
+    "2": 515,
+    "3": 518,
+    "4": 518,
+    "5": 519
+  },
+  "rowsWithTokenUsage": 0,
+  "tokenUsage": {
+    "rowsWithUsage": 0,
+    "promptTokensShare": 0.0,
+    "completionTokensShare": 0.0,
+    "totalTokensShare": 0.0,
+    "avgTotalTokensPerDecision": 0.0
+  },
+  "validation": {
+    "top1": 0.6882217090069284,
+    "mrr": 0.8104236987031443,
+    "firstCandidateTop1": 0.40877598152424943,
+    "randomExpectedTop1": 0.12988145250057095,
+    "byKind": {
+      "JUST_SAY_NO": {
+        "top1": 0.5689655172413793,
+        "decisions": 58
+      },
+      "OVERFLOW_DISCARD": {
+        "top1": 0.6666666666666666,
+        "decisions": 21
+      },
+      "PAYMENT": {
+        "top1": 0.9393939393939394,
+        "decisions": 99
+      },
+      "PLAY_CARD": {
+        "top1": 0.6196078431372549,
+        "decisions": 255
+      }
+    }
+  },
+  "model": {
+    "type": "mlp",
+    "device": "mps",
+    "inputDim": 119,
+    "epochs": 4,
+    "splitBy": "session",
+    "balanceByKind": true
+  },
+  "gameplay": {
+    "opponentStrategy": "hard",
+    "gamesRequested": 3,
+    "evaluatedGames": 3,
+    "completedGames": 1,
+    "naturalWinRate": 0.3333333333333333,
+    "rankerWinRate": 0.3333333333333333,
+    "averageSnapshots": 214.33333333333334,
+    "averageRankerBoardRank": 1.6666666666666667,
+    "rankerBoardLeadRate": 0.6666666666666666,
+    "endReasons": {
+      "NATURAL_OR_LIMIT": 1,
+      "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT": 2
+    }
+  },
+  "artifacts": {
+    "manifest": "models/distillation/local-enhanced-20260524-strategic-probe-dataset_manifest.json",
+    "audit": "models/distillation/local-enhanced-20260524-strategic-probe-trace_audit.json",
+    "quality": "models/distillation/local-enhanced-20260524-strategic-probe-quality_report.json",
+    "readiness": "models/distillation/local-enhanced-20260524-strategic-probe-readiness.json",
+    "metrics": "models/distillation/local-enhanced-20260524-strategic-probe-mlp/metrics.json",
+    "gameplay": "models/distillation/local-enhanced-20260524-strategic-probe-mlp/gameplay_vs_hard.json"
+  }
+}

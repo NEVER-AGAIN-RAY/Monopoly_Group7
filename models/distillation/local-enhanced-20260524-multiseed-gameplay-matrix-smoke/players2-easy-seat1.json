@@ -1,0 +1,91 @@
+{
+  "modelPath": "models/distillation/local-enhanced-20260524-multiseed-seed73-mlp/candidate_ranker_mlp.json",
+  "gamesRequested": 2,
+  "players": 2,
+  "maxSnapshotsPerGame": 260,
+  "timeoutSecondsPerGame": 30,
+  "rankerSeat": 1,
+  "opponentStrategy": "easy",
+  "evaluatedGames": 2,
+  "completedGames": 2,
+  "naturalWinRate": 1.0,
+  "rankerWinRate": 1.0,
+  "averageSnapshots": 152.0,
+  "averageRankerBoardRank": 1.0,
+  "rankerBoardLeadRate": 1.0,
+  "rankerBoardTiedLeadRate": 0.0,
+  "winsByPlayerId": {
+    "ai-1": 2
+  },
+  "endReasons": {
+    "NATURAL_OR_LIMIT": 2
+  },
+  "games": [
+    {
+      "gameIndex": 1,
+      "sessionId": "local-ranker-eval-1779601538198-g1",
+      "snapshots": 162,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-1",
+      "naturalWin": true,
+      "rankerWon": true,
+      "rankerBoardScore": 5503,
+      "rankerBoardRank": 1,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 5503,
+          "completeSets": 4,
+          "propertyCount": 14,
+          "bankValueM": 10,
+          "handCount": 3
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 3672,
+          "completeSets": 2,
+          "propertyCount": 15,
+          "bankValueM": 25,
+          "handCount": 2
+        }
+      ]
+    },
+    {
+      "gameIndex": 2,
+      "sessionId": "local-ranker-eval-1779601538198-g2",
+      "snapshots": 142,
+      "finalPhase": "GAME_OVER",
+      "endReason": "NATURAL_OR_LIMIT",
+      "winnerPlayerId": "ai-1",
+      "naturalWin": true,
+      "rankerWon": true,
+      "rankerBoardScore": 4751,
+      "rankerBoardRank": 1,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 4751,
+          "completeSets": 3,
+          "propertyCount": 15,
+          "bankValueM": 25,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 931,
+          "completeSets": 0,
+          "propertyCount": 7,
+          "bankValueM": 23,
+          "handCount": 1
+        }
+      ]
+    }
+  ]
+}

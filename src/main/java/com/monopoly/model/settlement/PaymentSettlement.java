@@ -334,22 +334,22 @@ public final class PaymentSettlement {
                 if (!debtor.removePropertyCard(pc)) {
                     return new Result(Status.FAILED, amountDue, 0, "状态不一致：无法移除房产牌");
                 }
-                creditor.receiveCardToHand(pc);
+                creditor.addToPropertyZone(pc);
             } else {
                 if (!debtor.removeFromBank(c)) {
                     return new Result(Status.FAILED, amountDue, 0, "状态不一致：无法移除银行牌");
                 }
-                creditor.receiveCardToHand(c);
+                creditor.addToBank(c);
             }
         }
 
         if (sum < amountDue) {
             return new Result(Status.SUCCESS, amountDue, sum,
                     "资产不足：已付尽可支付资产 " + sum + "M（应付 "
-                            + amountDue + "M），收款方收入手牌");
+                            + amountDue + "M），收款方收入对应桌面区域");
         }
         return new Result(Status.SUCCESS, amountDue, sum,
-                "支付成功：付出 " + sum + "M（应付 " + amountDue + "M，找零不退），收款方收入手牌");
+                "支付成功：付出 " + sum + "M（应付 " + amountDue + "M，找零不退），收款方收入对应桌面区域");
     }
 
     public record PaymentChoice(List<Card> cards, int amountPaid) {

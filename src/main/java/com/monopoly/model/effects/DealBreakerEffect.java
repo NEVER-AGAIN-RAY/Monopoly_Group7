@@ -36,12 +36,12 @@ public final class DealBreakerEffect implements ActionEffect {
         }
         for (PropertyCard card : stealSet) {
             if (target.removePropertyCard(card)) {
-                actor.receiveCardToHand(card);
+                actor.addToPropertyZone(card);
             }
         }
         return ActionEffectResult.success(
                 actor.getDisplayName() + " 夺取了 " + target.getDisplayName()
-                        + " 的完整套：" + colorKey + "，收入手牌。");
+                        + " 的完整套：" + colorKey + "，收入财产区。");
     }
 
     private static String resolveTargetColorKey(ActionEffectContext ctx) {

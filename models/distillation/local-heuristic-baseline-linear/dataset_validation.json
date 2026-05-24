@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "errors": [],
+  "summary": {
+    "rows": 2453,
+    "sessions": 48,
+    "byKind": {
+      "JUST_SAY_NO": 93,
+      "OVERFLOW_DISCARD": 35,
+      "PAYMENT": 409,
+      "PLAY_CARD": 1916
+    },
+    "byTeacherSource": {
+      "local_heuristic": 2453
+    },
+    "avgCandidates": 8.753770892784345,
+    "maxCandidates": 32,
+    "skippedBySource": {}
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "schema": "monopoly-deal-gameplay-matrix-v1",
+  "runs": 3,
+  "gamesRequested": 12,
+  "completedGames": 9,
+  "naturalWinRate": 0.75,
+  "rankerWinRate": 0.25,
+  "averageRankerBoardRank": 1.8333333333333333,
+  "rankerBoardLeadRate": 0.3333333333333333,
+  "endReasons": {
+    "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT": 3,
+    "NATURAL_OR_LIMIT": 9
+  },
+  "byRun": [
+    {
+      "path": "models/distillation/local-baseline-20260524-080604-multiseed-seed11-mlp/gameplay_vs_hard.json",
+      "players": 3,
+      "opponentStrategy": "hard",
+      "rankerSeat": 1,
+      "gamesRequested": 4,
+      "completedGames": 2,
+      "naturalWinRate": 0.5,
+      "rankerWinRate": 0.0,
+      "averageSnapshots": 216.0,
+      "averageRankerBoardRank": 2.0,
+      "rankerBoardLeadRate": 0.0,
+      "rankerBoardTiedLeadRate": 0.0,
+      "winsByPlayerId": {
+        "ai-2": 1,
+        "ai-3": 1
+      },
+      "endReasons": {
+        "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT": 2,
+        "NATURAL_OR_LIMIT": 2
+      }
+    },
+    {
+      "path": "models/distillation/local-baseline-20260524-080604-multiseed-seed42-mlp/gameplay_vs_hard.json",
+      "players": 3,
+      "opponentStrategy": "hard",
+      "rankerSeat": 1,
+      "gamesRequested": 4,
+      "completedGames": 4,
+      "naturalWinRate": 1.0,
+      "rankerWinRate": 0.5,
+      "averageSnapshots": 176.25,
+      "averageRankerBoardRank": 1.75,
+      "rankerBoardLeadRate": 0.5,
+      "rankerBoardTiedLeadRate": 0.0,
+      "winsByPlayerId": {
+        "ai-1": 2,
+        "ai-2": 1,
+        "ai-3": 1
+      },
+      "endReasons": {
+        "NATURAL_OR_LIMIT": 4
+      }
+    },
+    {
+      "path": "models/distillation/local-baseline-20260524-080604-multiseed-seed73-mlp/gameplay_vs_hard.json",
+      "players": 3,
+      "opponentStrategy": "hard",
+      "rankerSeat": 1,
+      "gamesRequested": 4,
+      "completedGames": 3,
+      "naturalWinRate": 0.75,
+      "rankerWinRate": 0.25,
+      "averageSnapshots": 204.5,
+      "averageRankerBoardRank": 1.75,
+      "rankerBoardLeadRate": 0.5,
+      "rankerBoardTiedLeadRate": 0.0,
+      "winsByPlayerId": {
+        "ai-3": 2,
+        "ai-1": 1
+      },
+      "endReasons": {
+        "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT": 1,
+        "NATURAL_OR_LIMIT": 3
+      }
+    }
+  ],
+  "byOpponent": {
+    "hard": {
+      "runs": 3,
+      "gamesRequested": 12,
+      "completedGames": 9,
+      "naturalWinRate": 0.75,
+      "rankerWinRate": 0.25,
+      "averageRankerBoardRank": 1.8333333333333333,
+      "rankerBoardLeadRate": 0.3333333333333333
+    }
+  },
+  "byPlayerCount": {
+    "3": {
+      "runs": 3,
+      "gamesRequested": 12,
+      "completedGames": 9,
+      "naturalWinRate": 0.75,
+      "rankerWinRate": 0.25,
+      "averageRankerBoardRank": 1.8333333333333333,
+      "rankerBoardLeadRate": 0.3333333333333333
+    }
+  }
+}

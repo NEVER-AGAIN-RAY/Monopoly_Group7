@@ -3,6 +3,7 @@ package com.monopoly.controller;
 import com.google.gson.JsonObject;
 import com.monopoly.dto.ActionOptionRow;
 import com.monopoly.dto.ActionOptionsResult;
+import com.monopoly.model.core.GameContext;
 import com.monopoly.model.card.ActionCard;
 import com.monopoly.model.card.BuildingLevel;
 import com.monopoly.model.card.Card;
@@ -37,6 +38,15 @@ public final class ActionOptionsService {
             ActionCard actionCard,
             List<Player> allPlayers,
             GameEngineSingleton engine) {
+        return build(actor, actionCard, allPlayers, engine, null);
+    }
+
+    public static ActionOptionsResult build(
+            Player actor,
+            ActionCard actionCard,
+            List<Player> allPlayers,
+            GameEngineSingleton engine,
+            GameContext gameContext) {
         ActionOptionsResult out = new ActionOptionsResult();
         if (actor == null || actionCard == null || allPlayers == null || engine == null) {
             out.setOk(false);
@@ -55,10 +65,10 @@ public final class ActionOptionsService {
         }
 
         switch (ec) {
-            case "RENT" -> buildRentOptions(actor, others, allPlayers, engine, out);
+            case "RENT" -> buildRentOptions(actor, others, allPlayers, engine, gameContext, out);
             case "DOUBLE_RENT" -> out.addOption(new ActionOptionRow(
                     "打出后使你下一张租金牌金额翻倍", null, null, null, null, null));
-            case "RENT_DUAL" -> buildRentDualOptions(actor, actionCard, others, allPlayers, engine, out);
+            case "RENT_DUAL" -> buildRentDualOptions(actor, actionCard, others, allPlayers, engine, gameContext, out);
             case "DEBT_COLLECTOR" -> buildDebtOptions(others, out);
             case "STEAL_PROPERTY" -> buildStealOptions(actor, others, out);
             case "FORCED_DEAL" -> buildForcedDealOptions(actor, others, out);
@@ -79,11 +89,12 @@ public final class ActionOptionsService {
             List<Player> others,
             List<Player> allPlayers,
             GameEngineSingleton engine,
+            GameContext gameContext,
             ActionOptionsResult out) {
         if (card.isRentDualChargesEachOtherPlayer()) {
-            buildRentDualAllOthersOptions(actor, card, others, allPlayers, engine, out);
+            buildRentDualAllOthersOptions(actor, card, others, allPlayers, engine, gameContext, out);
         } else {
-            buildRentDualOneVsOneOptions(actor, card, others, allPlayers, engine, out);
+            buildRentDualOneVsOneOptions(actor, card, others, allPlayers, engine, gameContext, out);
         }
     }
 
@@ -94,6 +105,7 @@ public final class ActionOptionsService {
             List<Player> others,
             List<Player> allPlayers,
             GameEngineSingleton engine,
+            GameContext gameContext,
             ActionOptionsResult out) {
         if (others.isEmpty()) {
             out.setOk(false);
@@ -115,8 +127,10 @@ public final class ActionOptionsService {
                 continue;
             }
             int due = dueR.getAmountDue();
+            int displayDue = displayedRentDue(actor, gameContext, due);
             String label = "双色收租（" + paletteLabel + "）选色 " + color
-                    + " — 其余每名玩家依次付约 " + due + "M（每人单独可打免租）";
+                    + " — 其余每名玩家依次付约 " + rentAmountLabel(due, displayDue)
+                    + "（每人单独可打免租）";
             out.addOption(new ActionOptionRow(label, null, color, null, null, null, true));
         }
         if (out.getOptions().isEmpty()) {
@@ -132,6 +146,7 @@ public final class ActionOptionsService {
             List<Player> others,
             List<Player> allPlayers,
             GameEngineSingleton engine,
+            GameContext gameContext,
             ActionOptionsResult out) {
         if (others.isEmpty()) {
             out.setOk(false);
@@ -154,8 +169,9 @@ public final class ActionOptionsService {
                     continue;
                 }
                 int due = dueR.getAmountDue();
+                int displayDue = displayedRentDue(actor, gameContext, due);
                 String label = "双色收租（" + paletteLabel + "）" + color + " → "
-                        + tenant.getDisplayName() + "（应付约 " + due + "M）";
+                        + tenant.getDisplayName() + "（应付约 " + rentAmountLabel(due, displayDue) + "）";
                 out.addOption(new ActionOptionRow(label, tenant.getPlayerId(), color, null, null, null, false));
             }
         }
@@ -170,6 +186,7 @@ public final class ActionOptionsService {
             List<Player> others,
             List<Player> allPlayers,
             GameEngineSingleton engine,
+            GameContext gameContext,
             ActionOptionsResult out) {
         for (String color : PropertySetCalculator.REQUIRED_BY_COLOR.keySet()) {
             if (PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), color) <= 0) {
@@ -186,8 +203,9 @@ public final class ActionOptionsService {
                     continue;
                 }
                 int due = dueR.getAmountDue();
+                int displayDue = displayedRentDue(actor, gameContext, due);
                 String label = "收租 " + color + " → " + tenant.getDisplayName()
-                        + "（应付约 " + due + "M）";
+                        + "（应付约 " + rentAmountLabel(due, displayDue) + "）";
                 out.addOption(new ActionOptionRow(label, tenant.getPlayerId(), color, null, null, null));
             }
         }
@@ -195,6 +213,20 @@ public final class ActionOptionsService {
             out.setOk(false);
             out.setError("当前没有可收租的颜色与对手组合。");
         }
+    }
+
+    private static int displayedRentDue(Player actor, GameContext gameContext, int baseDue) {
+        if (actor != null && gameContext != null && gameContext.hasPendingDoubleRentFor(actor.getPlayerId())) {
+            return baseDue * 2;
+        }
+        return baseDue;
+    }
+
+    private static String rentAmountLabel(int baseDue, int displayDue) {
+        if (displayDue != baseDue) {
+            return baseDue + "M，双倍后 " + displayDue + "M";
+        }
+        return displayDue + "M";
     }
 
     private static void buildDebtOptions(List<Player> others, ActionOptionsResult out) {
@@ -232,11 +264,11 @@ public final class ActionOptionsService {
         outer:
         for (Player t : others) {
             for (PropertyCard tp : t.getPropertyCardsView()) {
-                if (tp == null) {
+                if (tp == null || !PropertyStealRules.mayStealPropertyFromTarget(t, tp)) {
                     continue;
                 }
                 for (PropertyCard ap : mine) {
-                    if (ap == null) {
+                    if (ap == null || !PropertyStealRules.mayStealPropertyFromTarget(actor, ap)) {
                         continue;
                     }
                     if (count >= MAX_FORCED_DEAL) {

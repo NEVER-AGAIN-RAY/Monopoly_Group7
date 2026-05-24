@@ -1,0 +1,146 @@
+{
+  "modelPath": "models/distillation/local-heuristic-baseline-mlp/candidate_ranker.pt",
+  "jsonModelPath": "models/distillation/local-heuristic-baseline-mlp/candidate_ranker_mlp.json",
+  "modelType": "mlp",
+  "device": "mps",
+  "inputDim": 119,
+  "epochs": 8,
+  "history": [
+    {
+      "epoch": 1,
+      "loss": 0.6874298755736912,
+      "train_top1": 0.718144750254842,
+      "train_mrr": 0.8304168782570919,
+      "val_top1": 0.6945010183299389,
+      "val_mrr": 0.823137910968868
+    },
+    {
+      "epoch": 2,
+      "loss": 0.5312456273857284,
+      "train_top1": 0.7324159021406728,
+      "train_mrr": 0.8425581780321841,
+      "val_top1": 0.714867617107943,
+      "val_mrr": 0.8361329324669445
+    },
+    {
+      "epoch": 3,
+      "loss": 0.511643062619602,
+      "train_top1": 0.7497451580020388,
+      "train_mrr": 0.8554143811789072,
+      "val_top1": 0.7331975560081466,
+      "val_mrr": 0.8489016584230431
+    },
+    {
+      "epoch": 4,
+      "loss": 0.49262791389928146,
+      "train_top1": 0.7782874617737003,
+      "train_mrr": 0.8747754963351291,
+      "val_top1": 0.7433808553971487,
+      "val_mrr": 0.8550383086024632
+    },
+    {
+      "epoch": 5,
+      "loss": 0.49126868125270395,
+      "train_top1": 0.7716615698267074,
+      "train_mrr": 0.8677356056560948,
+      "val_top1": 0.7393075356415478,
+      "val_mrr": 0.8518944169656999
+    },
+    {
+      "epoch": 6,
+      "loss": 0.4767340658342137,
+      "train_top1": 0.7961264016309888,
+      "train_mrr": 0.8840911848939367,
+      "val_top1": 0.7535641547861507,
+      "val_mrr": 0.8609009795364173
+    },
+    {
+      "epoch": 7,
+      "loss": 0.4725830804775743,
+      "train_top1": 0.7895005096839959,
+      "train_mrr": 0.8801186835590503,
+      "val_top1": 0.7474541751527495,
+      "val_mrr": 0.8559556137458377
+    },
+    {
+      "epoch": 8,
+      "loss": 0.46057864278554916,
+      "train_top1": 0.8027522935779816,
+      "train_mrr": 0.8855941459152467,
+      "val_top1": 0.7637474541751528,
+      "val_mrr": 0.8645305983900687
+    }
+  ],
+  "train": {
+    "top1": 0.8027522935779816,
+    "mrr": 0.8855941459152467,
+    "firstCandidateTop1": 0.3318042813455658,
+    "randomExpectedTop1": 0.21316984127065833,
+    "decisions": 1962,
+    "candidates": 17352,
+    "byKind": {
+      "JUST_SAY_NO": {
+        "top1": 0.6829268292682927,
+        "decisions": 82
+      },
+      "OVERFLOW_DISCARD": {
+        "top1": 0.8275862068965517,
+        "decisions": 29
+      },
+      "PAYMENT": {
+        "top1": 0.9099099099099099,
+        "decisions": 333
+      },
+      "PLAY_CARD": {
+        "top1": 0.7852437417654808,
+        "decisions": 1518
+      }
+    }
+  },
+  "validation": {
+    "top1": 0.7637474541751528,
+    "mrr": 0.8645305983900687,
+    "firstCandidateTop1": 0.29938900203665986,
+    "randomExpectedTop1": 0.2116442546501877,
+    "decisions": 491,
+    "candidates": 4121,
+    "byKind": {
+      "JUST_SAY_NO": {
+        "top1": 0.6363636363636364,
+        "decisions": 11
+      },
+      "OVERFLOW_DISCARD": {
+        "top1": 0.5,
+        "decisions": 6
+      },
+      "PAYMENT": {
+        "top1": 0.8289473684210527,
+        "decisions": 76
+      },
+      "PLAY_CARD": {
+        "top1": 0.7587939698492462,
+        "decisions": 398
+      }
+    }
+  },
+  "featureVersion": "candidate-ranker-features-v1",
+  "dataset": {
+    "rows": 2453,
+    "sessions": 48,
+    "byKind": {
+      "JUST_SAY_NO": 93,
+      "OVERFLOW_DISCARD": 35,
+      "PAYMENT": 409,
+      "PLAY_CARD": 1916
+    },
+    "byTeacherSource": {
+      "local_heuristic": 2453
+    },
+    "avgCandidates": 8.753770892784345,
+    "maxCandidates": 32,
+    "skippedBySource": {}
+  },
+  "trainExamples": 17352,
+  "validationExamples": 4121,
+  "durationSeconds": 11.165
+}

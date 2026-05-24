@@ -144,6 +144,16 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             AIPlayer bot,
             int amountDue,
             PaymentSettlement.PaymentChoice fallbackChoice) {
+        return choosePayment(bot, null, null, amountDue, fallbackChoice);
+    }
+
+    @Override
+    public PaymentSettlement.PaymentChoice choosePayment(
+            AIPlayer bot,
+            GameContext context,
+            Player creditor,
+            int amountDue,
+            PaymentSettlement.PaymentChoice fallbackChoice) {
         if (!DeepSeekClient.enabled() || bot == null || amountDue <= 0) {
             return fallbackChoice;
         }
@@ -152,7 +162,7 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             return fallbackChoice;
         }
         try {
-            String prompt = buildPaymentPrompt(bot, amountDue, payable, fallbackChoice);
+            String prompt = buildPaymentPrompt(bot, context, creditor, amountDue, payable, fallbackChoice);
             List<String> ids = requestCardIds(prompt, payableIds(payable), "payment");
             if (ids == null || ids.isEmpty()) {
                 return fallbackChoice;
@@ -185,12 +195,21 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
 
     @Override
     public List<Card> chooseOverflowDiscards(AIPlayer bot, int limit, List<Card> fallbackCards) {
+        return chooseOverflowDiscards(bot, null, limit, fallbackCards);
+    }
+
+    @Override
+    public List<Card> chooseOverflowDiscards(
+            AIPlayer bot,
+            GameContext context,
+            int limit,
+            List<Card> fallbackCards) {
         if (!DeepSeekClient.enabled() || bot == null || bot.getHandCardCount() <= limit) {
             return fallbackCards;
         }
         int need = bot.getHandCardCount() - limit;
         try {
-            String prompt = buildDiscardPrompt(bot, limit, need, fallbackCards);
+            String prompt = buildDiscardPrompt(bot, context, limit, need, fallbackCards);
             List<String> ids = requestCardIds(prompt, handIds(bot), "discard");
             if (ids == null || ids.size() != need) {
                 return fallbackCards;
@@ -477,23 +496,17 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         return sb.toString();
     }
 
-    private static String buildUserPrompt(
+    static String buildUserPrompt(
             AIPlayer bot,
             GameContext context,
             List<AiHeuristics.AiPlayCandidate> candidates) {
-        JsonObject root = new JsonObject();
-        root.addProperty("modelRequested", DeepSeekClient.model());
-        root.add("self", playerJson(bot, true));
-        JsonArray players = new JsonArray();
-        for (Player p : context.getPlayers()) {
-            if (p != bot) {
-                players.add(playerJson(p, false));
-            }
-        }
-        root.add("opponents", players);
-        root.addProperty("turnPlayerId", bot.getPlayerId());
-        root.addProperty("rule", "Win immediately at 3 complete property sets. Max 3 plays per turn.");
-        root.addProperty("strategy", STRATEGY_CONTEXT);
+        JsonObject root = baseDecisionPrompt(
+                bot,
+                context,
+                "PLAY_CARD",
+                "Choose one legal Monopoly Deal play candidate.",
+                "{\"candidateId\":\"c1\"}");
+        JsonObject decision = root.getAsJsonObject("decision");
         JsonArray cands = new JsonArray();
         for (AiHeuristics.AiPlayCandidate c : candidates) {
             JsonObject row = new JsonObject();
@@ -501,24 +514,151 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             row.addProperty("summary", compactSummary(c.summary()));
             cands.add(row);
         }
-        root.add("candidates", cands);
+        decision.add("legalCandidates", cands);
         return root.toString();
     }
 
-    private static String buildResponsePrompt(
+    static String buildResponsePrompt(
             AIPlayer bot,
             GameContext context,
             boolean counterRole,
             AiHeuristics.AiResponseDecision fallbackDecision) {
+        JsonObject root = baseDecisionPrompt(
+                bot,
+                context,
+                "JUST_SAY_NO",
+                "Decide whether to play Just Say No in Monopoly Deal.",
+                "{\"playJustSayNo\":true}");
+        JsonObject decision = root.getAsJsonObject("decision");
+        decision.addProperty("counterRole", counterRole);
+        decision.addProperty("localRecommendationPlayJustSayNo", fallbackDecision.playWaiver());
+        decision.addProperty("localRecommendationReason", fallbackDecision.reason());
+        return root.toString();
+    }
+
+    static String buildPaymentPrompt(
+            AIPlayer bot,
+            GameContext context,
+            Player creditor,
+            int amountDue,
+            List<Card> payable,
+            PaymentSettlement.PaymentChoice fallbackChoice) {
+        JsonObject root = baseDecisionPrompt(
+                bot,
+                context,
+                "PAYMENT",
+                "Choose bank/property cards to pay a Monopoly Deal charge.",
+                "{\"cardIds\":[\"card-id\"]}");
+        JsonObject decision = root.getAsJsonObject("decision");
+        decision.addProperty("amountDueM", amountDue);
+        decision.addProperty("creditorPlayerId", creditor == null ? null : creditor.getPlayerId());
+        decision.addProperty("creditorName", creditor == null ? null : creditor.getDisplayName());
+        decision.addProperty("paymentRule",
+                "Pay from bank/properties only. No change is returned. If unable to cover, pay all payable assets.");
+        decision.add("payableCards", cardListJson(payable, true));
+        JsonArray fallback = new JsonArray();
+        if (fallbackChoice != null) {
+            for (Card card : fallbackChoice.cards()) {
+                fallback.add(card.getId());
+            }
+        }
+        decision.add("localFallbackCardIds", fallback);
+        return root.toString();
+    }
+
+    static String buildDiscardPrompt(
+            AIPlayer bot,
+            GameContext context,
+            int limit,
+            int need,
+            List<Card> fallbackCards) {
+        JsonObject root = baseDecisionPrompt(
+                bot,
+                context,
+                "OVERFLOW_DISCARD",
+                "Choose hand cards to discard down to Monopoly Deal hand limit.",
+                "{\"cardIds\":[\"card-id\"]}");
+        JsonObject decision = root.getAsJsonObject("decision");
+        decision.addProperty("handLimit", limit);
+        decision.addProperty("discardCount", need);
+        decision.add("legalDiscardCards", cardListJson(bot.getHandCardsView(), false));
+        JsonArray fallback = new JsonArray();
+        if (fallbackCards != null) {
+            for (Card card : fallbackCards) {
+                fallback.add(card.getId());
+            }
+        }
+        decision.add("localFallbackCardIds", fallback);
+        return root.toString();
+    }
+
+    private static JsonObject baseDecisionPrompt(
+            AIPlayer bot,
+            GameContext context,
+            String decisionKind,
+            String task,
+            String output) {
         JsonObject root = new JsonObject();
-        root.addProperty("task", "Decide whether to play Just Say No in Monopoly Deal.");
-        root.addProperty("output", "{\"playJustSayNo\":true,\"reason\":\"short\"}");
-        root.addProperty("counterRole", counterRole);
-        root.add("self", playerJson(bot, true));
+        root.addProperty("promptVersion", "deepseek-decision-context-v2");
+        root.addProperty("modelRequested", DeepSeekClient.model());
+        root.addProperty("rule", "Win immediately at 3 complete property sets. Max 3 plays per turn.");
         root.addProperty("strategy", STRATEGY_CONTEXT);
-        root.addProperty("localRecommendationPlayJustSayNo", fallbackDecision.playWaiver());
-        root.addProperty("localRecommendationReason", fallbackDecision.reason());
+        root.add("gameMeta", gameMetaJson(bot, context, decisionKind));
+        root.add("self", playerJson(bot, true));
+        root.add("players", playersJson(bot, context));
+        root.add("effectStack", effectStackJson(context));
+
+        JsonObject decision = new JsonObject();
+        decision.addProperty("kind", decisionKind);
+        decision.addProperty("task", task);
+        decision.addProperty("output", output);
+        root.add("decision", decision);
+        return root;
+    }
+
+    private static JsonObject gameMetaJson(AIPlayer bot, GameContext context, String decisionKind) {
+        JsonObject meta = new JsonObject();
+        List<Player> players = playersForContext(bot, context);
+        String currentTurnPlayerId = context == null ? null : context.getCurrentTurnPlayerId();
+        String phase = context == null ? "UNKNOWN" : context.getCurrentTurnPhase();
+        int round = context == null ? 1 : context.getRoundNumber();
+        int used = context == null ? 0 : context.getCurrentTurnActionCount();
+        int max = context == null ? 3 : context.getMaxActionsPerTurn();
+        meta.addProperty("playerCount", players.size());
+        meta.addProperty("roundNumber", Math.max(1, round));
+        meta.addProperty("decisionKind", decisionKind);
+        meta.addProperty("decisionPlayerId", bot == null ? null : bot.getPlayerId());
+        meta.addProperty("currentTurnPlayerId", currentTurnPlayerId);
+        meta.addProperty("turnPhase", phase);
+        meta.addProperty("actionsUsedThisTurn", used);
+        meta.addProperty("actionsRemainingThisTurn",
+                context == null ? Math.max(0, max - used) : context.remainingTurnActions());
+        meta.addProperty("maxActionsPerTurn", max);
+        return meta;
+    }
+
+    private static JsonArray playersJson(AIPlayer bot, GameContext context) {
+        JsonArray players = new JsonArray();
+        for (Player p : playersForContext(bot, context)) {
+            JsonObject row = playerJson(p, false);
+            row.addProperty("isSelf", p == bot);
+            players.add(row);
+        }
+        return players;
+    }
+
+    private static List<Player> playersForContext(AIPlayer bot, GameContext context) {
+        if (context != null && !context.getPlayers().isEmpty()) {
+            return context.getPlayers();
+        }
+        return bot == null ? List.of() : List.of(bot);
+    }
+
+    private static JsonArray effectStackJson(GameContext context) {
         JsonArray stack = new JsonArray();
+        if (context == null) {
+            return stack;
+        }
         for (com.monopoly.model.effects.EffectStackEntry entry : context.getEffectStackView()) {
             JsonObject row = new JsonObject();
             row.addProperty("kind", entry.getKind().name());
@@ -526,56 +666,10 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             row.addProperty("tenantPlayerId", entry.getTenantPlayerId());
             row.addProperty("colorKey", entry.getColorKey());
             row.addProperty("amountDue", entry.getAmountDue());
+            row.addProperty("waiverTargetEntryId", entry.getWaiverTargetEntryId());
             stack.add(row);
         }
-        root.add("effectStack", stack);
-        return root.toString();
-    }
-
-    private static String buildPaymentPrompt(
-            AIPlayer bot,
-            int amountDue,
-            List<Card> payable,
-            PaymentSettlement.PaymentChoice fallbackChoice) {
-        JsonObject root = new JsonObject();
-        root.addProperty("task", "Choose bank/property cards to pay a Monopoly Deal charge.");
-        root.addProperty("amountDueM", amountDue);
-        root.addProperty("rule", "Pay from bank/properties only. No change is returned. If unable to cover, pay all payable assets.");
-        root.addProperty("strategy", STRATEGY_CONTEXT);
-        root.add("self", playerJson(bot, true));
-        root.add("payableCards", cardListJson(payable, true));
-        JsonArray fallback = new JsonArray();
-        if (fallbackChoice != null) {
-            for (Card card : fallbackChoice.cards()) {
-                fallback.add(card.getId());
-            }
-        }
-        root.add("localFallbackCardIds", fallback);
-        root.addProperty("output", "{\"cardIds\":[\"card-id\"]}");
-        return root.toString();
-    }
-
-    private static String buildDiscardPrompt(
-            AIPlayer bot,
-            int limit,
-            int need,
-            List<Card> fallbackCards) {
-        JsonObject root = new JsonObject();
-        root.addProperty("task", "Choose hand cards to discard down to Monopoly Deal hand limit.");
-        root.addProperty("handLimit", limit);
-        root.addProperty("discardCount", need);
-        root.addProperty("strategy", STRATEGY_CONTEXT);
-        root.add("self", playerJson(bot, true));
-        root.add("handCards", cardListJson(bot.getHandCardsView(), false));
-        JsonArray fallback = new JsonArray();
-        if (fallbackCards != null) {
-            for (Card card : fallbackCards) {
-                fallback.add(card.getId());
-            }
-        }
-        root.add("localFallbackCardIds", fallback);
-        root.addProperty("output", "{\"cardIds\":[\"card-id\"]}");
-        return root.toString();
+        return stack;
     }
 
     private static JsonObject playerJson(Player p, boolean includeHand) {
@@ -589,6 +683,7 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         o.add("sets", propertyProgressJson(p));
         if (includeHand) {
             o.add("handSummary", handSummaryJson(p.getHandCardsView()));
+            o.add("handCards", cardListJson(p.getHandCardsView(), false));
         }
         return o;
     }

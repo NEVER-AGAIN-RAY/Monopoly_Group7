@@ -142,6 +142,7 @@ public final class MonopolyDealRulesSummary {
         sb.append("<div class='card-header'><div class='icon red'>&#x1F4B0;</div><h2>").append(esc("支付规则")).append("</h2></div>");
         sb.append("<ul>");
         sb.append("<li>").append(esc("仅能从")).append("<strong>").append(esc("银行区与财产区")).append("</strong>").append(esc("支付，不能从手牌直接支付")).append("</li>");
+        sb.append("<li>").append(esc("支付后的银行牌进入收款方银行区，房产牌进入收款方财产区")).append("</li>");
         sb.append("<li>").append(esc("多付不退")).append("</li>");
         sb.append("<li>").append(esc("可在客户端勾选具体支付牌；未指定时服务器按小面额优先自动凑额")).append("</li>");
         sb.append("</ul></div>");
@@ -374,7 +375,7 @@ public final class MonopolyDealRulesSummary {
                 .append(" 张可游戏牌（108 张清单中 2 张规则卡不入牌堆）：房产 28、万能 11（2 任意色 + 9 印定双色）、钱币 20、行动 34、租金 13。\n\n");
         sb.append("【胜利】先凑齐 3 套不同颜色的完整房产集。\n\n");
         sb.append("【回合】摸 2 张（手牌为空则摸 5）；最多打出 3 张；手牌超过 7 张须弃至 7。\n\n");
-        sb.append("【支付】仅能从银行区与财产区支付，不能从手牌直接支付；多付不退。\n\n");
+        sb.append("【支付】仅能从银行区与财产区支付，不能从手牌直接支付；支付后的银行牌进入收款方银行区，房产牌进入收款方财产区；多付不退。\n\n");
         sb.append("【行动牌银行面值】存入银行时按角标 M 计：\n");
         List<Map.Entry<String, Integer>> entries = new ArrayList<>(MonopolyDealBankValues.actionBankValuesUnmodifiable().entrySet());
         entries.sort(Comparator.comparing(Map.Entry::getKey));

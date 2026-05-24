@@ -1,0 +1,314 @@
+{
+  "schema": "monopoly-deal-ai-quality-gate-v1",
+  "generatedAt": "2026-05-24T06:58:49+00:00",
+  "trace": "data/distillation/local-enhanced-20260524.jsonl",
+  "localPrefix": "models/distillation/local-enhanced-20260524-multiseed",
+  "productionPrefix": "",
+  "verdict": {
+    "label": "local-training-ready",
+    "localTrainingReady": true,
+    "productionDataReady": false,
+    "paperEvidenceReady": false
+  },
+  "traceSummary": {
+    "rows": 6372,
+    "sessions": 134,
+    "byTeacherSource": {
+      "local_heuristic": 6372
+    },
+    "byDecisionKind": {
+      "JUST_SAY_NO": 378,
+      "OVERFLOW_DISCARD": 164,
+      "PAYMENT": 1340,
+      "PLAY_CARD": 4490
+    },
+    "byPlayerCount": {
+      "2": 1417,
+      "3": 1670,
+      "4": 1628,
+      "5": 1657
+    },
+    "candidateCounts": {
+      "min": 1,
+      "p50": 7,
+      "p90": 31,
+      "max": 32,
+      "avg": 9.79472693032015
+    },
+    "firstChoiceRatio": 0.3832391713747646,
+    "invalidChoiceRows": 0,
+    "rowsWithTokenUsage": 0,
+    "deepseekRatio": 0.0,
+    "localHeuristicRatio": 1.0
+  },
+  "trainingMetrics": {
+    "runs": 3,
+    "readyRuns": 3,
+    "productionReadyRuns": 0,
+    "validationTop1": {
+      "mean": 0.8144117121589542,
+      "std": 0.004558719761039865,
+      "min": 0.8085106382978723,
+      "max": 0.8196107784431138
+    },
+    "validationMrr": {
+      "mean": 0.8942328694592403,
+      "std": 0.004088964871794175,
+      "min": 0.8885431058303402,
+      "max": 0.8979718390599756
+    },
+    "firstCandidateTop1": {
+      "mean": 0.37763517851910394,
+      "std": 0.0181433793521603,
+      "min": 0.3573000733675715,
+      "max": 0.40135396518375244
+    },
+    "randomExpectedTop1": {
+      "mean": 0.22004940850171195,
+      "std": 0.008922735250697943,
+      "min": 0.20798895619379237,
+      "max": 0.22929396571008565
+    },
+    "rankerWinRate": {
+      "mean": 0.16666666666666666,
+      "std": 0.0,
+      "min": 0.16666666666666666,
+      "max": 0.16666666666666666
+    },
+    "averageRankerBoardRank": {
+      "mean": 1.8888888888888886,
+      "std": 0.07856742013183865,
+      "min": 1.8333333333333333,
+      "max": 2.0
+    }
+  },
+  "gates": {
+    "localTraining": {
+      "label": "local-training-ready",
+      "ready": true,
+      "failureCount": 0,
+      "checks": [
+        {
+          "name": "trace_exists",
+          "ok": true,
+          "detail": "data/distillation/local-enhanced-20260524.jsonl"
+        },
+        {
+          "name": "min_local_rows",
+          "ok": true,
+          "detail": "6372 / 5000"
+        },
+        {
+          "name": "all_decision_kinds",
+          "ok": true,
+          "detail": "{\"JUST_SAY_NO\":378,\"OVERFLOW_DISCARD\":164,\"PAYMENT\":1340,\"PLAY_CARD\":4490}"
+        },
+        {
+          "name": "readiness_local_ready",
+          "ok": true,
+          "detail": "True"
+        },
+        {
+          "name": "three_seed_summary",
+          "ok": true,
+          "detail": "3 / 3"
+        },
+        {
+          "name": "all_seed_runs_ready",
+          "ok": true,
+          "detail": "3 / 3"
+        },
+        {
+          "name": "validation_top1_floor",
+          "ok": true,
+          "detail": "0.814 / 0.550"
+        },
+        {
+          "name": "validation_beats_first_candidate",
+          "ok": true,
+          "detail": "0.814 vs 0.378"
+        },
+        {
+          "name": "model_json_exists",
+          "ok": true,
+          "detail": "models/distillation/local-enhanced-20260524-multiseed-seed73-mlp/candidate_ranker_mlp.json"
+        },
+        {
+          "name": "gameplay_json_exists",
+          "ok": true,
+          "detail": "models/distillation/local-enhanced-20260524-multiseed-seed73-mlp/gameplay_vs_hard.json"
+        }
+      ],
+      "failures": []
+    },
+    "productionData": {
+      "label": "production-data-ready",
+      "ready": false,
+      "failureCount": 9,
+      "checks": [
+        {
+          "name": "production_prefix_provided",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "production_readiness_ready",
+          "ok": false,
+          "detail": "None"
+        },
+        {
+          "name": "production_seed_summary_present",
+          "ok": false,
+          "detail": "False"
+        },
+        {
+          "name": "production_ready_seed_runs",
+          "ok": false,
+          "detail": "0 / 1"
+        },
+        {
+          "name": "min_deepseek_rows",
+          "ok": false,
+          "detail": "0 / 5000"
+        },
+        {
+          "name": "deepseek_source_ratio",
+          "ok": false,
+          "detail": "{}"
+        },
+        {
+          "name": "token_usage_present",
+          "ok": false,
+          "detail": "0 / 0"
+        },
+        {
+          "name": "rare_kind_rows",
+          "ok": false,
+          "detail": "min 100; counts={}"
+        },
+        {
+          "name": "current_trace_is_not_production",
+          "ok": false,
+          "detail": "current sources={\"local_heuristic\":6372}; use DeepSeek relabel or collection first"
+        }
+      ],
+      "failures": [
+        {
+          "name": "production_prefix_provided",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "production_readiness_ready",
+          "ok": false,
+          "detail": "None"
+        },
+        {
+          "name": "production_seed_summary_present",
+          "ok": false,
+          "detail": "False"
+        },
+        {
+          "name": "production_ready_seed_runs",
+          "ok": false,
+          "detail": "0 / 1"
+        },
+        {
+          "name": "min_deepseek_rows",
+          "ok": false,
+          "detail": "0 / 5000"
+        },
+        {
+          "name": "deepseek_source_ratio",
+          "ok": false,
+          "detail": "{}"
+        },
+        {
+          "name": "token_usage_present",
+          "ok": false,
+          "detail": "0 / 0"
+        },
+        {
+          "name": "rare_kind_rows",
+          "ok": false,
+          "detail": "min 100; counts={}"
+        },
+        {
+          "name": "current_trace_is_not_production",
+          "ok": false,
+          "detail": "current sources={\"local_heuristic\":6372}; use DeepSeek relabel or collection first"
+        }
+      ]
+    },
+    "paperEvidence": {
+      "label": "paper-evidence-ready",
+      "ready": false,
+      "failureCount": 4,
+      "checks": [
+        {
+          "name": "production_data_gate_ready",
+          "ok": false,
+          "detail": "False"
+        },
+        {
+          "name": "three_or_more_seed_runs",
+          "ok": true,
+          "detail": "3 / 3"
+        },
+        {
+          "name": "all_seed_runs_production_ready",
+          "ok": false,
+          "detail": "0 / 3"
+        },
+        {
+          "name": "gameplay_matrix_present",
+          "ok": true,
+          "detail": "True"
+        },
+        {
+          "name": "reportable_cells_present",
+          "ok": false,
+          "detail": "5-easy,5-hard,5-normal"
+        },
+        {
+          "name": "games_per_cell_floor",
+          "ok": false,
+          "detail": "2-easy:2/50,2-hard:2/50,2-normal:2/50,3-easy:2/50,3-hard:2/50,3-normal:2/50,4-easy:2/50,4-hard:2/50"
+        },
+        {
+          "name": "natural_completion_reported",
+          "ok": true,
+          "detail": "14 completed"
+        }
+      ],
+      "failures": [
+        {
+          "name": "production_data_gate_ready",
+          "ok": false,
+          "detail": "False"
+        },
+        {
+          "name": "all_seed_runs_production_ready",
+          "ok": false,
+          "detail": "0 / 3"
+        },
+        {
+          "name": "reportable_cells_present",
+          "ok": false,
+          "detail": "5-easy,5-hard,5-normal"
+        },
+        {
+          "name": "games_per_cell_floor",
+          "ok": false,
+          "detail": "2-easy:2/50,2-hard:2/50,2-normal:2/50,3-easy:2/50,3-hard:2/50,3-normal:2/50,4-easy:2/50,4-hard:2/50"
+        }
+      ]
+    }
+  },
+  "nextActions": [
+    "Run a DeepSeek paid probe or relabel pass, then collect/merge at least 5000 DeepSeek rows with token usage.",
+    "Train production multi-seed students with MONOPOLY_TRAIN_SOURCES=deepseek and rerun readiness in production mode.",
+    "After production readiness, run a 2/3/4/5-player by easy/normal/hard gameplay matrix with at least 50 games per cell.",
+    "Add scaling curves and ablations before making paper-strength claims."
+  ]
+}

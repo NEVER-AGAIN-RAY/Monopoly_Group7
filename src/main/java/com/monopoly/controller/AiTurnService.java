@@ -59,7 +59,7 @@ final class AiTurnService {
         try {
             controller.ensureNotPaused();
             controller.ensureSessionActive();
-            controller.getGameContext().bindPlayers(controller.getSessionPlayersView());
+            controller.refreshAiDecisionContext();
             if (needsDraw) {
                 turnFlow.drawCards(ai, 2);
                 schedule(ai, false);
@@ -79,9 +79,7 @@ final class AiTurnService {
         if (controller.getCurrentPlayer() != ai) {
             return;
         }
-        controller.getGameContext().bindPlayers(controller.getSessionPlayersView());
-        controller.getGameContext().setTurnActionBudget(
-                turnFlow.currentTurnActionCount, TurnFlowService.MAX_ACTIONS_PER_TURN);
+        controller.refreshAiDecisionContext();
 
         AiPlayStrategy strategy = ai.getPlayStrategy();
         if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.PLAY

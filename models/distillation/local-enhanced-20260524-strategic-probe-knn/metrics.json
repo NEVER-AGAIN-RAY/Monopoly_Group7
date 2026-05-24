@@ -1,0 +1,88 @@
+{
+  "modelType": "knn",
+  "k": 5,
+  "referenceExamples": 1637,
+  "referencePositiveOnly": true,
+  "train": {
+    "top1": 0.7385461209529627,
+    "mrr": 0.831894128735104,
+    "firstCandidateTop1": 0.4147831398900428,
+    "randomExpectedTop1": 0.12159122846590074,
+    "decisions": 1637,
+    "candidates": 27126,
+    "byKind": {
+      "JUST_SAY_NO": {
+        "top1": 0.8958333333333334,
+        "decisions": 192
+      },
+      "OVERFLOW_DISCARD": {
+        "top1": 0.8787878787878788,
+        "decisions": 99
+      },
+      "PAYMENT": {
+        "top1": 0.9825436408977556,
+        "decisions": 401
+      },
+      "PLAY_CARD": {
+        "top1": 0.5883597883597883,
+        "decisions": 945
+      }
+    }
+  },
+  "validation": {
+    "top1": 0.371824480369515,
+    "mrr": 0.5615115584759472,
+    "firstCandidateTop1": 0.40877598152424943,
+    "randomExpectedTop1": 0.12988145250057095,
+    "decisions": 433,
+    "candidates": 7016,
+    "byKind": {
+      "JUST_SAY_NO": {
+        "top1": 0.6206896551724138,
+        "decisions": 58
+      },
+      "OVERFLOW_DISCARD": {
+        "top1": 0.3333333333333333,
+        "decisions": 21
+      },
+      "PAYMENT": {
+        "top1": 0.7575757575757576,
+        "decisions": 99
+      },
+      "PLAY_CARD": {
+        "top1": 0.16862745098039217,
+        "decisions": 255
+      }
+    }
+  },
+  "featureVersion": "candidate-ranker-features-v1",
+  "dataset": {
+    "rows": 2070,
+    "sessions": 134,
+    "byKind": {
+      "JUST_SAY_NO": 250,
+      "OVERFLOW_DISCARD": 120,
+      "PAYMENT": 500,
+      "PLAY_CARD": 1200
+    },
+    "byTeacherSource": {
+      "strategic_heuristic": 2070
+    },
+    "avgCandidates": 16.493719806763284,
+    "maxCandidates": 32,
+    "skippedBySource": {}
+  },
+  "splitBy": "session",
+  "validationPlayerCounts": [],
+  "balanceByKind": false,
+  "kindBalanceMax": 4.0,
+  "kindWeights": {
+    "PLAY_CARD": 1.0,
+    "JUST_SAY_NO": 1.0,
+    "OVERFLOW_DISCARD": 1.0,
+    "PAYMENT": 1.0
+  },
+  "trainExamples": 27126,
+  "validationExamples": 7016,
+  "durationSeconds": 7.345
+}

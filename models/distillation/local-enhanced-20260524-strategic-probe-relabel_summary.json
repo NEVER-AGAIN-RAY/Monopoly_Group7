@@ -1,0 +1,18 @@
+{
+  "inputPath": "models/distillation/local-enhanced-20260524-strategic-probe-selected.jsonl",
+  "outputPath": "data/distillation/local-enhanced-20260524-strategic-probe.jsonl",
+  "teacher": "strategic_heuristic",
+  "rowsRead": 2070,
+  "rowsSkipped": 0,
+  "rowsRelabeled": 2070,
+  "teacherCalls": 65,
+  "byResultSource": {
+    "strategic_heuristic": 2070
+  },
+  "byDecisionKind": {
+    "JUST_SAY_NO": 250,
+    "OVERFLOW_DISCARD": 120,
+    "PAYMENT": 500,
+    "PLAY_CARD": 1200
+  }
+}

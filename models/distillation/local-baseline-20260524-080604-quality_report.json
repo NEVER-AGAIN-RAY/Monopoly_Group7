@@ -1,0 +1,372 @@
+{
+  "rows": 4774,
+  "sessions": 60,
+  "actors": 5,
+  "byKind": {
+    "JUST_SAY_NO": 178,
+    "OVERFLOW_DISCARD": 66,
+    "PAYMENT": 840,
+    "PLAY_CARD": 3690
+  },
+  "byTeacherSource": {
+    "local_heuristic": 4774
+  },
+  "preferredSource": "local_heuristic",
+  "preferredSourceRatio": 1.0,
+  "fallbackSources": {},
+  "candidateCounts": {
+    "min": 1,
+    "p50": 7.0,
+    "p90": 21.699999999999818,
+    "max": 32,
+    "avg": 9.41160452450775
+  },
+  "chosenIndex": {
+    "0": 1638,
+    "1": 650,
+    "10": 30,
+    "11": 23,
+    "12": 36,
+    "13": 38,
+    "14": 31,
+    "15": 12,
+    "16": 27,
+    "17": 14,
+    "18": 9,
+    "19": 3,
+    "2": 553,
+    "20": 2,
+    "21": 3,
+    "22": 1,
+    "23": 1,
+    "24": 8,
+    "28": 5,
+    "29": 1,
+    "3": 492,
+    "30": 8,
+    "4": 429,
+    "5": 290,
+    "6": 219,
+    "7": 117,
+    "8": 91,
+    "9": 43
+  },
+  "roundRange": [
+    1.0,
+    13.0
+  ],
+  "playerCounts": {
+    "2": 1055,
+    "3": 1267,
+    "4": 1223,
+    "5": 1229
+  },
+  "actionsUsedThisTurn": {
+    "0": 1738,
+    "1": 1580,
+    "2": 1390,
+    "3": 66
+  },
+  "tokenUsage": {
+    "rowsWithUsage": 0,
+    "promptTokensShare": 0.0,
+    "completionTokensShare": 0.0,
+    "totalTokensShare": 0.0,
+    "avgTotalTokensPerDecision": 0.0
+  },
+  "metrics": {
+    "modelPath": "models/distillation/local-baseline-20260524-080604-mlp/candidate_ranker.pt",
+    "jsonModelPath": "models/distillation/local-baseline-20260524-080604-mlp/candidate_ranker_mlp.json",
+    "modelType": "mlp",
+    "device": "mps",
+    "inputDim": 119,
+    "epochs": 5,
+    "durationSeconds": 14.487,
+    "train": {
+      "top1": 0.8232073011734029,
+      "mrr": 0.9011382214772052,
+      "firstCandidateTop1": 0.34471968709256845,
+      "randomExpectedTop1": 0.21622548261674293,
+      "decisions": 3835,
+      "candidates": 35898,
+      "byKind": {
+        "JUST_SAY_NO": {
+          "top1": 0.5874125874125874,
+          "decisions": 143
+        },
+        "OVERFLOW_DISCARD": {
+          "top1": 0.6326530612244898,
+          "decisions": 49
+        },
+        "PAYMENT": {
+          "top1": 0.8855869242199108,
+          "decisions": 673
+        },
+        "PLAY_CARD": {
+          "top1": 0.8235690235690236,
+          "decisions": 2970
+        }
+      }
+    },
+    "validation": {
+      "top1": 0.8274760383386581,
+      "mrr": 0.9020437141842895,
+      "firstCandidateTop1": 0.3365282215122471,
+      "randomExpectedTop1": 0.21255901543356356,
+      "decisions": 939,
+      "candidates": 9033,
+      "byKind": {
+        "JUST_SAY_NO": {
+          "top1": 0.5428571428571428,
+          "decisions": 35
+        },
+        "OVERFLOW_DISCARD": {
+          "top1": 0.4117647058823529,
+          "decisions": 17
+        },
+        "PAYMENT": {
+          "top1": 0.9161676646706587,
+          "decisions": 167
+        },
+        "PLAY_CARD": {
+          "top1": 0.8305555555555556,
+          "decisions": 720
+        }
+      }
+    }
+  },
+  "qualityGates": [
+    {
+      "name": "min_rows",
+      "ok": true,
+      "detail": "4774 / 500 rows"
+    },
+    {
+      "name": "all_decision_kinds",
+      "ok": true,
+      "detail": "covered"
+    },
+    {
+      "name": "preferred_source_95pct",
+      "ok": true,
+      "detail": "local_heuristic 100.0%"
+    },
+    {
+      "name": "beats_first_candidate",
+      "ok": true,
+      "detail": "top1 0.827 vs first 0.337"
+    },
+    {
+      "name": "beats_random",
+      "ok": true,
+      "detail": "top1 0.827 vs random 0.213"
+    }
+  ],
+  "readyForTraining": true,
+  "readyForProductionTraining": false,
+  "labelQualityTier": "local_baseline",
+  "modelComparisons": [
+    {
+      "modelPath": "models/distillation/local-baseline-20260524-080604-mlp/candidate_ranker.pt",
+      "jsonModelPath": "models/distillation/local-baseline-20260524-080604-mlp/candidate_ranker_mlp.json",
+      "modelType": "mlp",
+      "device": "mps",
+      "inputDim": 119,
+      "epochs": 5,
+      "durationSeconds": 14.487,
+      "train": {
+        "top1": 0.8232073011734029,
+        "mrr": 0.9011382214772052,
+        "firstCandidateTop1": 0.34471968709256845,
+        "randomExpectedTop1": 0.21622548261674293,
+        "decisions": 3835,
+        "candidates": 35898,
+        "byKind": {
+          "JUST_SAY_NO": {
+            "top1": 0.5874125874125874,
+            "decisions": 143
+          },
+          "OVERFLOW_DISCARD": {
+            "top1": 0.6326530612244898,
+            "decisions": 49
+          },
+          "PAYMENT": {
+            "top1": 0.8855869242199108,
+            "decisions": 673
+          },
+          "PLAY_CARD": {
+            "top1": 0.8235690235690236,
+            "decisions": 2970
+          }
+        }
+      },
+      "validation": {
+        "top1": 0.8274760383386581,
+        "mrr": 0.9020437141842895,
+        "firstCandidateTop1": 0.3365282215122471,
+        "randomExpectedTop1": 0.21255901543356356,
+        "decisions": 939,
+        "candidates": 9033,
+        "byKind": {
+          "JUST_SAY_NO": {
+            "top1": 0.5428571428571428,
+            "decisions": 35
+          },
+          "OVERFLOW_DISCARD": {
+            "top1": 0.4117647058823529,
+            "decisions": 17
+          },
+          "PAYMENT": {
+            "top1": 0.9161676646706587,
+            "decisions": 167
+          },
+          "PLAY_CARD": {
+            "top1": 0.8305555555555556,
+            "decisions": 720
+          }
+        }
+      }
+    },
+    {
+      "modelPath": "models/distillation/local-baseline-20260524-080604-linear/candidate_ranker.pt",
+      "jsonModelPath": "models/distillation/local-baseline-20260524-080604-linear/candidate_ranker_linear.json",
+      "modelType": "linear",
+      "device": "mps",
+      "inputDim": 119,
+      "epochs": 5,
+      "durationSeconds": 11.029,
+      "train": {
+        "top1": 0.6677966101694915,
+        "mrr": 0.799780110611959,
+        "firstCandidateTop1": 0.34471968709256845,
+        "randomExpectedTop1": 0.21622548261674293,
+        "decisions": 3835,
+        "candidates": 35898,
+        "byKind": {
+          "JUST_SAY_NO": {
+            "top1": 0.5034965034965035,
+            "decisions": 143
+          },
+          "OVERFLOW_DISCARD": {
+            "top1": 0.24489795918367346,
+            "decisions": 49
+          },
+          "PAYMENT": {
+            "top1": 0.7949479940564635,
+            "decisions": 673
+          },
+          "PLAY_CARD": {
+            "top1": 0.6538720538720538,
+            "decisions": 2970
+          }
+        }
+      },
+      "validation": {
+        "top1": 0.6592119275825347,
+        "mrr": 0.789536981524539,
+        "firstCandidateTop1": 0.3365282215122471,
+        "randomExpectedTop1": 0.21255901543356356,
+        "decisions": 939,
+        "candidates": 9033,
+        "byKind": {
+          "JUST_SAY_NO": {
+            "top1": 0.5428571428571428,
+            "decisions": 35
+          },
+          "OVERFLOW_DISCARD": {
+            "top1": 0.058823529411764705,
+            "decisions": 17
+          },
+          "PAYMENT": {
+            "top1": 0.8023952095808383,
+            "decisions": 167
+          },
+          "PLAY_CARD": {
+            "top1": 0.6458333333333334,
+            "decisions": 720
+          }
+        }
+      }
+    },
+    {
+      "modelType": "knn",
+      "durationSeconds": 24.372,
+      "train": {
+        "top1": 0.7053455019556715,
+        "mrr": 0.8020993234594742,
+        "firstCandidateTop1": 0.34471968709256845,
+        "randomExpectedTop1": 0.21622548261674293,
+        "decisions": 3835,
+        "candidates": 35898,
+        "byKind": {
+          "JUST_SAY_NO": {
+            "top1": 0.9300699300699301,
+            "decisions": 143
+          },
+          "OVERFLOW_DISCARD": {
+            "top1": 0.7755102040816326,
+            "decisions": 49
+          },
+          "PAYMENT": {
+            "top1": 0.9569093610698366,
+            "decisions": 673
+          },
+          "PLAY_CARD": {
+            "top1": 0.6363636363636364,
+            "decisions": 2970
+          }
+        }
+      },
+      "validation": {
+        "top1": 0.3929712460063898,
+        "mrr": 0.5780500317430698,
+        "firstCandidateTop1": 0.3365282215122471,
+        "randomExpectedTop1": 0.21255901543356356,
+        "decisions": 939,
+        "candidates": 9033,
+        "byKind": {
+          "JUST_SAY_NO": {
+            "top1": 0.6285714285714286,
+            "decisions": 35
+          },
+          "OVERFLOW_DISCARD": {
+            "top1": 0.29411764705882354,
+            "decisions": 17
+          },
+          "PAYMENT": {
+            "top1": 0.6946107784431138,
+            "decisions": 167
+          },
+          "PLAY_CARD": {
+            "top1": 0.3138888888888889,
+            "decisions": 720
+          }
+        }
+      }
+    }
+  ],
+  "gameplayEvaluations": [
+    {
+      "modelPath": "models/distillation/local-baseline-20260524-080604-mlp/candidate_ranker_mlp.json",
+      "gamesRequested": 12,
+      "players": 3,
+      "maxSnapshotsPerGame": 400,
+      "rankerSeat": 1,
+      "opponentStrategy": "hard",
+      "completedGames": 12,
+      "naturalWinRate": 1.0,
+      "averageSnapshots": 204.91666666666666,
+      "averageRankerBoardRank": 2.1666666666666665,
+      "rankerBoardLeadRate": 0.3333333333333333,
+      "rankerBoardTiedLeadRate": 0.0,
+      "winsByPlayerId": {
+        "ai-2": 4,
+        "ai-3": 4,
+        "ai-1": 4
+      },
+      "endReasons": {
+        "NATURAL_OR_LIMIT": 12
+      }
+    }
+  ]
+}

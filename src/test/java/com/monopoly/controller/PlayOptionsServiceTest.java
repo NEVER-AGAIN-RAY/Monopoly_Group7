@@ -1,9 +1,12 @@
 package com.monopoly.controller;
 
 import com.monopoly.dto.ActionOptionsResult;
+import com.monopoly.model.card.ActionCard;
 import com.monopoly.model.card.MoneyCard;
+import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.card.PropertyWildCard;
 import com.monopoly.model.card.PropertyWildCard.WildPropertyKind;
+import com.monopoly.model.core.GameContext;
 import com.monopoly.model.player.HumanPlayer;
 import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
@@ -66,5 +69,60 @@ class PlayOptionsServiceTest {
         assertTrue(r.isOk());
         assertEquals(1, r.getOptions().size());
         assertEquals("YELLOW", r.getOptions().get(0).getTargetColorKey());
+    }
+
+    @Test
+    void forcedDealOptionsExcludeCompleteSetProperties() {
+        HumanPlayer actor = new HumanPlayer("p1", "P1");
+        HumanPlayer target = new HumanPlayer("p2", "P2");
+        ActionCard forcedDeal = new ActionCard("fd", "Forced Deal", "FORCED_DEAL");
+        actor.addToPropertyZone(new PropertyCard("actor-red", "Actor Red", "RED"));
+        actor.addToPropertyZone(new PropertyCard("actor-brown-1", "Actor Brown 1", "BROWN"));
+        actor.addToPropertyZone(new PropertyCard("actor-brown-2", "Actor Brown 2", "BROWN"));
+        target.addToPropertyZone(new PropertyCard("target-green", "Target Green", "GREEN"));
+        target.addToPropertyZone(new PropertyCard("target-blue-1", "Target Blue 1", "DARK_BLUE"));
+        target.addToPropertyZone(new PropertyCard("target-blue-2", "Target Blue 2", "DARK_BLUE"));
+
+        ActionOptionsResult r = PlayOptionsService.build(
+                actor, forcedDeal, "ACTION", List.of(actor, target), GameEngineSingleton.getInstance());
+
+        assertTrue(r.isOk());
+        assertEquals(1, r.getOptions().size());
+        assertEquals("target-green", r.getOptions().get(0).getTargetCardId());
+        assertEquals("actor-red", r.getOptions().get(0).getActorCardId());
+    }
+
+    @Test
+    void debtCollectorOptionsIncludeEveryOpponentInThreePlayerGame() {
+        HumanPlayer actor = new HumanPlayer("p1", "P1");
+        HumanPlayer targetA = new HumanPlayer("p2", "P2");
+        HumanPlayer targetB = new HumanPlayer("p3", "P3");
+        ActionCard debt = new ActionCard("debt", "Debt Collector", "DEBT_COLLECTOR");
+
+        ActionOptionsResult r = PlayOptionsService.build(
+                actor, debt, "ACTION", List.of(actor, targetA, targetB), GameEngineSingleton.getInstance());
+
+        assertTrue(r.isOk());
+        assertEquals(2, r.getOptions().size());
+        assertEquals("p2", r.getOptions().get(0).getTargetPlayerId());
+        assertEquals("p3", r.getOptions().get(1).getTargetPlayerId());
+    }
+
+    @Test
+    void rentOptionsShowPendingDoubleRentAmount() {
+        HumanPlayer actor = new HumanPlayer("p1", "P1");
+        HumanPlayer target = new HumanPlayer("p2", "P2");
+        actor.addToPropertyZone(new PropertyCard("brown", "Brown", "BROWN"));
+        ActionCard rent = new ActionCard("rent", "Rent", "RENT");
+        GameContext context = new GameContext();
+        context.bindPlayers(List.of(actor, target));
+        context.setPendingDoubleRentFor(actor.getPlayerId());
+
+        ActionOptionsResult r = PlayOptionsService.build(
+                actor, rent, "ACTION", List.of(actor, target), GameEngineSingleton.getInstance(), context);
+
+        assertTrue(r.isOk());
+        assertTrue(r.getOptions().stream()
+                .anyMatch(o -> o.getLabelZh().contains("双倍后 2M")));
     }
 }

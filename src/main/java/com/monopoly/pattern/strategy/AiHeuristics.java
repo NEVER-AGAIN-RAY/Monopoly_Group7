@@ -17,7 +17,6 @@ import com.monopoly.model.effects.RentEffect;
 import com.monopoly.model.settlement.RentCalculator;
 import com.monopoly.dto.ActionParamContext;
 import com.monopoly.dto.PlayActionRequest;
-import com.monopoly.pattern.singleton.GameEngineSingleton;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1345,7 +1344,7 @@ public final class AiHeuristics {
 
     private static int estimateRentDue(AIPlayer bot, GameContext context, PlayActionRequest req) {
         ActionEffectContext ctx = ActionEffectContext
-                .builder(bot, GameEngineSingleton.getInstance(), context.getPlayers())
+                .builder(bot, null, context.getPlayers())
                 .target(context.findPlayer(req.getTargetPlayerId()))
                 .colorKey(req.getTargetColorKey())
                 .build();

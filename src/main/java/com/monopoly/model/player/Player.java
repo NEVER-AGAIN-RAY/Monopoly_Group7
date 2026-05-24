@@ -197,6 +197,15 @@ public abstract class Player {
         return card != null && bankCards.remove(card);
     }
 
+    public List<ActionCard> clearActionZone() {
+        if (actionZoneCards.isEmpty()) {
+            return List.of();
+        }
+        List<ActionCard> cleared = new ArrayList<>(actionZoneCards);
+        actionZoneCards.clear();
+        return cleared;
+    }
+
     public boolean removePropertyCard(PropertyCard card) {
         return card != null && propertyCards.remove(card);
     }

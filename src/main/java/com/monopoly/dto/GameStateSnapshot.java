@@ -32,6 +32,8 @@ public class GameStateSnapshot {
     private int actionsUsedThisTurn;
     /** Number of card plays still available in the current turn. */
     private int actionsRemainingThisTurn;
+    /** Cards that must be discarded before this turn can advance. */
+    private int overflowDiscardCount;
     /** One-based round number for display. */
     private int roundNumber;
     /** 等待打出免租/放弃的玩家（效果栈响应阶段） */
@@ -163,6 +165,14 @@ public class GameStateSnapshot {
 
     public void setActionsRemainingThisTurn(int actionsRemainingThisTurn) {
         this.actionsRemainingThisTurn = actionsRemainingThisTurn;
+    }
+
+    public int getOverflowDiscardCount() {
+        return overflowDiscardCount;
+    }
+
+    public void setOverflowDiscardCount(int overflowDiscardCount) {
+        this.overflowDiscardCount = overflowDiscardCount;
     }
 
     public int getRoundNumber() {

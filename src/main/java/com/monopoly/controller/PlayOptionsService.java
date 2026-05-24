@@ -2,6 +2,7 @@ package com.monopoly.controller;
 
 import com.monopoly.dto.ActionOptionRow;
 import com.monopoly.dto.ActionOptionsResult;
+import com.monopoly.model.core.GameContext;
 import com.monopoly.model.card.ActionCard;
 import com.monopoly.model.card.Card;
 import com.monopoly.model.card.MoneyCard;
@@ -32,6 +33,16 @@ public final class PlayOptionsService {
             String actionType,
             List<Player> allPlayers,
             GameEngineSingleton engine) {
+        return build(actor, card, actionType, allPlayers, engine, null);
+    }
+
+    public static ActionOptionsResult build(
+            Player actor,
+            Card card,
+            String actionType,
+            List<Player> allPlayers,
+            GameEngineSingleton engine,
+            GameContext gameContext) {
         ActionOptionsResult bad = new ActionOptionsResult();
         if (actor == null || card == null || allPlayers == null || engine == null) {
             bad.setOk(false);
@@ -92,7 +103,7 @@ public final class PlayOptionsService {
                     out.setError("ACTION 仅适用于行动牌。");
                     return out;
                 }
-                return ActionOptionsService.build(actor, ac, allPlayers, engine);
+                return ActionOptionsService.build(actor, ac, allPlayers, engine, gameContext);
             }
             default -> {
                 out.setOk(false);

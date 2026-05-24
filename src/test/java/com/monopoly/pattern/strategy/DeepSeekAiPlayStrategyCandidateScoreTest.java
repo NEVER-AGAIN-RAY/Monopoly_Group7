@@ -1,6 +1,15 @@
 package com.monopoly.pattern.strategy;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.monopoly.dto.PlayActionRequest;
+import com.monopoly.model.card.ActionCard;
+import com.monopoly.model.card.MoneyCard;
+import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.core.GameContext;
+import com.monopoly.model.player.AIPlayer;
+import com.monopoly.model.player.HumanPlayer;
+import com.monopoly.model.settlement.PaymentSettlement;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -99,6 +108,57 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         assertEquals(List.of(), ids);
     }
 
+    @Test
+    void playPromptUsesSharedContextWithoutOpponentHandDetails() {
+        AIPlayer bot = new AIPlayer("ai-1", "DeepSeek-AI-1", null);
+        bot.receiveCardToHand(new ActionCard("pass-go", "Pass Go", "PASS_GO"));
+        bot.addToPropertyZone(new PropertyCard("ai-brown", "AI Brown", "BROWN"));
+        HumanPlayer human = new HumanPlayer("human", "Human");
+        human.receiveCardToHand(new MoneyCard("hidden", "Hidden 5M", 5));
+        human.addToPropertyZone(new PropertyCard("human-red", "Human Red", "RED"));
+        GameContext context = contextWithPlayers(bot, human);
+        AiHeuristics.AiPlayCandidate candidate = candidate(
+                "c1", "ACTION", "pass-go", "Action PASS_GO draw=2.");
+
+        JsonObject prompt = JsonParser.parseString(
+                DeepSeekAiPlayStrategy.buildUserPrompt(bot, context, List.of(candidate))).getAsJsonObject();
+
+        assertEquals("deepseek-decision-context-v2", prompt.get("promptVersion").getAsString());
+        assertEquals(2, prompt.getAsJsonObject("gameMeta").get("playerCount").getAsInt());
+        assertEquals("PLAY_CARD", prompt.getAsJsonObject("decision").get("kind").getAsString());
+        assertEquals(1, prompt.getAsJsonObject("self").getAsJsonArray("handCards").size());
+        assertEquals(2, prompt.getAsJsonArray("players").size());
+        String serialized = prompt.toString();
+        assertTrue(serialized.contains("\"handCount\":1"));
+        assertTrue(!serialized.contains("hidden"));
+    }
+
+    @Test
+    void paymentAndDiscardPromptsReuseSharedContext() {
+        AIPlayer bot = new AIPlayer("ai-1", "DeepSeek-AI-1", null);
+        MoneyCard cash = new MoneyCard("cash-1", "1M", 1);
+        MoneyCard handOverflow = new MoneyCard("hand-overflow", "2M", 2);
+        bot.receiveCardToHand(handOverflow);
+        bot.addToBank(cash);
+        HumanPlayer creditor = new HumanPlayer("human", "Human");
+        GameContext context = contextWithPlayers(bot, creditor);
+        PaymentSettlement.PaymentChoice fallback =
+                new PaymentSettlement.PaymentChoice(List.of(cash), cash.getPaymentValue());
+
+        JsonObject payment = JsonParser.parseString(
+                DeepSeekAiPlayStrategy.buildPaymentPrompt(
+                        bot, context, creditor, 1, List.of(cash), fallback)).getAsJsonObject();
+        JsonObject discard = JsonParser.parseString(
+                DeepSeekAiPlayStrategy.buildDiscardPrompt(
+                        bot, context, 7, 1, List.of(handOverflow))).getAsJsonObject();
+
+        assertEquals("PAYMENT", payment.getAsJsonObject("decision").get("kind").getAsString());
+        assertEquals("human", payment.getAsJsonObject("decision").get("creditorPlayerId").getAsString());
+        assertEquals(2, payment.getAsJsonObject("gameMeta").get("playerCount").getAsInt());
+        assertEquals("OVERFLOW_DISCARD", discard.getAsJsonObject("decision").get("kind").getAsString());
+        assertEquals(2, discard.getAsJsonObject("gameMeta").get("playerCount").getAsInt());
+    }
+
     private static AiHeuristics.AiPlayCandidate candidate(
             String id,
             String actionType,
@@ -108,5 +168,12 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         request.setActionType(actionType);
         request.setCardId(cardId);
         return new AiHeuristics.AiPlayCandidate(id, request, summary);
+    }
+
+    private static GameContext contextWithPlayers(AIPlayer bot, HumanPlayer other) {
+        GameContext context = new GameContext();
+        context.bindPlayers(List.of(bot, other));
+        context.setTurnState(bot.getPlayerId(), "PLAY", 3, 1, 3);
+        return context;
     }
 }

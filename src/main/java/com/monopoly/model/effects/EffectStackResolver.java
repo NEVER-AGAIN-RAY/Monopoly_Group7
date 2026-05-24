@@ -3,6 +3,7 @@ package com.monopoly.model.effects;
 import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.settlement.PaymentSettlement;
+import com.monopoly.model.core.GameContext;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 import com.monopoly.pattern.strategy.AiChoiceAdvisor;
 
@@ -23,7 +24,7 @@ public final class EffectStackResolver {
             List<EffectStackEntry> stackBottomToTop,
             List<Player> players,
             GameEngineSingleton engine) {
-        return resolveRentPayments(stackBottomToTop, players, engine, null, null);
+        return resolveRentPayments(stackBottomToTop, players, engine, null, null, null);
     }
 
     /**
@@ -35,6 +36,17 @@ public final class EffectStackResolver {
             GameEngineSingleton engine,
             List<String> explicitPaymentCardIds,
             String actingTenantIdForExplicit) {
+        return resolveRentPayments(
+                stackBottomToTop, players, engine, explicitPaymentCardIds, actingTenantIdForExplicit, null);
+    }
+
+    public static PaymentSettlement.Result resolveRentPayments(
+            List<EffectStackEntry> stackBottomToTop,
+            List<Player> players,
+            GameEngineSingleton engine,
+            List<String> explicitPaymentCardIds,
+            String actingTenantIdForExplicit,
+            GameContext context) {
 
         if (stackBottomToTop == null || stackBottomToTop.isEmpty()) {
             return new PaymentSettlement.Result(
@@ -63,17 +75,21 @@ public final class EffectStackResolver {
                 explicitConsumed = true;
             } else {
                 PaymentSettlement.PaymentChoice choice =
-                        choosePaymentForTenant(tenant, e.getAmountDue());
+                        choosePaymentForTenant(tenant, landlord, e.getAmountDue(), context);
                 last = PaymentSettlement.settleWithChoice(tenant, landlord, e.getAmountDue(), choice, engine);
             }
         }
         return last;
     }
 
-    private static PaymentSettlement.PaymentChoice choosePaymentForTenant(Player tenant, int amountDue) {
+    private static PaymentSettlement.PaymentChoice choosePaymentForTenant(
+            Player tenant,
+            Player landlord,
+            int amountDue,
+            GameContext context) {
         PaymentSettlement.PaymentChoice fallback = PaymentSettlement.choosePayment(tenant, amountDue);
         if (tenant instanceof AIPlayer ai && ai.getPlayStrategy() instanceof AiChoiceAdvisor advisor) {
-            return advisor.choosePayment(ai, amountDue, fallback);
+            return advisor.choosePayment(ai, context, landlord, amountDue, fallback);
         }
         return fallback;
     }

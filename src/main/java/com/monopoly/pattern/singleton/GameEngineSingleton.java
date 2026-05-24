@@ -42,6 +42,15 @@ public final class GameEngineSingleton {
         return instance;
     }
 
+    /**
+     * Creates an isolated engine for one live game session. The singleton accessors
+     * stay for legacy tests/tools, but production sessions should use per-controller
+     * instances so multiple games in one JVM cannot share a deck.
+     */
+    public static GameEngineSingleton createIsolated() {
+        return new GameEngineSingleton();
+    }
+
     /** Test-only singleton reset */
     static void resetForTests() {
         synchronized (GameEngineSingleton.class) {

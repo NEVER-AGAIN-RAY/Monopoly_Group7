@@ -1,0 +1,88 @@
+{
+  "modelType": "knn",
+  "k": 5,
+  "referenceExamples": 3822,
+  "referencePositiveOnly": true,
+  "train": {
+    "top1": 0.7119309262166404,
+    "mrr": 0.8055929173841725,
+    "firstCandidateTop1": 0.34955520669806384,
+    "randomExpectedTop1": 0.21558607931900503,
+    "decisions": 3822,
+    "candidates": 36100,
+    "byKind": {
+      "JUST_SAY_NO": {
+        "top1": 0.8896551724137931,
+        "decisions": 145
+      },
+      "OVERFLOW_DISCARD": {
+        "top1": 0.9090909090909091,
+        "decisions": 55
+      },
+      "PAYMENT": {
+        "top1": 0.9571865443425076,
+        "decisions": 654
+      },
+      "PLAY_CARD": {
+        "top1": 0.6455525606469003,
+        "decisions": 2968
+      }
+    }
+  },
+  "validation": {
+    "top1": 0.40441176470588236,
+    "mrr": 0.585605270554749,
+    "firstCandidateTop1": 0.3172268907563025,
+    "randomExpectedTop1": 0.21517609891815986,
+    "decisions": 952,
+    "candidates": 8831,
+    "byKind": {
+      "JUST_SAY_NO": {
+        "top1": 0.5151515151515151,
+        "decisions": 33
+      },
+      "OVERFLOW_DISCARD": {
+        "top1": 0.0,
+        "decisions": 11
+      },
+      "PAYMENT": {
+        "top1": 0.7365591397849462,
+        "decisions": 186
+      },
+      "PLAY_CARD": {
+        "top1": 0.31994459833795014,
+        "decisions": 722
+      }
+    }
+  },
+  "featureVersion": "candidate-ranker-features-v1",
+  "dataset": {
+    "rows": 4774,
+    "sessions": 60,
+    "byKind": {
+      "JUST_SAY_NO": 178,
+      "OVERFLOW_DISCARD": 66,
+      "PAYMENT": 840,
+      "PLAY_CARD": 3690
+    },
+    "byTeacherSource": {
+      "local_heuristic": 4774
+    },
+    "avgCandidates": 9.41160452450775,
+    "maxCandidates": 32,
+    "skippedBySource": {}
+  },
+  "splitBy": "session",
+  "validationPlayerCounts": [],
+  "balanceByKind": false,
+  "kindBalanceMax": 4.0,
+  "kindWeights": {
+    "PLAY_CARD": 1.0,
+    "JUST_SAY_NO": 1.0,
+    "PAYMENT": 1.0,
+    "OVERFLOW_DISCARD": 1.0
+  },
+  "trainExamples": 36100,
+  "validationExamples": 8831,
+  "durationSeconds": 23.807
+}

@@ -1,0 +1,25 @@
+{
+  "schema": "monopoly-deal-ai-delivery-status-v1",
+  "deepseekKeyPresent": false,
+  "localPrefix": "models/distillation/local-enhanced-20260524",
+  "localReadyRuns": 1,
+  "localProductionReadyRuns": 0,
+  "localRows": 6372,
+  "localValidationTop1Mean": 0.8151137197358768,
+  "localRankerWinRate": 0.5,
+  "localArtifacts": {
+    "runSummary": "models/distillation/local-enhanced-20260524-run_summary.md",
+    "readiness": "models/distillation/local-enhanced-20260524-readiness.json",
+    "traceAudit": "models/distillation/local-enhanced-20260524-trace_audit.json",
+    "modelJson": "models/distillation/local-enhanced-20260524-mlp/candidate_ranker_mlp.json",
+    "gameplay": "models/distillation/local-enhanced-20260524-mlp/gameplay_vs_hard.json",
+    "seedSummary": "",
+    "gameplayMatrix": "",
+    "artifactsArchive": "models/distillation/local-enhanced-20260524-artifacts.tar.gz",
+    "handoffArchive": "models/distillation/local-enhanced-20260524-training-handoff.tar.gz"
+  },
+  "productionPrefix": "",
+  "productionReady": false,
+  "productionReadinessMode": "not-run",
+  "productionMissingReason": "No production prefix was provided; DeepSeek production run has not been completed in this checkout."
+}

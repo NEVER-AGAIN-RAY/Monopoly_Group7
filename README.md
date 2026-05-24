@@ -66,6 +66,8 @@ Monopoly Deal: Java WebSocket server plus a **JavaFX + FXML** desktop client (`m
 | `-Dmonopoly.autosave=true/false` | `false` | 开启后每 3 个整轮自动写入 `~/.monopoly-deal/autosave.json`。 |
 | `-Dmonopoly.saveKey=...` | 未设置 | 设置后存档使用 AES-GCM 加密；未设置时按明文 JSON 存储。 |
 | `-Dmonopoly.sessionLimitMs=...` | `GameConstants.DEFAULT_SESSION_LIMIT_MS` | 覆盖单局超时上限（毫秒）。 |
+| `-Dmonopoly.deck.seed=...` | 未设置 | 固定初始牌堆洗牌顺序；同时固定弃牌堆回洗随机源，供可复现实验使用。 |
+| `-Dmonopoly.firstPlayer.seed=...` | 未设置 | 在 `randomizeFirstPlayer=true` 时固定随机先手。 |
 
 ## Documentation 导航
 

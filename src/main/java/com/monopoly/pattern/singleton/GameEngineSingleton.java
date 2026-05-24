@@ -7,6 +7,7 @@ import com.monopoly.model.player.Player;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -24,6 +25,7 @@ public final class GameEngineSingleton {
 
     private final List<Card> drawPile = new ArrayList<>();
     private final List<Card> discardPile = new ArrayList<>();
+    private Random deterministicReshuffleRandom;
 
     private GameEngineSingleton() {
     }
@@ -75,6 +77,14 @@ public final class GameEngineSingleton {
         }
     }
 
+    public void useDeterministicReshuffleSeed(long seed) {
+        deterministicReshuffleRandom = new Random(seed);
+    }
+
+    public void clearDeterministicReshuffleSeed() {
+        deterministicReshuffleRandom = null;
+    }
+
     /**
      * Draw one card; reshuffle discard into draw when draw pile is empty; null if both empty.
      */
@@ -98,7 +108,10 @@ public final class GameEngineSingleton {
         }
         drawPile.addAll(discardPile);
         discardPile.clear();
-        Collections.shuffle(drawPile, ThreadLocalRandom.current());
+        Random rng = deterministicReshuffleRandom != null
+                ? deterministicReshuffleRandom
+                : ThreadLocalRandom.current();
+        Collections.shuffle(drawPile, rng);
     }
 
     /**

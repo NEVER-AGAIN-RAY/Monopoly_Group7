@@ -261,7 +261,7 @@ public final class GameSessionMemento {
             }
             m.aiDifficulty = anyAi ? firstAiDiff : null;
 
-            GameEngineSingleton engine = GameEngineSingleton.getInstance();
+            GameEngineSingleton engine = controller.getEngine();
             m.drawPile = mapCards(engine.getDrawPileView());
             m.discardPile = mapCards(engine.getDiscardPileView());
 
@@ -307,8 +307,7 @@ public final class GameSessionMemento {
             throw new IllegalArgumentException("controller 与 memento 不能为 null");
         }
         try {
-            resetSingletonEngineForTests();
-            GameEngineSingleton engine = GameEngineSingleton.getInstance();
+            GameEngineSingleton engine = controller.getEngine();
 
             List<Player> players = new ArrayList<>();
             for (SessionPlayerMemento sm : memento.getSessionPlayers()) {

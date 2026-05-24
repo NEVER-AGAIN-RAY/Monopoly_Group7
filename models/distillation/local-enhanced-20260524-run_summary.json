@@ -1,0 +1,96 @@
+{
+  "schema": "monopoly-deal-training-run-summary-v1",
+  "outputPrefix": "models/distillation/local-enhanced-20260524",
+  "handoffReady": true,
+  "productionReady": false,
+  "readinessMode": "local",
+  "readinessFailures": [],
+  "auditOk": true,
+  "auditFailures": [
+    {
+      "name": "token_usage_observed",
+      "ok": false,
+      "severity": "warn",
+      "detail": "rowsWithUsage=0 / 6372"
+    }
+  ],
+  "rows": 6372,
+  "sessions": 134,
+  "teacherSources": {
+    "local_heuristic": 6372
+  },
+  "decisionKinds": {
+    "JUST_SAY_NO": 378,
+    "OVERFLOW_DISCARD": 164,
+    "PAYMENT": 1340,
+    "PLAY_CARD": 4490
+  },
+  "playerCounts": {
+    "2": 1417,
+    "3": 1670,
+    "4": 1628,
+    "5": 1657
+  },
+  "rowsWithTokenUsage": 0,
+  "tokenUsage": {
+    "rowsWithUsage": 0,
+    "promptTokensShare": 0.0,
+    "completionTokensShare": 0.0,
+    "totalTokensShare": 0.0,
+    "avgTotalTokensPerDecision": 0.0
+  },
+  "validation": {
+    "top1": 0.8151137197358768,
+    "mrr": 0.8961836634874052,
+    "firstCandidateTop1": 0.3573000733675715,
+    "randomExpectedTop1": 0.2228653036012578,
+    "byKind": {
+      "JUST_SAY_NO": {
+        "top1": 0.6091954022988506,
+        "decisions": 87
+      },
+      "OVERFLOW_DISCARD": {
+        "top1": 0.7916666666666666,
+        "decisions": 24
+      },
+      "PAYMENT": {
+        "top1": 0.9274809160305344,
+        "decisions": 262
+      },
+      "PLAY_CARD": {
+        "top1": 0.804040404040404,
+        "decisions": 990
+      }
+    }
+  },
+  "model": {
+    "type": "mlp",
+    "device": "mps",
+    "inputDim": 119,
+    "epochs": 6,
+    "splitBy": "session",
+    "balanceByKind": true
+  },
+  "gameplay": {
+    "opponentStrategy": "hard",
+    "gamesRequested": 4,
+    "evaluatedGames": 4,
+    "completedGames": 4,
+    "naturalWinRate": 1.0,
+    "rankerWinRate": 0.5,
+    "averageSnapshots": 201.25,
+    "averageRankerBoardRank": 1.75,
+    "rankerBoardLeadRate": 0.5,
+    "endReasons": {
+      "NATURAL_OR_LIMIT": 4
+    }
+  },
+  "artifacts": {
+    "manifest": "models/distillation/local-enhanced-20260524-dataset_manifest.json",
+    "audit": "models/distillation/local-enhanced-20260524-trace_audit.json",
+    "quality": "models/distillation/local-enhanced-20260524-quality_report.json",
+    "readiness": "models/distillation/local-enhanced-20260524-readiness.json",
+    "metrics": "models/distillation/local-enhanced-20260524-mlp/metrics.json",
+    "gameplay": "models/distillation/local-enhanced-20260524-mlp/gameplay_vs_hard.json"
+  }
+}

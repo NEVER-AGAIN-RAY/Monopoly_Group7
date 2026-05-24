@@ -44,11 +44,11 @@ final class SaveLoadService {
         if (fullRoundsCompleted <= 0 || fullRoundsCompleted % 3 != 0) {
             return;
         }
-        Path path = Path.of(System.getProperty("user.home"), ".monopoly-deal", "autosave.json");
-        LOG.info("autosave eligible: fullRoundsCompleted=" + fullRoundsCompleted + " path=" + path);
         if (!Boolean.parseBoolean(System.getProperty(GameConstants.AUTOSAVE_PROPERTY, "false"))) {
             return;
         }
+        Path path = Path.of(System.getProperty("user.home"), ".monopoly-deal", "autosave.json");
+        LOG.info("autosave eligible: fullRoundsCompleted=" + fullRoundsCompleted + " path=" + path);
         try {
             String json = exportSessionJson();
             String payload = SaveEncryption.encodeForStorage(json);

@@ -1,0 +1,97 @@
+{
+  "schema": "monopoly-deal-training-run-summary-v1",
+  "outputPrefix": "models/distillation/local-baseline-20260524-080604-multiseed-seed11",
+  "handoffReady": true,
+  "productionReady": false,
+  "readinessMode": "local",
+  "readinessFailures": [],
+  "auditOk": true,
+  "auditFailures": [
+    {
+      "name": "token_usage_observed",
+      "ok": false,
+      "severity": "warn",
+      "detail": "rowsWithUsage=0 / 4774"
+    }
+  ],
+  "rows": 4774,
+  "sessions": 60,
+  "teacherSources": {
+    "local_heuristic": 4774
+  },
+  "decisionKinds": {
+    "JUST_SAY_NO": 178,
+    "OVERFLOW_DISCARD": 66,
+    "PAYMENT": 840,
+    "PLAY_CARD": 3690
+  },
+  "playerCounts": {
+    "2": 1055,
+    "3": 1267,
+    "4": 1223,
+    "5": 1229
+  },
+  "rowsWithTokenUsage": 0,
+  "tokenUsage": {
+    "rowsWithUsage": 0,
+    "promptTokensShare": 0.0,
+    "completionTokensShare": 0.0,
+    "totalTokensShare": 0.0,
+    "avgTotalTokensPerDecision": 0.0
+  },
+  "validation": {
+    "top1": 0.8089385474860336,
+    "mrr": 0.8903884011705244,
+    "firstCandidateTop1": 0.34301675977653634,
+    "randomExpectedTop1": 0.22724842773860754,
+    "byKind": {
+      "JUST_SAY_NO": {
+        "top1": 0.6666666666666666,
+        "decisions": 30
+      },
+      "OVERFLOW_DISCARD": {
+        "top1": 0.7142857142857143,
+        "decisions": 7
+      },
+      "PAYMENT": {
+        "top1": 0.9,
+        "decisions": 150
+      },
+      "PLAY_CARD": {
+        "top1": 0.7966101694915254,
+        "decisions": 708
+      }
+    }
+  },
+  "model": {
+    "type": "mlp",
+    "device": "mps",
+    "inputDim": 119,
+    "epochs": 6,
+    "splitBy": "session",
+    "balanceByKind": true
+  },
+  "gameplay": {
+    "opponentStrategy": "hard",
+    "gamesRequested": 4,
+    "evaluatedGames": 4,
+    "completedGames": 2,
+    "naturalWinRate": 0.5,
+    "rankerWinRate": 0.0,
+    "averageSnapshots": 216.0,
+    "averageRankerBoardRank": 2.0,
+    "rankerBoardLeadRate": 0.0,
+    "endReasons": {
+      "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT": 2,
+      "NATURAL_OR_LIMIT": 2
+    }
+  },
+  "artifacts": {
+    "manifest": "models/distillation/local-baseline-20260524-080604-multiseed-seed11-dataset_manifest.json",
+    "audit": "models/distillation/local-baseline-20260524-080604-multiseed-seed11-trace_audit.json",
+    "quality": "models/distillation/local-baseline-20260524-080604-multiseed-seed11-quality_report.json",
+    "readiness": "models/distillation/local-baseline-20260524-080604-multiseed-seed11-readiness.json",
+    "metrics": "models/distillation/local-baseline-20260524-080604-multiseed-seed11-mlp/metrics.json",
+    "gameplay": "models/distillation/local-baseline-20260524-080604-multiseed-seed11-mlp/gameplay_vs_hard.json"
+  }
+}

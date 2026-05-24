@@ -120,6 +120,35 @@ public abstract class Player {
         return discarded;
     }
 
+    public List<Card> chooseOverflowDiscardsTo(int limit) {
+        List<Card> copy = new ArrayList<>(handCards);
+        List<Card> chosen = new ArrayList<>();
+        if (limit < 0) {
+            limit = 0;
+        }
+        while (copy.size() > limit) {
+            Card removed = copy.stream()
+                    .min(Comparator.comparingInt(Player::handRetentionScore))
+                    .orElse(copy.get(copy.size() - 1));
+            copy.remove(removed);
+            chosen.add(removed);
+        }
+        return chosen;
+    }
+
+    public List<Card> discardSpecificFromHand(List<Card> cards) {
+        List<Card> discarded = new ArrayList<>();
+        if (cards == null) {
+            return discarded;
+        }
+        for (Card card : cards) {
+            if (card != null && handCards.remove(card)) {
+                discarded.add(card);
+            }
+        }
+        return discarded;
+    }
+
     private Card chooseOverflowDiscardCard() {
         return handCards.stream()
                 .min(Comparator.comparingInt(Player::handRetentionScore))
@@ -166,6 +195,15 @@ public abstract class Player {
 
     public boolean removeFromBank(Card card) {
         return card != null && bankCards.remove(card);
+    }
+
+    public List<ActionCard> clearActionZone() {
+        if (actionZoneCards.isEmpty()) {
+            return List.of();
+        }
+        List<ActionCard> cleared = new ArrayList<>(actionZoneCards);
+        actionZoneCards.clear();
+        return cleared;
     }
 
     public boolean removePropertyCard(PropertyCard card) {

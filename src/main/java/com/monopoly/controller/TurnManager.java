@@ -17,6 +17,14 @@ public class TurnManager {
         this.currentIndex = 0;
     }
 
+    public void setCurrentIndex(int index) {
+        if (turnOrder == null || turnOrder.isEmpty()) {
+            this.currentIndex = 0;
+            return;
+        }
+        this.currentIndex = Math.floorMod(index, turnOrder.size());
+    }
+
     public Player getCurrentPlayer() {
         if (turnOrder == null || turnOrder.isEmpty()) {
             return null;

@@ -15,6 +15,7 @@ import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.network.connection.ClientConnection;
 import com.monopoly.network.connection.SessionRegistry;
 import com.monopoly.network.protocol.MessageDispatcher;
+import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 import com.monopoly.pattern.observer.GameUpdateObserver;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 
@@ -36,14 +37,22 @@ public class GameServer implements GameUpdateObserver {
     private final MessageDispatcher dispatcher = new MessageDispatcher();
     private final Set<ClientConnection> clients = ConcurrentHashMap.newKeySet();
     private final SessionRegistry sessionRegistry = new SessionRegistry();
+    private final ConcurrentHashMap<String, SessionRuntime> sessions = new ConcurrentHashMap<>();
     private final AtomicLong requestCounter = new AtomicLong(1);
-    private volatile PendingLoadVote pendingLoadVote;
-    private volatile PendingSaveVote pendingSaveVote;
+    private final ConcurrentHashMap<String, PendingLoadVote> pendingLoadVotes = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, PendingSaveVote> pendingSaveVotes = new ConcurrentHashMap<>();
 
     private GameController gameController;
 
+    /**
+     * Legacy test hook: binds a default controller for messages without sessionId.
+     */
     public void wireController(GameController controller) {
         this.gameController = controller;
+        if (controller != null) {
+            sessions.put(controller.getCurrentSessionIdPublic(),
+                    new SessionRuntime(controller.getCurrentSessionIdPublic(), controller, null));
+        }
     }
 
     /** Called when a WebSocket session opens */
@@ -61,6 +70,13 @@ public class GameServer implements GameUpdateObserver {
         String type = dispatcher.extractMessageType(json);
         JsonObject root = dispatcher.parseObject(json);
         JsonObject payload = dispatcher.extractPayload(root);
+        if ("PING".equals(type)) {
+            try {
+                from.sendText(dispatcher.toJsonEnvelope("PONG", new JsonObject()));
+            } catch (IOException ignored) {
+            }
+            return;
+        }
         if ("AUTH".equals(type) || "JOIN_SESSION".equals(type)) {
             String playerId = dispatcher.getString(payload, "playerId", null);
             String sessionToken = dispatcher.getString(payload, "sessionToken", null);
@@ -78,49 +94,59 @@ public class GameServer implements GameUpdateObserver {
                 sessionToken = null;
             }
             sessionRegistry.register(from, playerId);
+            String sessionId = dispatcher.getString(payload, "sessionId", null);
+            if (sessionId != null && !sessionId.isBlank()) {
+                sessionRegistry.bindSession(from, sessionId);
+            }
             try {
                 from.sendText(dispatcher.toJsonEnvelope("AUTH_RESULT", dispatcher.operationResult(true, null)));
             } catch (IOException ignored) {
             }
             return;
         }
-        if (gameController == null) {
-            return;
-        }
         if ("START_SESSION".equals(type)) {
             StartSessionRequest startReq = dispatcher.parseStartSessionRequest(payload);
-            gameController.startNewSession(startReq);
+            String sessionId = normalizeSessionId(startReq.getSessionId());
+            sessionRegistry.bindSession(from, sessionId);
+            SessionRuntime runtime = getOrCreateSession(sessionId);
+            runtime.controller.startNewSession(startReq);
+            return;
+        }
+        GameController controller = resolveController(from, payload);
+        if (controller == null) {
+            sendError(from, "SESSION_NOT_FOUND",
+                    "请先 START_SESSION，或在 payload 中提供 sessionId。", dispatcher.extractRequestId(root, payload));
             return;
         }
         if ("PAUSE".equals(type) || "PAUSE_REQUEST".equals(type)) {
-            gameController.requestPause();
+            controller.requestPause();
             return;
         }
         if ("PAUSE_ACK".equals(type)) {
             String ackPlayerId = dispatcher.getString(payload, "playerId", null);
-            gameController.acknowledgePause(ackPlayerId);
+            controller.acknowledgePause(ackPlayerId);
             return;
         }
         if ("RESUME".equals(type)) {
-            gameController.resume();
+            controller.resume();
             return;
         }
         if ("REASSIGN_WILD".equals(type)) {
             String wildId = dispatcher.getString(payload, "wildPropertyCardId", null);
             String newKey = dispatcher.getString(payload, "newColorKey", null);
-            gameController.handleReassignWildCommand(wildId, newKey);
+            controller.handleReassignWildCommand(wildId, newKey);
             return;
         }
         if ("DRAW".equals(type)) {
             int count = dispatcher.getInt(payload, "count", 2);
-            gameController.handleDrawCommand(count);
+            controller.handleDrawCommand(count);
             return;
         }
         if ("PLAY".equals(type)) {
             String requestId = dispatcher.extractRequestId(root, payload);
             try {
                 PlayActionRequest playReq = dispatcher.parsePlayActionRequest(payload);
-                gameController.handlePlayActionRequest(playReq);
+                controller.handlePlayActionRequest(playReq);
             } catch (ProtocolErrors.ProtocolValidationException e) {
                 sendError(from, e.getCode(), e.getMessage(), requestId);
             } catch (IllegalArgumentException e) {
@@ -135,7 +161,7 @@ public class GameServer implements GameUpdateObserver {
             try {
                 String playerId = dispatcher.getString(payload, "playerId", null);
                 String cardId = dispatcher.getString(payload, "cardId", null);
-                ActionOptionsResult r = gameController.queryActionOptionsForHandCard(playerId, cardId);
+                ActionOptionsResult r = controller.queryActionOptionsForHandCard(playerId, cardId);
                 try {
                     from.sendText(dispatcher.toJsonEnvelopeModel("ACTION_OPTIONS_RESULT", r));
                 } catch (IOException ignored) {
@@ -155,7 +181,7 @@ public class GameServer implements GameUpdateObserver {
                 String playerId = dispatcher.getString(payload, "playerId", null);
                 String cardId = dispatcher.getString(payload, "cardId", null);
                 String actionType = dispatcher.getString(payload, "actionType", null);
-                ActionOptionsResult r = gameController.queryPlayOptions(playerId, cardId, actionType);
+                ActionOptionsResult r = controller.queryPlayOptions(playerId, cardId, actionType);
                 try {
                     from.sendText(dispatcher.toJsonEnvelopeModel("PLAY_OPTIONS_RESULT", r));
                 } catch (IOException ignored) {
@@ -170,12 +196,12 @@ public class GameServer implements GameUpdateObserver {
             return;
         }
         if ("END_TURN".equals(type)) {
-            gameController.handleEndTurnCommand();
+            controller.handleEndTurnCommand();
             return;
         }
         if ("QUIT".equals(type)) {
             String quitPlayerId = dispatcher.getString(payload, "playerId", null);
-            gameController.handleQuitCommand(quitPlayerId);
+            controller.handleQuitCommand(quitPlayerId);
             return;
         }
         if ("RESPONSE_PASS".equals(type)) {
@@ -186,7 +212,7 @@ public class GameServer implements GameUpdateObserver {
                     passReq.setActingPlayerId(dispatcher.getString(payload, "actingPlayerId", null));
                 }
                 passReq.setActionType("RESPONSE_PASS");
-                gameController.handlePlayActionRequest(passReq);
+                controller.handlePlayActionRequest(passReq);
             } catch (ProtocolErrors.ProtocolValidationException e) {
                 sendError(from, e.getCode(), e.getMessage(), requestId);
             } catch (RuntimeException e) {
@@ -195,7 +221,7 @@ public class GameServer implements GameUpdateObserver {
             return;
         }
         if ("SAVE_GAME".equals(type)) {
-            handleSaveGame(from, payload);
+            handleSaveGame(from, payload, controller);
             return;
         }
         if ("SAVE_GAME_ACK".equals(type)) {
@@ -207,7 +233,7 @@ public class GameServer implements GameUpdateObserver {
             return;
         }
         if ("LOAD_GAME".equals(type)) {
-            handleLoadGame(from, payload);
+            handleLoadGame(from, payload, controller);
             return;
         }
         if ("LOAD_GAME_ACK".equals(type)) {
@@ -223,16 +249,13 @@ public class GameServer implements GameUpdateObserver {
             handleLoadGameAck(from, payload);
             return;
         }
-        if ("PING".equals(type)) {
-            // PING: connectivity probe
-        }
     }
 
-    private void handleSaveGame(ClientConnection from, JsonObject payload) {
+    private void handleSaveGame(ClientConnection from, JsonObject payload, GameController controller) {
         try {
-            Set<String> voters = resolveEligibleLoadVoters();
+            Set<String> voters = resolveEligibleLoadVoters(controller);
             if (voters.isEmpty()) {
-                commitSaveGame(payload, from);
+                commitSaveGame(payload, from, controller);
                 return;
             }
             String requestId = dispatcher.getString(payload, "requestId", null);
@@ -241,13 +264,16 @@ public class GameServer implements GameUpdateObserver {
             }
             long providedDeadline = parseLong(payload, "deadlineEpochMs", 0L);
             long deadlineEpochMs = providedDeadline > 0L ? providedDeadline : System.currentTimeMillis() + 30_000L;
-            PendingSaveVote vote = new PendingSaveVote(requestId, deadlineEpochMs, voters, payload, from);
-            pendingSaveVote = vote;
+            PendingSaveVote vote = new PendingSaveVote(
+                    requestId, deadlineEpochMs, voters, payload, from, controller);
+            String sessionId = normalizeSessionId(controller.getCurrentSessionIdPublic());
+            pendingSaveVotes.put(sessionId, vote);
 
             JsonObject req = new JsonObject();
             req.addProperty("requestId", vote.requestId);
             req.addProperty("deadlineEpochMs", vote.deadlineEpochMs);
-            broadcast(dispatcher.toJsonEnvelope("SAVE_GAME_REQUEST", req));
+            broadcastToSession(controller.getCurrentSessionIdPublic(),
+                    dispatcher.toJsonEnvelope("SAVE_GAME_REQUEST", req));
         } catch (Exception e) {
             try {
                 from.sendText(dispatcher.toJsonEnvelope(
@@ -260,7 +286,7 @@ public class GameServer implements GameUpdateObserver {
 
     private void handleSaveGameAck(ClientConnection from, JsonObject payload) {
         try {
-            PendingSaveVote vote = pendingSaveVote;
+            PendingSaveVote vote = pendingSaveVoteFor(from, payload);
             if (vote == null) {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "SAVE_GAME_RESULT",
@@ -289,8 +315,8 @@ public class GameServer implements GameUpdateObserver {
             if (vote.acks.size() < vote.eligibleVoters.size()) {
                 return;
             }
-            pendingSaveVote = null;
-            commitSaveGame(vote.originalPayload, vote.requester);
+            pendingSaveVotes.remove(normalizeSessionId(vote.controller.getCurrentSessionIdPublic()), vote);
+            commitSaveGame(vote.originalPayload, vote.requester, vote.controller);
         } catch (Exception e) {
             try {
                 from.sendText(dispatcher.toJsonEnvelope(
@@ -303,7 +329,7 @@ public class GameServer implements GameUpdateObserver {
 
     private void handleSaveGameReject(ClientConnection from, JsonObject payload) {
         try {
-            PendingSaveVote vote = pendingSaveVote;
+            PendingSaveVote vote = pendingSaveVoteFor(from, payload);
             if (vote == null) {
                 return;
             }
@@ -322,9 +348,9 @@ public class GameServer implements GameUpdateObserver {
 
     private static final Path SAVE_DIR = Path.of(System.getProperty("user.home"), ".monopoly-deal", "saves");
 
-    private void commitSaveGame(JsonObject payload, ClientConnection from) {
+    private void commitSaveGame(JsonObject payload, ClientConnection from, GameController controller) {
         try {
-            String mementoJson = gameController.exportSessionJson();
+            String mementoJson = controller.exportSessionJson();
             String path = dispatcher.getString(payload, "path", null);
             if (path != null && !path.isBlank()) {
                 Path requested = Path.of(path.trim()).normalize();
@@ -345,10 +371,10 @@ public class GameServer implements GameUpdateObserver {
                 }
                 String out = SaveEncryption.encodeForStorage(mementoJson);
                 Files.writeString(p, out, StandardCharsets.UTF_8);
-                broadcast(dispatcher.toJsonEnvelope(
+                broadcastToSession(controller.getCurrentSessionIdPublic(), dispatcher.toJsonEnvelope(
                         "SAVE_GAME_RESULT", dispatcher.saveGameResultOkWithPath(p.toString())));
             } else {
-                broadcast(dispatcher.toJsonEnvelope(
+                broadcastToSession(controller.getCurrentSessionIdPublic(), dispatcher.toJsonEnvelope(
                         "SAVE_GAME_RESULT", dispatcher.saveGameResultOkWithJson(mementoJson)));
             }
         } catch (Exception e) {
@@ -362,14 +388,14 @@ public class GameServer implements GameUpdateObserver {
     }
 
     private void cancelSaveVote(PendingSaveVote vote, String reason) {
-        if (pendingSaveVote != vote) {
+        if (!pendingSaveVotes.remove(normalizeSessionId(vote.controller.getCurrentSessionIdPublic()), vote)) {
             return;
         }
-        pendingSaveVote = null;
-        broadcast(dispatcher.toJsonEnvelope("SAVE_GAME_RESULT", dispatcher.operationResult(false, reason)));
+        broadcastToSession(vote.controller.getCurrentSessionIdPublic(),
+                dispatcher.toJsonEnvelope("SAVE_GAME_RESULT", dispatcher.operationResult(false, reason)));
     }
 
-    private void handleLoadGame(ClientConnection from, JsonObject payload) {
+    private void handleLoadGame(ClientConnection from, JsonObject payload, GameController controller) {
         try {
             String raw = dispatcher.getString(payload, "mementoJson", null);
             if (raw == null || raw.isBlank()) {
@@ -378,10 +404,11 @@ public class GameServer implements GameUpdateObserver {
                         dispatcher.operationResult(false, "mementoJson 不能为空")));
                 return;
             }
-            Set<String> eligibleVoters = resolveEligibleLoadVoters();
+            Set<String> eligibleVoters = resolveEligibleLoadVoters(controller);
             if (eligibleVoters.isEmpty()) {
                 // no AUTH: load immediately (tests/scripts)
-                gameController.importSessionJson(raw);
+                controller.importSessionJson(raw);
+                registerControllerSession(controller);
                 from.sendText(dispatcher.toJsonEnvelope("LOAD_GAME_RESULT", dispatcher.operationResult(true, null)));
                 return;
             }
@@ -389,12 +416,14 @@ public class GameServer implements GameUpdateObserver {
             if (requestId == null || requestId.isBlank()) {
                 requestId = "load-" + requestCounter.getAndIncrement();
             }
-            PendingLoadVote vote = new PendingLoadVote(requestId, raw, eligibleVoters);
-            pendingLoadVote = vote;
+            PendingLoadVote vote = new PendingLoadVote(requestId, raw, eligibleVoters, controller);
+            String sessionId = normalizeSessionId(controller.getCurrentSessionIdPublic());
+            pendingLoadVotes.put(sessionId, vote);
 
             JsonObject request = new JsonObject();
             request.addProperty("requestId", vote.requestId);
-            broadcast(dispatcher.toJsonEnvelope("LOAD_GAME_REQUEST", request));
+            broadcastToSession(controller.getCurrentSessionIdPublic(),
+                    dispatcher.toJsonEnvelope("LOAD_GAME_REQUEST", request));
         } catch (Exception e) {
             try {
                 from.sendText(dispatcher.toJsonEnvelope(
@@ -407,7 +436,7 @@ public class GameServer implements GameUpdateObserver {
 
     private void handleLoadGameAck(ClientConnection from, JsonObject payload) {
         try {
-            PendingLoadVote vote = pendingLoadVote;
+            PendingLoadVote vote = pendingLoadVoteFor(from, payload);
             if (vote == null) {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "LOAD_GAME_RESULT",
@@ -446,7 +475,7 @@ public class GameServer implements GameUpdateObserver {
 
     private void handleLoadGameReject(ClientConnection from, JsonObject payload) {
         try {
-            PendingLoadVote vote = pendingLoadVote;
+            PendingLoadVote vote = pendingLoadVoteFor(from, payload);
             if (vote == null) {
                 return;
             }
@@ -465,42 +494,57 @@ public class GameServer implements GameUpdateObserver {
     }
 
     private void commitLoadGame(PendingLoadVote vote) {
-        if (pendingLoadVote != vote) {
+        String previousSessionId = normalizeSessionId(vote.controller.getCurrentSessionIdPublic());
+        if (!pendingLoadVotes.remove(previousSessionId, vote)) {
             return;
         }
         try {
-            gameController.importSessionJson(vote.mementoJson);
-            pendingLoadVote = null;
-            broadcast(dispatcher.toJsonEnvelope("LOAD_GAME_RESULT", dispatcher.operationResult(true, null)));
+            vote.controller.importSessionJson(vote.mementoJson);
+            String loadedSessionId = normalizeSessionId(vote.controller.getCurrentSessionIdPublic());
+            sessionRegistry.rebindSession(previousSessionId, loadedSessionId);
+            sessions.remove(previousSessionId);
+            registerControllerSession(vote.controller);
+            broadcastToSession(loadedSessionId,
+                    dispatcher.toJsonEnvelope("LOAD_GAME_RESULT", dispatcher.operationResult(true, null)));
+            if (!previousSessionId.equals(loadedSessionId)) {
+                vote.controller.pushCurrentState("INIT", "Session loaded from save.");
+            }
         } catch (Exception ex) {
-            pendingLoadVote = null;
-            broadcast(dispatcher.toJsonEnvelope(
+            broadcastToSession(previousSessionId, dispatcher.toJsonEnvelope(
                     "LOAD_GAME_RESULT",
                     dispatcher.operationResult(false, ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName())));
         }
     }
 
     private void cancelLoadVote(PendingLoadVote vote, String reason) {
-        if (pendingLoadVote != vote) {
+        if (!pendingLoadVotes.remove(normalizeSessionId(vote.controller.getCurrentSessionIdPublic()), vote)) {
             return;
         }
-        pendingLoadVote = null;
-        broadcast(dispatcher.toJsonEnvelope("LOAD_GAME_RESULT", dispatcher.operationResult(false, reason)));
+        broadcastToSession(vote.controller.getCurrentSessionIdPublic(),
+                dispatcher.toJsonEnvelope("LOAD_GAME_RESULT", dispatcher.operationResult(false, reason)));
+    }
+
+    private PendingSaveVote pendingSaveVoteFor(ClientConnection from, JsonObject payload) {
+        String sessionId = resolveSessionId(from, payload);
+        if (sessionId == null) {
+            return null;
+        }
+        return pendingSaveVotes.get(normalizeSessionId(sessionId));
+    }
+
+    private PendingLoadVote pendingLoadVoteFor(ClientConnection from, JsonObject payload) {
+        String sessionId = resolveSessionId(from, payload);
+        if (sessionId == null) {
+            return null;
+        }
+        return pendingLoadVotes.get(normalizeSessionId(sessionId));
     }
 
     @Override
     public void onGameStateChanged(GameStateSnapshot snapshot) {
         String payload = dispatcher.toJsonBroadcast(snapshot);
-        for (ClientConnection client : clients) {
-            if (client.isOpen()) {
-                try {
-                    client.sendText(payload);
-                } catch (IOException e) {
-                    clients.remove(client);
-                }
-            }
-        }
-        pushPrivateHands();
+        sendToSessionTargets(snapshot.getSessionId(), payload);
+        pushPrivateHands(snapshot.getSessionId());
     }
 
     /** Registers as GameUpdateObserver */
@@ -516,15 +560,16 @@ public class GameServer implements GameUpdateObserver {
         return sessionRegistry.connectionsOf(playerId);
     }
 
-    private void pushPrivateHands() {
-        if (gameController == null) {
+    private void pushPrivateHands(String sessionId) {
+        GameController controller = controllerForSession(sessionId);
+        if (controller == null) {
             return;
         }
-        for (Player player : gameController.getSessionPlayersView()) {
+        for (Player player : controller.getSessionPlayersView()) {
             if (!(player instanceof HumanPlayer)) {
                 continue;
             }
-            Set<ClientConnection> targets = sessionRegistry.connectionsOf(player.getPlayerId());
+            Set<ClientConnection> targets = connectionsOfPlayerInSession(player.getPlayerId(), sessionId);
             if (targets.isEmpty()) {
                 continue;
             }
@@ -554,16 +599,17 @@ public class GameServer implements GameUpdateObserver {
         return dispatcher.toJsonEnvelope("MY_HAND", payload);
     }
 
-    private Set<String> resolveEligibleLoadVoters() {
-        if (gameController == null) {
+    private Set<String> resolveEligibleLoadVoters(GameController controller) {
+        if (controller == null) {
             return Set.of();
         }
         Set<String> eligible = ConcurrentHashMap.newKeySet();
-        for (Player player : gameController.getSessionPlayersView()) {
+        String sessionId = controller.getCurrentSessionIdPublic();
+        for (Player player : controller.getSessionPlayersView()) {
             if (!(player instanceof HumanPlayer)) {
                 continue;
             }
-            if (!sessionRegistry.connectionsOf(player.getPlayerId()).isEmpty()) {
+            if (!connectionsOfPlayerInSession(player.getPlayerId(), sessionId).isEmpty()) {
                 eligible.add(player.getPlayerId());
             }
         }
@@ -579,6 +625,128 @@ public class GameServer implements GameUpdateObserver {
         } catch (RuntimeException ex) {
             return defaultValue;
         }
+    }
+
+    private SessionRuntime getOrCreateSession(String sessionId) {
+        String normalized = normalizeSessionId(sessionId);
+        return sessions.computeIfAbsent(normalized, sid -> {
+            DefaultGameUpdateSubject subject = new DefaultGameUpdateSubject();
+            GameController controller = new GameController(subject);
+            subject.registerObserver(this);
+            return new SessionRuntime(sid, controller, subject);
+        });
+    }
+
+    private void registerControllerSession(GameController controller) {
+        if (controller == null) {
+            return;
+        }
+        String sessionId = normalizeSessionId(controller.getCurrentSessionIdPublic());
+        sessions.put(sessionId, new SessionRuntime(sessionId, controller, null));
+    }
+
+    private GameController resolveController(ClientConnection from, JsonObject payload) {
+        String sessionId = dispatcher.getString(payload, "sessionId", null);
+        boolean explicitSession = sessionId != null && !sessionId.isBlank();
+        if (sessionId == null || sessionId.isBlank()) {
+            sessionId = sessionRegistry.getSessionId(from).orElse(null);
+        }
+        if (sessionId != null && !sessionId.isBlank()) {
+            sessionRegistry.bindSession(from, sessionId);
+            SessionRuntime runtime = sessions.get(normalizeSessionId(sessionId));
+            if (runtime != null) {
+                return runtime.controller;
+            }
+            if (gameController != null && normalizeSessionId(gameController.getCurrentSessionIdPublic())
+                    .equals(normalizeSessionId(sessionId))) {
+                return gameController;
+            }
+            if (explicitSession) {
+                return null;
+            }
+        }
+        return gameController;
+    }
+
+    private String resolveSessionId(ClientConnection from, JsonObject payload) {
+        String sessionId = dispatcher.getString(payload, "sessionId", null);
+        if (sessionId == null || sessionId.isBlank()) {
+            sessionId = sessionRegistry.getSessionId(from).orElse(null);
+        }
+        if ((sessionId == null || sessionId.isBlank()) && gameController != null) {
+            sessionId = gameController.getCurrentSessionIdPublic();
+        }
+        return sessionId;
+    }
+
+    private GameController controllerForSession(String sessionId) {
+        SessionRuntime runtime = sessions.get(normalizeSessionId(sessionId));
+        if (runtime != null) {
+            return runtime.controller;
+        }
+        if (gameController != null && normalizeSessionId(gameController.getCurrentSessionIdPublic())
+                .equals(normalizeSessionId(sessionId))) {
+            return gameController;
+        }
+        return null;
+    }
+
+    private Set<ClientConnection> connectionsOfPlayerInSession(String playerId, String sessionId) {
+        Set<ClientConnection> byPlayer = sessionRegistry.connectionsOf(playerId);
+        if (byPlayer.isEmpty()) {
+            return Set.of();
+        }
+        Set<ClientConnection> bySession = sessionRegistry.connectionsInSession(sessionId);
+        if (bySession.isEmpty()) {
+            return shouldFallbackBroadcast(sessionId) ? byPlayer : Set.of();
+        }
+        Set<ClientConnection> out = ConcurrentHashMap.newKeySet();
+        for (ClientConnection conn : byPlayer) {
+            if (bySession.contains(conn)) {
+                out.add(conn);
+            }
+        }
+        return out;
+    }
+
+    private static String normalizeSessionId(String sessionId) {
+        return sessionId == null || sessionId.isBlank() ? "session-default" : sessionId.trim();
+    }
+
+    private void broadcastToSession(String sessionId, String message) {
+        sendToSessionTargets(sessionId, message);
+    }
+
+    private void sendToSessionTargets(String sessionId, String message) {
+        Set<ClientConnection> targets = sessionRegistry.connectionsInSession(sessionId);
+        if (targets.isEmpty() && shouldFallbackBroadcast(sessionId)) {
+            targets = clients;
+        }
+        for (ClientConnection client : targets) {
+            if (!client.isOpen()) {
+                continue;
+            }
+            try {
+                client.sendText(message);
+            } catch (IOException e) {
+                clients.remove(client);
+                sessionRegistry.unregister(client);
+            }
+        }
+    }
+
+    private boolean shouldFallbackBroadcast(String sessionId) {
+        String normalized = normalizeSessionId(sessionId);
+        if (gameController == null
+                || !normalizeSessionId(gameController.getCurrentSessionIdPublic()).equals(normalized)) {
+            return false;
+        }
+        for (SessionRuntime runtime : sessions.values()) {
+            if (runtime.controller != gameController) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void broadcast(String message) {
@@ -609,13 +777,15 @@ public class GameServer implements GameUpdateObserver {
         private final Set<String> acks = ConcurrentHashMap.newKeySet();
         private final JsonObject originalPayload;
         private final ClientConnection requester;
+        private final GameController controller;
 
         private PendingSaveVote(
                 String requestId,
                 long deadlineEpochMs,
                 Set<String> eligibleVoters,
                 JsonObject originalPayload,
-                ClientConnection requester
+                ClientConnection requester,
+                GameController controller
         ) {
             this.requestId = requestId;
             this.deadlineEpochMs = deadlineEpochMs;
@@ -623,6 +793,7 @@ public class GameServer implements GameUpdateObserver {
             this.eligibleVoters.addAll(eligibleVoters);
             this.originalPayload = originalPayload;
             this.requester = requester;
+            this.controller = controller;
         }
     }
 
@@ -631,12 +802,24 @@ public class GameServer implements GameUpdateObserver {
         private final String mementoJson;
         private final Set<String> eligibleVoters;
         private final Set<String> acks = ConcurrentHashMap.newKeySet();
+        private final GameController controller;
 
-        private PendingLoadVote(String requestId, String mementoJson, Set<String> eligibleVoters) {
+        private PendingLoadVote(
+                String requestId,
+                String mementoJson,
+                Set<String> eligibleVoters,
+                GameController controller) {
             this.requestId = requestId;
             this.mementoJson = mementoJson;
             this.eligibleVoters = ConcurrentHashMap.newKeySet();
             this.eligibleVoters.addAll(eligibleVoters);
+            this.controller = controller;
         }
+    }
+
+    private record SessionRuntime(
+            String sessionId,
+            GameController controller,
+            GameUpdateSubject subject) {
     }
 }

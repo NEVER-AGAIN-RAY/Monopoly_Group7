@@ -20,10 +20,11 @@ final class RentSettlementService {
             System.getProperty("monopoly.perfLog", "false"));
 
     private final GameController controller;
-    private final GameEngineSingleton engine = GameEngineSingleton.getInstance();
+    private final GameEngineSingleton engine;
 
     RentSettlementService(GameController controller) {
         this.controller = controller;
+        this.engine = controller.getEngine();
     }
 
     PaymentSettlement.Result requestRentPayment(Player from, Player to, int amount, GameContext context) {

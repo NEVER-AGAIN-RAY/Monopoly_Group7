@@ -5,12 +5,15 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.monopoly.model.card.ActionCard;
 import com.monopoly.model.card.Card;
+import com.monopoly.model.card.PayableCards;
 import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.card.PropertyWildCard;
 import com.monopoly.model.settlement.PropertySetCalculator;
 import com.monopoly.model.core.AiGameBridge;
 import com.monopoly.model.core.GameContext;
 import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.player.Player;
+import com.monopoly.model.settlement.PaymentSettlement;
 import com.monopoly.dto.PlayActionRequest;
 
 import java.util.ArrayList;
@@ -23,22 +26,18 @@ import java.util.regex.Pattern;
 /**
  * DeepSeek-backed AI: the model chooses one validated candidate request.
  */
-public class DeepSeekAiPlayStrategy implements AiPlayStrategy {
+public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
 
     private static final int MAX_MODEL_CANDIDATES =
             Integer.getInteger("monopoly.deepseek.maxCandidates", 28);
     private static final Pattern CANDIDATE_ID_PATTERN =
             Pattern.compile("\"candidateId\"\\s*:\\s*\"([^\"]+)\"");
+    private static final Pattern IDS_PATTERN =
+            Pattern.compile("\"cardIds\"\\s*:\\s*\\[(.*?)]", Pattern.DOTALL);
 
     private static final String SYSTEM_PROMPT = """
             You are a strong Monopoly Deal AI controller.
             Choose exactly one candidate id from the provided legal candidates.
-            Strategic priorities:
-            1. Win by completing 3 property sets and stop opponents close to 3 sets.
-            2. Use Deal Breaker and Sly Deal against complete sets or leaders when available.
-            3. Collect the highest realistic rent from players who can pay.
-            4. Deploy properties that improve set completion before banking them.
-            5. Bank money/action cards when no action improves position.
             Return only compact JSON: {"candidateId":"c1"}.
             Do not include reason, confidence, markdown, or extra text.
             Do not invent candidates or card ids.
@@ -48,6 +47,25 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy {
             Decide whether to play a Just Say No response card.
             Return only compact JSON: {"playJustSayNo":true}.
             Do not include markdown or extra text.
+            """;
+    private static final String CARD_IDS_SYSTEM_PROMPT = """
+            You are a strong Monopoly Deal AI controller.
+            Choose card ids for the requested non-play decision.
+            Return only compact JSON: {"cardIds":["id1","id2"]}.
+            Do not include markdown or extra text.
+            Do not invent card ids.
+            """;
+    private static final String STRATEGY_CONTEXT = """
+            Strategy notes distilled from official rules and common Monopoly Deal strategy guides:
+            - Win condition dominates: complete 3 property sets immediately when possible.
+            - Use Deal Breaker, Sly Deal, Forced Deal, and high rent to stop opponents near 3 sets.
+            - Keep enough bank value to absorb rent/debt; paying from bank usually protects board tempo.
+            - Avoid sacrificing deployed properties unless the bill is large or no bank can cover it.
+            - Do not waste Just Say No on tiny charges such as 1M unless it prevents a loss, protects a full set,
+              or stops a decisive steal/Deal Breaker.
+            - Prefer plays that create or defend complete sets over low-impact banking.
+            - No change is returned when paying, so avoid large overpayment when smaller legal payments exist.
+            - Wild properties are valuable because they complete sets; once assigned here their color is locked.
             """;
 
     private final DeepSeekClient client = new DeepSeekClient();
@@ -121,6 +139,101 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy {
         }
     }
 
+    @Override
+    public PaymentSettlement.PaymentChoice choosePayment(
+            AIPlayer bot,
+            int amountDue,
+            PaymentSettlement.PaymentChoice fallbackChoice) {
+        return choosePayment(bot, null, null, amountDue, fallbackChoice);
+    }
+
+    @Override
+    public PaymentSettlement.PaymentChoice choosePayment(
+            AIPlayer bot,
+            GameContext context,
+            Player creditor,
+            int amountDue,
+            PaymentSettlement.PaymentChoice fallbackChoice) {
+        if (!DeepSeekClient.enabled() || bot == null || amountDue <= 0) {
+            return fallbackChoice;
+        }
+        List<Card> payable = payableCards(bot);
+        if (payable.isEmpty()) {
+            return fallbackChoice;
+        }
+        try {
+            String prompt = buildPaymentPrompt(bot, context, creditor, amountDue, payable, fallbackChoice);
+            List<String> ids = requestCardIds(prompt, payableIds(payable), "payment");
+            if (ids == null || ids.isEmpty()) {
+                return fallbackChoice;
+            }
+            int sum = 0;
+            List<Card> chosen = new ArrayList<>();
+            for (String id : ids) {
+                Card card = findCardById(payable, id);
+                if (card == null || chosen.contains(card)) {
+                    return fallbackChoice;
+                }
+                chosen.add(card);
+                sum += PayableCards.valueOf(card);
+            }
+            int totalPayable = payable.stream().mapToInt(PayableCards::valueOf).sum();
+            if (sum < amountDue && sum < totalPayable) {
+                return fallbackChoice;
+            }
+            return new PaymentSettlement.PaymentChoice(List.copyOf(chosen), sum);
+        } catch (RuntimeException | java.io.IOException | InterruptedException ex) {
+            if (ex instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            AiBattleLogger.log("DeepSeek",
+                    bot.getPlayerId() + " payment decision fallback: "
+                            + ex.getClass().getSimpleName() + " " + ex.getMessage());
+            return fallbackChoice;
+        }
+    }
+
+    @Override
+    public List<Card> chooseOverflowDiscards(AIPlayer bot, int limit, List<Card> fallbackCards) {
+        return chooseOverflowDiscards(bot, null, limit, fallbackCards);
+    }
+
+    @Override
+    public List<Card> chooseOverflowDiscards(
+            AIPlayer bot,
+            GameContext context,
+            int limit,
+            List<Card> fallbackCards) {
+        if (!DeepSeekClient.enabled() || bot == null || bot.getHandCardCount() <= limit) {
+            return fallbackCards;
+        }
+        int need = bot.getHandCardCount() - limit;
+        try {
+            String prompt = buildDiscardPrompt(bot, context, limit, need, fallbackCards);
+            List<String> ids = requestCardIds(prompt, handIds(bot), "discard");
+            if (ids == null || ids.size() != need) {
+                return fallbackCards;
+            }
+            List<Card> chosen = new ArrayList<>();
+            for (String id : ids) {
+                Card card = findCardById(bot.getHandCardsView(), id);
+                if (card == null || chosen.contains(card)) {
+                    return fallbackCards;
+                }
+                chosen.add(card);
+            }
+            return List.copyOf(chosen);
+        } catch (RuntimeException | java.io.IOException | InterruptedException ex) {
+            if (ex instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            AiBattleLogger.log("DeepSeek",
+                    bot.getPlayerId() + " discard decision fallback: "
+                            + ex.getClass().getSimpleName() + " " + ex.getMessage());
+            return fallbackCards;
+        }
+    }
+
     private String chooseCandidate(
             AIPlayer bot,
             GameContext context,
@@ -176,6 +289,41 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy {
         }
     }
 
+    private List<String> requestCardIds(String prompt, List<String> legalIds, String task)
+            throws java.io.IOException, InterruptedException {
+        boolean preferredAttempted = client.willUsePreferredForStrictJson();
+        try {
+            String raw = client.complete(CARD_IDS_SYSTEM_PROMPT, prompt, true);
+            List<String> ids = cardIdsFromRaw(raw, legalIds);
+            if (preferredAttempted) {
+                client.recordPreferredJsonSuccess();
+            }
+            return ids;
+        } catch (java.io.IOException transport) {
+            if (preferredAttempted) {
+                client.recordPreferredJsonFailure(transport.getClass().getSimpleName()
+                        + " " + transport.getMessage());
+            }
+            AiBattleLogger.log("DeepSeek",
+                    task + " ids request failed, retrying fallback: "
+                            + transport.getClass().getSimpleName() + " " + transport.getMessage());
+            String retryPrompt = prompt + "\n\nReturn valid JSON only. Legal cardIds: " + legalIds + ".";
+            String raw = client.completeFallback(CARD_IDS_SYSTEM_PROMPT, retryPrompt, true);
+            return cardIdsFromRaw(raw, legalIds);
+        } catch (RuntimeException malformed) {
+            if (preferredAttempted) {
+                client.recordPreferredJsonFailure(malformed.getClass().getSimpleName()
+                        + " " + malformed.getMessage());
+            }
+            AiBattleLogger.log("DeepSeek",
+                    "malformed " + task + " ids, retrying strict JSON: "
+                            + malformed.getClass().getSimpleName() + " " + malformed.getMessage());
+            String retryPrompt = prompt + "\n\nReturn valid JSON only. Legal cardIds: " + legalIds + ".";
+            String raw = client.completeFallback(CARD_IDS_SYSTEM_PROMPT, retryPrompt, true);
+            return cardIdsFromRaw(raw, legalIds);
+        }
+    }
+
     private String candidateIdFromRaw(
             String raw,
             List<AiHeuristics.AiPlayCandidate> candidates,
@@ -213,6 +361,44 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy {
         }
         String id = matcher.group(1);
         return findCandidate(candidates, id) == null ? null : id;
+    }
+
+    private static List<String> cardIdsFromRaw(String raw, List<String> legalIds) {
+        try {
+            JsonObject json = parseDecisionJson(raw);
+            JsonArray arr = json.has("cardIds") ? json.getAsJsonArray("cardIds") : new JsonArray();
+            List<String> ids = new ArrayList<>();
+            for (int i = 0; i < arr.size(); i++) {
+                String id = arr.get(i).getAsString();
+                if (!legalIds.contains(id)) {
+                    return List.of();
+                }
+                ids.add(id);
+            }
+            return ids;
+        } catch (RuntimeException malformed) {
+            return cardIdsFromMalformedDecision(raw, legalIds);
+        }
+    }
+
+    static List<String> cardIdsFromMalformedDecision(String raw, List<String> legalIds) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        Matcher matcher = IDS_PATTERN.matcher(raw);
+        if (!matcher.find()) {
+            return List.of();
+        }
+        List<String> ids = new ArrayList<>();
+        Matcher quoted = Pattern.compile("\"([^\"]+)\"").matcher(matcher.group(1));
+        while (quoted.find()) {
+            String id = quoted.group(1);
+            if (!legalIds.contains(id)) {
+                return List.of();
+            }
+            ids.add(id);
+        }
+        return ids;
     }
 
     private static JsonObject parseDecisionJson(String raw) {
@@ -310,22 +496,17 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy {
         return sb.toString();
     }
 
-    private static String buildUserPrompt(
+    static String buildUserPrompt(
             AIPlayer bot,
             GameContext context,
             List<AiHeuristics.AiPlayCandidate> candidates) {
-        JsonObject root = new JsonObject();
-        root.addProperty("modelRequested", DeepSeekClient.model());
-        root.add("self", playerJson(bot, true));
-        JsonArray players = new JsonArray();
-        for (Player p : context.getPlayers()) {
-            if (p != bot) {
-                players.add(playerJson(p, false));
-            }
-        }
-        root.add("opponents", players);
-        root.addProperty("turnPlayerId", bot.getPlayerId());
-        root.addProperty("rule", "Win immediately at 3 complete property sets. Max 3 plays per turn.");
+        JsonObject root = baseDecisionPrompt(
+                bot,
+                context,
+                "PLAY_CARD",
+                "Choose one legal Monopoly Deal play candidate.",
+                "{\"candidateId\":\"c1\"}");
+        JsonObject decision = root.getAsJsonObject("decision");
         JsonArray cands = new JsonArray();
         for (AiHeuristics.AiPlayCandidate c : candidates) {
             JsonObject row = new JsonObject();
@@ -333,23 +514,151 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy {
             row.addProperty("summary", compactSummary(c.summary()));
             cands.add(row);
         }
-        root.add("candidates", cands);
+        decision.add("legalCandidates", cands);
         return root.toString();
     }
 
-    private static String buildResponsePrompt(
+    static String buildResponsePrompt(
             AIPlayer bot,
             GameContext context,
             boolean counterRole,
             AiHeuristics.AiResponseDecision fallbackDecision) {
+        JsonObject root = baseDecisionPrompt(
+                bot,
+                context,
+                "JUST_SAY_NO",
+                "Decide whether to play Just Say No in Monopoly Deal.",
+                "{\"playJustSayNo\":true}");
+        JsonObject decision = root.getAsJsonObject("decision");
+        decision.addProperty("counterRole", counterRole);
+        decision.addProperty("localRecommendationPlayJustSayNo", fallbackDecision.playWaiver());
+        decision.addProperty("localRecommendationReason", fallbackDecision.reason());
+        return root.toString();
+    }
+
+    static String buildPaymentPrompt(
+            AIPlayer bot,
+            GameContext context,
+            Player creditor,
+            int amountDue,
+            List<Card> payable,
+            PaymentSettlement.PaymentChoice fallbackChoice) {
+        JsonObject root = baseDecisionPrompt(
+                bot,
+                context,
+                "PAYMENT",
+                "Choose bank/property cards to pay a Monopoly Deal charge.",
+                "{\"cardIds\":[\"card-id\"]}");
+        JsonObject decision = root.getAsJsonObject("decision");
+        decision.addProperty("amountDueM", amountDue);
+        decision.addProperty("creditorPlayerId", creditor == null ? null : creditor.getPlayerId());
+        decision.addProperty("creditorName", creditor == null ? null : creditor.getDisplayName());
+        decision.addProperty("paymentRule",
+                "Pay from bank/properties only. No change is returned. If unable to cover, pay all payable assets.");
+        decision.add("payableCards", cardListJson(payable, true));
+        JsonArray fallback = new JsonArray();
+        if (fallbackChoice != null) {
+            for (Card card : fallbackChoice.cards()) {
+                fallback.add(card.getId());
+            }
+        }
+        decision.add("localFallbackCardIds", fallback);
+        return root.toString();
+    }
+
+    static String buildDiscardPrompt(
+            AIPlayer bot,
+            GameContext context,
+            int limit,
+            int need,
+            List<Card> fallbackCards) {
+        JsonObject root = baseDecisionPrompt(
+                bot,
+                context,
+                "OVERFLOW_DISCARD",
+                "Choose hand cards to discard down to Monopoly Deal hand limit.",
+                "{\"cardIds\":[\"card-id\"]}");
+        JsonObject decision = root.getAsJsonObject("decision");
+        decision.addProperty("handLimit", limit);
+        decision.addProperty("discardCount", need);
+        decision.add("legalDiscardCards", cardListJson(bot.getHandCardsView(), false));
+        JsonArray fallback = new JsonArray();
+        if (fallbackCards != null) {
+            for (Card card : fallbackCards) {
+                fallback.add(card.getId());
+            }
+        }
+        decision.add("localFallbackCardIds", fallback);
+        return root.toString();
+    }
+
+    private static JsonObject baseDecisionPrompt(
+            AIPlayer bot,
+            GameContext context,
+            String decisionKind,
+            String task,
+            String output) {
         JsonObject root = new JsonObject();
-        root.addProperty("task", "Decide whether to play Just Say No in Monopoly Deal.");
-        root.addProperty("output", "{\"playJustSayNo\":true,\"reason\":\"short\"}");
-        root.addProperty("counterRole", counterRole);
+        root.addProperty("promptVersion", "deepseek-decision-context-v2");
+        root.addProperty("modelRequested", DeepSeekClient.model());
+        root.addProperty("rule", "Win immediately at 3 complete property sets. Max 3 plays per turn.");
+        root.addProperty("strategy", STRATEGY_CONTEXT);
+        root.add("gameMeta", gameMetaJson(bot, context, decisionKind));
         root.add("self", playerJson(bot, true));
-        root.addProperty("localRecommendationPlayJustSayNo", fallbackDecision.playWaiver());
-        root.addProperty("localRecommendationReason", fallbackDecision.reason());
+        root.add("players", playersJson(bot, context));
+        root.add("effectStack", effectStackJson(context));
+
+        JsonObject decision = new JsonObject();
+        decision.addProperty("kind", decisionKind);
+        decision.addProperty("task", task);
+        decision.addProperty("output", output);
+        root.add("decision", decision);
+        return root;
+    }
+
+    private static JsonObject gameMetaJson(AIPlayer bot, GameContext context, String decisionKind) {
+        JsonObject meta = new JsonObject();
+        List<Player> players = playersForContext(bot, context);
+        String currentTurnPlayerId = context == null ? null : context.getCurrentTurnPlayerId();
+        String phase = context == null ? "UNKNOWN" : context.getCurrentTurnPhase();
+        int round = context == null ? 1 : context.getRoundNumber();
+        int used = context == null ? 0 : context.getCurrentTurnActionCount();
+        int max = context == null ? 3 : context.getMaxActionsPerTurn();
+        meta.addProperty("playerCount", players.size());
+        meta.addProperty("roundNumber", Math.max(1, round));
+        meta.addProperty("decisionKind", decisionKind);
+        meta.addProperty("decisionPlayerId", bot == null ? null : bot.getPlayerId());
+        meta.addProperty("currentTurnPlayerId", currentTurnPlayerId);
+        meta.addProperty("turnPhase", phase);
+        meta.addProperty("actionsUsedThisTurn", used);
+        meta.addProperty("actionsRemainingThisTurn",
+                context == null ? Math.max(0, max - used) : context.remainingTurnActions());
+        meta.addProperty("maxActionsPerTurn", max);
+        return meta;
+    }
+
+    private static JsonArray playersJson(AIPlayer bot, GameContext context) {
+        JsonArray players = new JsonArray();
+        for (Player p : playersForContext(bot, context)) {
+            JsonObject row = playerJson(p, false);
+            row.addProperty("isSelf", p == bot);
+            players.add(row);
+        }
+        return players;
+    }
+
+    private static List<Player> playersForContext(AIPlayer bot, GameContext context) {
+        if (context != null && !context.getPlayers().isEmpty()) {
+            return context.getPlayers();
+        }
+        return bot == null ? List.of() : List.of(bot);
+    }
+
+    private static JsonArray effectStackJson(GameContext context) {
         JsonArray stack = new JsonArray();
+        if (context == null) {
+            return stack;
+        }
         for (com.monopoly.model.effects.EffectStackEntry entry : context.getEffectStackView()) {
             JsonObject row = new JsonObject();
             row.addProperty("kind", entry.getKind().name());
@@ -357,10 +666,10 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy {
             row.addProperty("tenantPlayerId", entry.getTenantPlayerId());
             row.addProperty("colorKey", entry.getColorKey());
             row.addProperty("amountDue", entry.getAmountDue());
+            row.addProperty("waiverTargetEntryId", entry.getWaiverTargetEntryId());
             stack.add(row);
         }
-        root.add("effectStack", stack);
-        return root.toString();
+        return stack;
     }
 
     private static JsonObject playerJson(Player p, boolean includeHand) {
@@ -374,6 +683,7 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy {
         o.add("sets", propertyProgressJson(p));
         if (includeHand) {
             o.add("handSummary", handSummaryJson(p.getHandCardsView()));
+            o.add("handCards", cardListJson(p.getHandCardsView(), false));
         }
         return o;
     }
@@ -406,6 +716,71 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy {
             counts.addProperty(key, counts.has(key) ? counts.get(key).getAsInt() + 1 : 1);
         }
         return counts;
+    }
+
+    private static JsonArray cardListJson(List<? extends Card> cards, boolean includeZone) {
+        JsonArray arr = new JsonArray();
+        if (cards == null) {
+            return arr;
+        }
+        for (Card card : cards) {
+            JsonObject row = new JsonObject();
+            row.addProperty("id", card.getId());
+            row.addProperty("kind", kind(card));
+            row.addProperty("name", card.getName());
+            row.addProperty("valueM", PayableCards.valueOf(card));
+            if (card instanceof ActionCard ac) {
+                row.addProperty("effectCode", ac.getEffectCode());
+            }
+            if (card instanceof PropertyCard pc) {
+                row.addProperty("color", normalizeColor(pc));
+                if (includeZone) {
+                    row.addProperty("zone", "PROPERTY");
+                }
+            } else if (includeZone) {
+                row.addProperty("zone", "BANK");
+            }
+            arr.add(row);
+        }
+        return arr;
+    }
+
+    private static List<Card> payableCards(Player p) {
+        List<Card> cards = new ArrayList<>();
+        if (p == null) {
+            return cards;
+        }
+        cards.addAll(p.getBankCardsView());
+        cards.addAll(p.getPropertyCardsView());
+        return cards;
+    }
+
+    private static List<String> payableIds(List<Card> cards) {
+        return cards.stream().map(Card::getId).toList();
+    }
+
+    private static List<String> handIds(Player p) {
+        return p == null ? List.of() : p.getHandCardsView().stream().map(Card::getId).toList();
+    }
+
+    private static Card findCardById(List<? extends Card> cards, String id) {
+        if (cards == null || id == null) {
+            return null;
+        }
+        for (Card card : cards) {
+            if (id.equals(card.getId())) {
+                return card;
+            }
+        }
+        return null;
+    }
+
+    private static String normalizeColor(PropertyCard card) {
+        if (card instanceof PropertyWildCard wild && wild.getAssignedColorKey() != null) {
+            return wild.getAssignedColorKey().trim().toUpperCase(Locale.ROOT);
+        }
+        String color = card.getColorGroup();
+        return color == null ? "" : color.trim().toUpperCase(Locale.ROOT);
     }
 
     private static String compactSummary(String summary) {

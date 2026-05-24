@@ -5,7 +5,6 @@ import com.monopoly.dto.PlayActionRequest;
 import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
-import com.monopoly.pattern.singleton.GameEngineSingleton;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -48,7 +47,7 @@ class SaveLoadIntegrationTest {
         GameController restored = new GameController(subject);
         restored.importSessionJson(sessionJson);
 
-        int totalCards = GameEngineSingleton.getInstance().countAllCardsInPlay(restored.getSessionPlayersView());
+        int totalCards = restored.getEngine().countAllCardsInPlay(restored.getSessionPlayersView());
         assertEquals(GameConstants.STANDARD_DECK_SIZE, totalCards, "恢复后全场牌数应守恒");
         assertEquals(expectedCurrentPlayerId, restored.getCurrentPlayer().getPlayerId(), "恢复后当前玩家应一致");
     }

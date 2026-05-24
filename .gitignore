@@ -44,6 +44,10 @@ pictures/
 AI_BATTLE_LOG.md
 AI_BATTLE_RUNNER.out
 
+# Local distillation datasets and trained model artifacts
+data/distillation/*.jsonl
+models/distillation/
+
 # Local secrets
 .env
 .env.*

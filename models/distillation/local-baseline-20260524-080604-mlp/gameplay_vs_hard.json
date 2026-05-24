@@ -1,0 +1,226 @@
+{
+  "modelPath": "models/distillation/local-baseline-20260524-080604-mlp/candidate_ranker_mlp.json",
+  "gamesRequested": 5,
+  "players": 3,
+  "maxSnapshotsPerGame": 160,
+  "timeoutSecondsPerGame": 30,
+  "rankerSeat": 1,
+  "opponentStrategy": "hard",
+  "completedGames": 0,
+  "naturalWinRate": 0.0,
+  "averageSnapshots": 161.0,
+  "averageRankerBoardRank": 1.8,
+  "rankerBoardLeadRate": 0.4,
+  "rankerBoardTiedLeadRate": 0.0,
+  "winsByPlayerId": {},
+  "endReasons": {
+    "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT": 5
+  },
+  "games": [
+    {
+      "gameIndex": 1,
+      "sessionId": "local-ranker-eval-1779582342458-g1",
+      "snapshots": 161,
+      "finalPhase": "GAME_FORCE_END",
+      "endReason": "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT",
+      "naturalWin": false,
+      "rankerWon": false,
+      "rankerBoardScore": 2104,
+      "rankerBoardRank": 2,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 3261,
+          "completeSets": 2,
+          "propertyCount": 11,
+          "bankValueM": 32,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 2104,
+          "completeSets": 1,
+          "propertyCount": 9,
+          "bankValueM": 20,
+          "handCount": 4
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 503,
+          "completeSets": 0,
+          "propertyCount": 5,
+          "bankValueM": 0,
+          "handCount": 3
+        }
+      ]
+    },
+    {
+      "gameIndex": 2,
+      "sessionId": "local-ranker-eval-1779582342458-g2",
+      "snapshots": 161,
+      "finalPhase": "GAME_FORCE_END",
+      "endReason": "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT",
+      "naturalWin": false,
+      "rankerWon": false,
+      "rankerBoardScore": 2221,
+      "rankerBoardRank": 1,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 2221,
+          "completeSets": 1,
+          "propertyCount": 12,
+          "bankValueM": 2,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 2121,
+          "completeSets": 1,
+          "propertyCount": 10,
+          "bankValueM": 20,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 806,
+          "completeSets": 0,
+          "propertyCount": 7,
+          "bankValueM": 10,
+          "handCount": 6
+        }
+      ]
+    },
+    {
+      "gameIndex": 3,
+      "sessionId": "local-ranker-eval-1779582342458-g3",
+      "snapshots": 161,
+      "finalPhase": "GAME_FORCE_END",
+      "endReason": "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT",
+      "naturalWin": false,
+      "rankerWon": false,
+      "rankerBoardScore": 1972,
+      "rankerBoardRank": 2,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 2320,
+          "completeSets": 1,
+          "propertyCount": 11,
+          "bankValueM": 22,
+          "handCount": 0
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 1972,
+          "completeSets": 1,
+          "propertyCount": 8,
+          "bankValueM": 17,
+          "handCount": 2
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 1536,
+          "completeSets": 1,
+          "propertyCount": 5,
+          "bankValueM": 3,
+          "handCount": 6
+        }
+      ]
+    },
+    {
+      "gameIndex": 4,
+      "sessionId": "local-ranker-eval-1779582342458-g4",
+      "snapshots": 161,
+      "finalPhase": "GAME_FORCE_END",
+      "endReason": "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT",
+      "naturalWin": false,
+      "rankerWon": false,
+      "rankerBoardScore": 3125,
+      "rankerBoardRank": 1,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 3125,
+          "completeSets": 2,
+          "propertyCount": 11,
+          "bankValueM": 2,
+          "handCount": 5
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 2113,
+          "completeSets": 1,
+          "propertyCount": 9,
+          "bankValueM": 21,
+          "handCount": 3
+        },
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 1852,
+          "completeSets": 1,
+          "propertyCount": 7,
+          "bankValueM": 15,
+          "handCount": 2
+        }
+      ]
+    },
+    {
+      "gameIndex": 5,
+      "sessionId": "local-ranker-eval-1779582342458-g5",
+      "snapshots": 161,
+      "finalPhase": "GAME_FORCE_END",
+      "endReason": "LOCAL_RANKER_EVAL_SNAPSHOT_LIMIT",
+      "naturalWin": false,
+      "rankerWon": false,
+      "rankerBoardScore": 1854,
+      "rankerBoardRank": 3,
+      "rankerBoardTiedForLead": false,
+      "boardScores": [
+        {
+          "playerId": "ai-2",
+          "displayName": "DeepSeek-AI-2",
+          "score": 3111,
+          "completeSets": 2,
+          "propertyCount": 10,
+          "bankValueM": 19,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-3",
+          "displayName": "DeepSeek-AI-3",
+          "score": 3041,
+          "completeSets": 2,
+          "propertyCount": 10,
+          "bankValueM": 4,
+          "handCount": 1
+        },
+        {
+          "playerId": "ai-1",
+          "displayName": "DeepSeek-AI-1",
+          "score": 1854,
+          "completeSets": 1,
+          "propertyCount": 8,
+          "bankValueM": 5,
+          "handCount": 4
+        }
+      ]
+    }
+  ]
+}

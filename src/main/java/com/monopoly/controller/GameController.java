@@ -230,6 +230,7 @@ public class GameController implements AiGameBridge {
         gameContext.bindPlayers(sessionPlayers);
         gameContext.clearEffectStack();
         gameContext.clearPendingDoubleRent();
+        gameContext.resetAiHistory();
         effectStackOrchestrator.cancelPendingResponseTimeout();
 
         int initialEach = TurnFlowService.INITIAL_HAND_SIZE;
@@ -887,6 +888,7 @@ public class GameController implements AiGameBridge {
         this.fullRoundsCompleted = 0;
         this.playEventSequence = 0L;
         this.stateSequence = 0L;
+        gameContext.resetAiHistory();
         quitPlayerIds.clear();
         assertDeckIntegrityOrLog();
         pushSnapshot(currentSessionId, "INIT", "Session loaded from save.");
@@ -1025,6 +1027,16 @@ public class GameController implements AiGameBridge {
                     prog
             );
         }
+        gameContext.getAiHistoryTracker().recordSnapshot(
+                snap.getStateSequence(),
+                snap.getRoundNumber(),
+                snap.getPhase(),
+                snap.getCurrentPlayerId(),
+                snap.getLastActionSummary(),
+                playedBy,
+                playedCard,
+                playedActionType,
+                sessionPlayers);
         gameUpdateSubject.notifyStateChanged(snap);
     }
 

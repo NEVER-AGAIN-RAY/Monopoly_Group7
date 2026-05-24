@@ -657,6 +657,7 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         root.add("players", playersJson(bot, context));
         root.add("riskAssessment", riskAssessmentJson(bot, context));
         root.add("effectStack", effectStackJson(context));
+        root.add("memory", memoryJson(bot, context, decisionKind));
 
         JsonObject decision = new JsonObject();
         decision.addProperty("kind", decisionKind);
@@ -679,6 +680,8 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         if (teamAwareMode()) {
             arr.add("Team-aware evaluation is enabled: do not attack same-team LLM players with Deal Breaker, Sly Deal, Forced Deal, rent, or Debt Collector. A same-team LLM win is team-positive.");
             arr.add("When choosing between similar board swings, prefer attacking a hard/local opponent over a same-team LLM opponent.");
+        } else {
+            arr.add("All seats are independent opponents: another LLM is not your teammate. Do not protect them from board swings.");
         }
         return arr;
     }
@@ -1000,6 +1003,23 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
                 "Before selecting a candidate, compare board position after this play, not just immediate cash. "
                         + "A large bank without complete sets is usually losing to hard opponents.");
         return risk;
+    }
+
+    private static JsonObject memoryJson(AIPlayer bot, GameContext context, String decisionKind) {
+        if (context == null) {
+            JsonObject empty = new JsonObject();
+            empty.addProperty("schema", "ai-history-v1");
+            empty.addProperty("purpose", "No session memory available.");
+            empty.add("recentEvents", new JsonArray());
+            empty.add("contestedColors", new JsonArray());
+            empty.add("playerPressure", new JsonArray());
+            empty.add("strategicWarnings", new JsonArray());
+            return empty;
+        }
+        if (!"PLAY_CARD".equals(decisionKind) && !"JUST_SAY_NO".equals(decisionKind)) {
+            return context.getAiHistoryTracker().toCompactPromptJson(bot, playersForContext(bot, context));
+        }
+        return context.getAiHistoryTracker().toPromptJson(bot, playersForContext(bot, context));
     }
 
     private static JsonArray effectStackJson(GameContext context) {
@@ -1467,6 +1487,21 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
                 || summary.contains("FORCED_DEAL")
                 || summary.contains("STEAL_PROPERTY"))) {
             score += 1_500;
+        }
+        if (bot != null && context != null && candidate.request() != null) {
+            String targetId = candidate.request().getTargetPlayerId();
+            if (targetId != null && !targetId.isBlank()
+                    && (summary.contains("DEAL_BREAKER")
+                    || summary.contains("FORCED_DEAL")
+                    || summary.contains("STEAL_PROPERTY")
+                    || summary.contains("RENT")
+                    || summary.contains("DEBT_COLLECTOR"))) {
+                int targetTempo = context.getAiHistoryTracker().recentBoardTempoScore(targetId);
+                score += Math.min(1_200, targetTempo * 180);
+                int targetedUs = context.getAiHistoryTracker()
+                        .attacksTakenFrom(bot.getPlayerId(), targetId);
+                score += Math.min(900, targetedUs * 300);
+            }
         }
         return score;
     }

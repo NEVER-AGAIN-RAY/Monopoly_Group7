@@ -84,6 +84,37 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
     }
 
     @Test
+    void recentHistoryRaisesPriorityForOpponentWithBoardTempo() {
+        AIPlayer bot = new AIPlayer("ai-2", "DeepSeek-AI-2", null);
+        HumanPlayer hard = new HumanPlayer("ai-1", "AI-Hard-1");
+        PropertyCard blue = new PropertyCard("blue-1", "Blue 1", "DARK_BLUE");
+        bot.addToPropertyZone(blue);
+        GameContext context = new GameContext();
+        context.bindPlayers(List.of(hard, bot));
+        context.getAiHistoryTracker().recordSnapshot(
+                1, 1, "INIT", bot.getPlayerId(), "start", null, null, null, List.of(hard, bot));
+        bot.removePropertyCard(blue);
+        hard.addToPropertyZone(blue);
+        context.getAiHistoryTracker().recordSnapshot(
+                2, 1, "ACTION_SUCCESS", hard.getPlayerId(),
+                "Hard stole a property from DeepSeek.",
+                hard,
+                new ActionCard("sly", "Sly Deal", "STEAL_PROPERTY"),
+                "ACTION",
+                List.of(hard, bot));
+
+        AiHeuristics.AiPlayCandidate attackHard = targetedCandidate(
+                "c1", "ACTION", "rent-hard", "ai-1",
+                "Action RENT target=ai-1 color=RED due=4M expectedPaid=4M.");
+        AiHeuristics.AiPlayCandidate attackOther = targetedCandidate(
+                "c2", "ACTION", "rent-other", "ai-3",
+                "Action RENT target=ai-3 color=RED due=4M expectedPaid=4M.");
+
+        assertTrue(DeepSeekAiPlayStrategy.candidateScore(bot, context, attackHard)
+                > DeepSeekAiPlayStrategy.candidateScore(bot, context, attackOther));
+    }
+
+    @Test
     void malformedDecisionCanStillYieldLegalCandidateIdWithoutRetry() {
         AiHeuristics.AiPlayCandidate first = candidate(
                 "c1",
@@ -157,6 +188,7 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         assertEquals(1, prompt.getAsJsonObject("self").getAsJsonArray("handCards").size());
         assertEquals(2, prompt.getAsJsonArray("players").size());
         assertEquals(3, prompt.getAsJsonObject("riskAssessment").get("selfSetsNeededToWin").getAsInt());
+        assertEquals("ai-history-v1", prompt.getAsJsonObject("memory").get("schema").getAsString());
         JsonObject decision = prompt.getAsJsonObject("decision");
         assertTrue(decision.getAsJsonArray("candidateSelectionProtocol").size() > 0);
         JsonObject tactic = decision.getAsJsonArray("legalCandidates")
@@ -167,6 +199,40 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         String serialized = prompt.toString();
         assertTrue(serialized.contains("\"handCount\":1"));
         assertTrue(!serialized.contains("hidden"));
+    }
+
+    @Test
+    void promptMemorySummarizesRecentPropertyTempoWithoutHiddenHands() {
+        AIPlayer bot = new AIPlayer("ai-2", "DeepSeek-AI-2", null);
+        HumanPlayer hard = new HumanPlayer("ai-1", "AI-Hard-1");
+        hard.receiveCardToHand(new MoneyCard("hidden", "Hidden 5M", 5));
+        PropertyCard blue = new PropertyCard("blue-1", "Blue 1", "DARK_BLUE");
+        hard.addToPropertyZone(blue);
+        GameContext context = new GameContext();
+        context.bindPlayers(List.of(hard, bot));
+        context.getAiHistoryTracker().recordSnapshot(
+                1, 1, "INIT", hard.getPlayerId(), "start", null, null, null, List.of(hard, bot));
+        hard.removePropertyCard(blue);
+        bot.addToPropertyZone(blue);
+        context.getAiHistoryTracker().recordSnapshot(
+                2, 1, "ACTION_SUCCESS", bot.getPlayerId(),
+                "DeepSeek stole dark blue from hard.",
+                bot,
+                new ActionCard("sly", "Sly Deal", "STEAL_PROPERTY"),
+                "ACTION",
+                List.of(hard, bot));
+
+        JsonObject prompt = JsonParser.parseString(
+                DeepSeekAiPlayStrategy.buildUserPrompt(bot, context, List.of(
+                        candidate("c1", "DEPOSIT", "cash", "Deposit money/bankable card for 3M."))))
+                .getAsJsonObject();
+
+        JsonObject memory = prompt.getAsJsonObject("memory");
+        assertEquals("ai-history-v1", memory.get("schema").getAsString());
+        assertEquals("PROPERTY_SWING",
+                memory.getAsJsonArray("recentEvents").get(0).getAsJsonObject().get("type").getAsString());
+        assertTrue(memory.toString().contains("DARK_BLUE"));
+        assertTrue(!memory.toString().contains("Hidden 5M"));
     }
 
     @Test
@@ -282,9 +348,13 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         assertEquals("PAYMENT", payment.getAsJsonObject("decision").get("kind").getAsString());
         assertEquals("human", payment.getAsJsonObject("decision").get("creditorPlayerId").getAsString());
         assertEquals(2, payment.getAsJsonObject("gameMeta").get("playerCount").getAsInt());
+        assertEquals("ai-history-v1-compact",
+                payment.getAsJsonObject("memory").get("schema").getAsString());
         assertTrue(payment.getAsJsonObject("decision").has("localFallbackBoardRisk"));
         assertEquals("OVERFLOW_DISCARD", discard.getAsJsonObject("decision").get("kind").getAsString());
         assertEquals(2, discard.getAsJsonObject("gameMeta").get("playerCount").getAsInt());
+        assertEquals("ai-history-v1-compact",
+                discard.getAsJsonObject("memory").get("schema").getAsString());
     }
 
     @Test

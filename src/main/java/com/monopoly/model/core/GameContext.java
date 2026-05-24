@@ -26,6 +26,7 @@ public class GameContext {
     private String currentTurnPhase = "UNKNOWN";
     private int roundNumber = 1;
     private long stateSequence;
+    private final AiHistoryTracker aiHistoryTracker = new AiHistoryTracker();
 
     public void bindPlayers(List<Player> players) {
         this.players = players == null ? List.of() : Collections.unmodifiableList(players);
@@ -141,6 +142,14 @@ public class GameContext {
 
     public void setStateSequence(long stateSequence) {
         this.stateSequence = Math.max(0L, stateSequence);
+    }
+
+    public AiHistoryTracker getAiHistoryTracker() {
+        return aiHistoryTracker;
+    }
+
+    public void resetAiHistory() {
+        aiHistoryTracker.reset();
     }
 
     public StackResponseState getResponseState() {

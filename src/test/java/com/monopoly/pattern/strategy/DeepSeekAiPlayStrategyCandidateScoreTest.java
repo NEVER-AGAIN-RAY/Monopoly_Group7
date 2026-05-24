@@ -61,6 +61,27 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
     }
 
     @Test
+    void cashSaturatedBotPrefersBoardTempoOverMoreBank() {
+        AIPlayer bot = new AIPlayer("ai-1", "DeepSeek-AI-1", null);
+        bot.addToBank(new MoneyCard("cash-10", "10M", 10));
+        bot.addToBank(new MoneyCard("cash-5", "5M", 5));
+        HumanPlayer hard = new HumanPlayer("ai-2", "AI-Hard-1");
+        hard.addToPropertyZone(new PropertyCard("hard-blue-1", "Hard Blue 1", "DARK_BLUE"));
+        hard.addToPropertyZone(new PropertyCard("hard-blue-2", "Hard Blue 2", "DARK_BLUE"));
+        GameContext context = new GameContext();
+        context.bindPlayers(List.of(bot, hard));
+        AiHeuristics.AiPlayCandidate rent = targetedCandidate(
+                "c1", "ACTION", "rent", "ai-2",
+                "Action RENT target=ai-2 color=BROWN due=5M expectedPaid=5M.");
+        AiHeuristics.AiPlayCandidate steal = targetedCandidate(
+                "c2", "ACTION", "steal", "ai-2",
+                "Action STEAL_PROPERTY target=ai-2 card=hard-blue-1.");
+
+        assertTrue(DeepSeekAiPlayStrategy.candidateScore(bot, context, steal)
+                > DeepSeekAiPlayStrategy.candidateScore(bot, context, rent));
+    }
+
+    @Test
     void malformedDecisionCanStillYieldLegalCandidateIdWithoutRetry() {
         AiHeuristics.AiPlayCandidate first = candidate(
                 "c1",
@@ -128,7 +149,7 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         JsonObject prompt = JsonParser.parseString(
                 DeepSeekAiPlayStrategy.buildUserPrompt(bot, context, List.of(candidate))).getAsJsonObject();
 
-        assertEquals("deepseek-decision-context-v4", prompt.get("promptVersion").getAsString());
+        assertEquals("deepseek-decision-context-v5-tempo", prompt.get("promptVersion").getAsString());
         assertEquals(2, prompt.getAsJsonObject("gameMeta").get("playerCount").getAsInt());
         assertEquals("PLAY_CARD", prompt.getAsJsonObject("decision").get("kind").getAsString());
         assertEquals(1, prompt.getAsJsonObject("self").getAsJsonArray("handCards").size());
@@ -140,6 +161,7 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
                 .get(0).getAsJsonObject().getAsJsonObject("tactics");
         assertEquals("ACTION", tactic.get("actionType").getAsString());
         assertEquals("card-draw-tempo", tactic.getAsJsonArray("tags").get(0).getAsString());
+        assertTrue(tactic.has("selfNearWin"));
         String serialized = prompt.toString();
         assertTrue(serialized.contains("\"handCount\":1"));
         assertTrue(!serialized.contains("hidden"));
@@ -168,7 +190,7 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         JsonObject prompt = JsonParser.parseString(
                 DeepSeekAiPlayStrategy.buildUserPrompt(bot, context, List.of(candidate))).getAsJsonObject();
 
-        assertEquals("deepseek-decision-context-v4-team-aware", prompt.get("promptVersion").getAsString());
+        assertEquals("deepseek-decision-context-v5-tempo-team-aware", prompt.get("promptVersion").getAsString());
         assertTrue(prompt.getAsJsonObject("evaluationMode").get("teamAware").getAsBoolean());
         JsonObject tactic = prompt.getAsJsonObject("decision").getAsJsonArray("legalCandidates")
                 .get(0).getAsJsonObject().getAsJsonObject("tactics");
@@ -226,8 +248,33 @@ class DeepSeekAiPlayStrategyCandidateScoreTest {
         assertEquals("PAYMENT", payment.getAsJsonObject("decision").get("kind").getAsString());
         assertEquals("human", payment.getAsJsonObject("decision").get("creditorPlayerId").getAsString());
         assertEquals(2, payment.getAsJsonObject("gameMeta").get("playerCount").getAsInt());
+        assertTrue(payment.getAsJsonObject("decision").has("localFallbackBoardRisk"));
         assertEquals("OVERFLOW_DISCARD", discard.getAsJsonObject("decision").get("kind").getAsString());
         assertEquals(2, discard.getAsJsonObject("gameMeta").get("playerCount").getAsInt());
+    }
+
+    @Test
+    void paymentPromptMarksPropertiesThatBreakCompleteSets() {
+        AIPlayer bot = new AIPlayer("ai-1", "DeepSeek-AI-1", null);
+        MoneyCard cash = new MoneyCard("cash-1", "1M", 1);
+        PropertyCard brown1 = new PropertyCard("brown-1", "Brown 1", "BROWN");
+        PropertyCard brown2 = new PropertyCard("brown-2", "Brown 2", "BROWN");
+        bot.addToBank(cash);
+        bot.addToPropertyZone(brown1);
+        bot.addToPropertyZone(brown2);
+        HumanPlayer creditor = new HumanPlayer("human", "Human");
+        GameContext context = contextWithPlayers(bot, creditor);
+        PaymentSettlement.PaymentChoice fallback =
+                new PaymentSettlement.PaymentChoice(List.of(cash, brown1), 2);
+
+        JsonObject payment = JsonParser.parseString(
+                DeepSeekAiPlayStrategy.buildPaymentPrompt(
+                        bot, context, creditor, 2, List.of(cash, brown1), fallback)).getAsJsonObject();
+
+        JsonObject property = payment.getAsJsonObject("decision")
+                .getAsJsonArray("payableCards").get(1).getAsJsonObject();
+        assertTrue(property.get("breaksCompleteSet").getAsBoolean());
+        assertTrue(property.get("paymentRisk").getAsInt() >= 1000);
     }
 
     private static AiHeuristics.AiPlayCandidate candidate(

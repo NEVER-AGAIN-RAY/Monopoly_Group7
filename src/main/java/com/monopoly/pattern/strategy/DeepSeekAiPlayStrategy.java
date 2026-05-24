@@ -40,6 +40,8 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             Choose exactly one candidate id from the provided legal candidates.
             Silently evaluate the tactical fields before choosing: win now, block a near-win,
             attack the leader, steal/exchange key property, protect complete sets, then cash.
+            If a board-tempo candidate and passive cash candidate are both legal, choose cash only
+            when the board candidate does not improve the set race or stop an opponent.
             Return only compact JSON: {"candidateId":"c1"}.
             Do not include reason, confidence, markdown, or extra text.
             Do not invent candidates or card ids.
@@ -80,6 +82,12 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             - Forced Deal should not be treated as a generic exchange. Prefer swaps that take a wild/key color,
               complete or nearly complete your set, or break an opponent's near-complete set while giving away
               a low-leverage duplicate.
+            - In one-vs-one and small tables, cash is only a shield. Property tempo wins games. Do not sit on
+              a large bank while the opponent is building sets.
+            - Once you have 2 complete sets, every play should either complete the third set, protect a complete
+              set, steal/swap a missing color or wild, or stop the opponent's immediate path to 3 sets.
+            - Treat complete sets and flexible wilds as high-risk assets when paying or discarding. Prefer
+              overpaying from bank over breaking a complete set unless all bank is exhausted.
             """;
 
     private final DeepSeekClient client = new DeepSeekClient();
@@ -127,6 +135,12 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         if (!DeepSeekClient.enabled()) {
             return fallbackDecision;
         }
+        if (fallbackDecision.playWaiver()) {
+            AiBattleLogger.log("DeepSeek",
+                    bot.getPlayerId() + " used high-confidence local Just Say No: "
+                            + fallbackDecision.reason());
+            return fallbackDecision;
+        }
         if (!fallbackDecision.modelWorthAsking()) {
             AiBattleLogger.log("DeepSeek",
                     bot.getPlayerId() + " skipped response model: " + fallbackDecision.reason());
@@ -144,7 +158,9 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             if (!play || fallbackDecision.request() == null) {
                 return AiHeuristics.AiResponseDecision.pass();
             }
-            return fallbackDecision;
+            return AiHeuristics.AiResponseDecision.play(
+                    fallbackDecision.request(),
+                    "DeepSeek chose Just Say No after board-risk evaluation.");
         } catch (RuntimeException | java.io.IOException | InterruptedException ex) {
             if (ex instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
@@ -198,7 +214,16 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             if (sum < amountDue && sum < totalPayable) {
                 return fallbackChoice;
             }
-            return new PaymentSettlement.PaymentChoice(List.copyOf(chosen), sum);
+            PaymentSettlement.PaymentChoice chosenChoice =
+                    new PaymentSettlement.PaymentChoice(List.copyOf(chosen), sum);
+            if (isWorsePayment(bot, amountDue, chosenChoice, fallbackChoice)) {
+                AiBattleLogger.log("DeepSeek",
+                        bot.getPlayerId() + " payment protected board; fallback="
+                                + paymentChoiceScore(bot, amountDue, fallbackChoice)
+                                + " model=" + paymentChoiceScore(bot, amountDue, chosenChoice));
+                return fallbackChoice;
+            }
+            return chosenChoice;
         } catch (RuntimeException | java.io.IOException | InterruptedException ex) {
             if (ex instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
@@ -573,8 +598,8 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         decision.addProperty("creditorPlayerId", creditor == null ? null : creditor.getPlayerId());
         decision.addProperty("creditorName", creditor == null ? null : creditor.getDisplayName());
         decision.addProperty("paymentRule",
-                "Pay from bank/properties only. No change is returned. If unable to cover, pay all payable assets.");
-        decision.add("payableCards", cardListJson(payable, true));
+                "Pay from bank/properties only. No change is returned. Prefer bank over property. Avoid breaking complete sets or paying wild/key property unless all bank is exhausted.");
+        decision.add("payableCards", paymentCardListJson(bot, payable));
         JsonArray fallback = new JsonArray();
         if (fallbackChoice != null) {
             for (Card card : fallbackChoice.cards()) {
@@ -582,6 +607,8 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             }
         }
         decision.add("localFallbackCardIds", fallback);
+        decision.addProperty("localFallbackBoardRisk",
+                paymentChoiceScore(bot, amountDue, fallbackChoice));
         return root.toString();
     }
 
@@ -619,8 +646,8 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             String output) {
         JsonObject root = new JsonObject();
         root.addProperty("promptVersion", teamAwareMode()
-                ? "deepseek-decision-context-v4-team-aware"
-                : "deepseek-decision-context-v4");
+                ? "deepseek-decision-context-v5-tempo-team-aware"
+                : "deepseek-decision-context-v5-tempo");
         root.addProperty("modelRequested", DeepSeekClient.model());
         root.addProperty("rule", "Win immediately at 3 complete property sets. Max 3 plays per turn.");
         root.addProperty("strategy", STRATEGY_CONTEXT);
@@ -643,7 +670,9 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         JsonArray arr = new JsonArray();
         arr.add("If any candidate wins immediately by reaching 3 complete sets, choose it.");
         arr.add("If an opponent has 2+ sets, choose a candidate that blocks, steals, swaps, rents, or Deal Breaks them when legal.");
+        arr.add("If you already have 2 sets, choose the move that most directly creates or protects the third set; do not bank unless no tempo play exists.");
         arr.add("Prefer property swing over passive cash: key steals/exchanges beat banking unless cash prevents an immediate loss.");
+        arr.add("Against hard/local opponents, expect immediate counter-steals. Prioritize taking wilds, completing small sets, and breaking their highest-progress color.");
         arr.add("Attack the current leader before a trailing player unless the trailing target gives you an immediate set.");
         arr.add("Keep Deal Breaker, Sly Deal, Forced Deal, Just Say No, and wilds for decisive board swings; do not bank them casually.");
         arr.add("Use Pass Go mainly when no high-impact property/rent candidate is available or when it can find missing combo pieces.");
@@ -759,6 +788,10 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
                 && target != null
                 && "hard".equals(teamOf(target))
                 && !sameTeam(bot, target);
+        boolean hardOrLocalTarget = target != null
+                && !sameTeam(bot, target)
+                && ("hard".equals(teamOf(target)) || "human".equals(teamOf(target)));
+        boolean selfNearWin = bot != null && bot.countCompletePropertySets() >= 2;
         if (targetLeader) {
             tags.add("attacks-current-leader");
         }
@@ -774,15 +807,24 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         if ((forcedDeal || slyDeal || dealBreaker) && target == bot) {
             tags.add("self-target-check");
         }
+        if (selfNearWin && !deposit) {
+            tags.add("self-near-win-tempo");
+        }
+        if (hardOrLocalTarget && (forcedDeal || slyDeal || dealBreaker || rent)) {
+            tags.add("pressures-hard-local-opponent");
+        }
 
         tactics.addProperty("localScore", candidateScore(candidate));
         tactics.addProperty("actionType", actionType);
+        tactics.addProperty("selfCompleteSets", bot == null ? 0 : bot.countCompletePropertySets());
+        tactics.addProperty("selfNearWin", selfNearWin);
         tactics.addProperty("targetPlayerId", targetPlayerId);
         tactics.addProperty("targetCompleteSets", targetSets);
         tactics.addProperty("targetIsLeader", targetLeader);
         tactics.addProperty("targetNearWin", targetNearWin);
         tactics.addProperty("targetSameTeam", targetSameTeam);
         tactics.addProperty("targetHardOpponent", targetHardOpponent);
+        tactics.addProperty("targetHardOrLocalOpponent", hardOrLocalTarget);
         tactics.addProperty("netScore", numberAfter(summary, "NETSCORE="));
         tactics.addProperty("materialGain", numberAfter(summary, "MATERIALGAIN="));
         tactics.addProperty("completionGain", numberAfter(summary, "COMPLETIONGAIN="));
@@ -797,6 +839,8 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
                 targetNearWin,
                 targetSameTeam,
                 targetHardOpponent,
+                hardOrLocalTarget,
+                selfNearWin,
                 dealBreaker,
                 forcedDeal,
                 slyDeal,
@@ -811,6 +855,8 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
             boolean targetNearWin,
             boolean targetSameTeam,
             boolean targetHardOpponent,
+            boolean hardOrLocalTarget,
+            boolean selfNearWin,
             boolean dealBreaker,
             boolean forcedDeal,
             boolean slyDeal,
@@ -818,11 +864,17 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         if (completesSet) {
             return "High priority: this improves the set race directly.";
         }
+        if (selfNearWin && (forcedDeal || slyDeal || dealBreaker)) {
+            return "High priority: you are near winning; use board swings to complete or protect the third set.";
+        }
         if (targetSameTeam && (dealBreaker || forcedDeal || slyDeal)) {
             return "Do not choose in team-aware evaluation: this weakens same-team LLM board tempo.";
         }
         if (targetHardOpponent && (dealBreaker || forcedDeal || slyDeal)) {
             return "High priority team-aware board swing: takes tempo from a hard/local opponent.";
+        }
+        if (hardOrLocalTarget && (dealBreaker || forcedDeal || slyDeal)) {
+            return "High priority board swing against a hard/local opponent; reduce their property tempo before banking.";
         }
         if (dealBreaker) {
             return "High priority if target owns a complete set, especially leader or near-win opponent.";
@@ -941,10 +993,12 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         risk.add("opponentsNearWin", nearWin);
         risk.addProperty("planningPriority",
                 "1 win now; 2 block any opponent at 2+ sets or decisive steal/rent; "
-                        + "3 complete/protect own sets; 4 preserve high-leverage actions and wilds; "
+                        + "3 complete/protect own sets and missing wild colors; "
+                        + "4 preserve high-leverage actions and Just Say No for board swings; "
                         + "5 improve bank only when it does not delay set tempo.");
         risk.addProperty("shortSightGuard",
-                "Before selecting a candidate, compare board position after this play, not just immediate cash.");
+                "Before selecting a candidate, compare board position after this play, not just immediate cash. "
+                        + "A large bank without complete sets is usually losing to hard opponents.");
         return risk;
     }
 
@@ -1039,6 +1093,83 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         return arr;
     }
 
+    private static JsonArray paymentCardListJson(Player owner, List<Card> cards) {
+        JsonArray arr = new JsonArray();
+        if (cards == null) {
+            return arr;
+        }
+        for (Card card : cards) {
+            JsonObject row = new JsonObject();
+            row.addProperty("id", card.getId());
+            row.addProperty("kind", kind(card));
+            row.addProperty("name", card.getName());
+            row.addProperty("valueM", PayableCards.valueOf(card));
+            boolean property = card instanceof PropertyCard;
+            row.addProperty("zone", property ? "PROPERTY" : "BANK");
+            row.addProperty("paymentRisk", paymentCardRisk(owner, card));
+            if (card instanceof PropertyCard pc) {
+                String color = normalizeColor(pc);
+                row.addProperty("color", color);
+                int count = owner == null ? 0
+                        : PropertySetCalculator.effectiveCountForColor(owner.getPropertyCardsView(), color);
+                int need = PropertySetCalculator.REQUIRED_BY_COLOR.getOrDefault(color, 3);
+                row.addProperty("colorCountBeforePayment", count);
+                row.addProperty("colorNeed", need);
+                row.addProperty("breaksCompleteSet", count >= need);
+                row.addProperty("isWild", pc instanceof PropertyWildCard);
+            }
+            arr.add(row);
+        }
+        return arr;
+    }
+
+    private static int paymentCardRisk(Player owner, Card card) {
+        if (!(card instanceof PropertyCard pc)) {
+            return 0;
+        }
+        String color = normalizeColor(pc);
+        int count = owner == null ? 0
+                : PropertySetCalculator.effectiveCountForColor(owner.getPropertyCardsView(), color);
+        int need = PropertySetCalculator.REQUIRED_BY_COLOR.getOrDefault(color, 3);
+        int risk = 100 + PayableCards.valueOf(card) * 10;
+        if (count >= need) {
+            risk += 1_000;
+        } else if (count == need - 1) {
+            risk += 500;
+        }
+        if (pc instanceof PropertyWildCard) {
+            risk += 350;
+        }
+        return risk;
+    }
+
+    private static boolean isWorsePayment(
+            Player owner,
+            int amountDue,
+            PaymentSettlement.PaymentChoice modelChoice,
+            PaymentSettlement.PaymentChoice fallbackChoice) {
+        if (modelChoice == null || fallbackChoice == null) {
+            return false;
+        }
+        int modelScore = paymentChoiceScore(owner, amountDue, modelChoice);
+        int fallbackScore = paymentChoiceScore(owner, amountDue, fallbackChoice);
+        return modelScore > fallbackScore + 250;
+    }
+
+    private static int paymentChoiceScore(
+            Player owner,
+            int amountDue,
+            PaymentSettlement.PaymentChoice choice) {
+        if (choice == null) {
+            return 0;
+        }
+        int score = Math.max(0, choice.amountPaid() - amountDue) * 40;
+        for (Card card : choice.cards()) {
+            score += paymentCardRisk(owner, card);
+        }
+        return score;
+    }
+
     private static List<Card> payableCards(Player p) {
         List<Card> cards = new ArrayList<>();
         if (p == null) {
@@ -1123,7 +1254,7 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         List<ScoredCandidate> scored = new ArrayList<>();
         int order = 0;
         for (AiHeuristics.AiPlayCandidate candidate : candidates) {
-            scored.add(new ScoredCandidate(candidate, candidateScore(candidate), order++));
+            scored.add(new ScoredCandidate(candidate, candidateScore(bot, context, candidate), order++));
         }
         scored.sort(Comparator
                 .comparingInt(ScoredCandidate::score)
@@ -1198,24 +1329,38 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
     }
 
     static int candidateScore(AiHeuristics.AiPlayCandidate candidate) {
+        return candidateScore(null, null, candidate);
+    }
+
+    static int candidateScore(
+            AIPlayer bot,
+            GameContext context,
+            AiHeuristics.AiPlayCandidate candidate) {
         String summary = candidate.summary() == null ? "" : candidate.summary().toUpperCase(Locale.ROOT);
         String actionType = candidate.request() == null ? "" : String.valueOf(candidate.request().getActionType())
                 .toUpperCase(Locale.ROOT);
         boolean deposit = "DEPOSIT".equals(actionType) || summary.contains("BANK ");
+        boolean cashPressure = summary.contains("DEBT_COLLECTOR")
+                || summary.contains("RENT")
+                || summary.contains("BIRTHDAY");
+        int selfSets = bot == null ? 0 : bot.countCompletePropertySets();
+        int selfBank = bot == null ? 0 : bot.totalBankValueM();
+        int maxOpponentSets = maxOpponentCompleteSets(bot, context);
+        boolean cashSaturated = bot != null && selfBank >= 12 && selfSets <= maxOpponentSets;
         int score = 0;
         if (summary.contains("COMPLETIONSCORE=1000")) {
-            score += 10_000;
+            score += 12_000;
         } else if (summary.contains("DEPLOY")) {
-            score += 4_000 + numberAfter(summary, "COMPLETIONSCORE=");
+            score += 5_200 + numberAfter(summary, "COMPLETIONSCORE=") * 2;
         }
         if (!deposit && summary.contains("DEAL_BREAKER")) {
-            score += 9_500;
+            score += 10_800;
         }
         if (!deposit && summary.contains("FORCED_DEAL")) {
-            score += 7_000 + numberAfter(summary, "NETSCORE=");
+            score += 8_600 + numberAfter(summary, "NETSCORE=") * 2;
         }
         if (!deposit && summary.contains("STEAL_PROPERTY")) {
-            score += 6_500;
+            score += 8_000;
         }
         if (!deposit && summary.contains("DEBT_COLLECTOR")) {
             score += 6_000 + numberAfter(summary, "EXPECTEDPAID=") * 180;
@@ -1235,7 +1380,30 @@ public class DeepSeekAiPlayStrategy implements AiPlayStrategy, AiChoiceAdvisor {
         if (deposit) {
             score += 1_000 + numberBefore(summary, "M.") * 120;
         }
+        if (cashSaturated && deposit) {
+            score -= 2_000;
+        }
+        if (cashSaturated && cashPressure) {
+            score -= 1_200;
+        }
+        if (bot != null && selfSets >= 2 && (summary.contains("DEPLOY")
+                || summary.contains("DEAL_BREAKER")
+                || summary.contains("FORCED_DEAL")
+                || summary.contains("STEAL_PROPERTY"))) {
+            score += 1_500;
+        }
         return score;
+    }
+
+    private static int maxOpponentCompleteSets(AIPlayer bot, GameContext context) {
+        int max = 0;
+        for (Player p : playersForContext(bot, context)) {
+            if (p == null || p == bot) {
+                continue;
+            }
+            max = Math.max(max, p.countCompletePropertySets());
+        }
+        return max;
     }
 
     private static int numberAfter(String s, String marker) {

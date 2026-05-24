@@ -236,7 +236,9 @@ public final class BrokeredAiPlayStrategy implements AiPlayStrategy, AiChoiceAdv
             return candidates;
         }
         List<AiHeuristics.AiPlayCandidate> sorted = new ArrayList<>(candidates);
-        sorted.sort(Comparator.comparingInt(DeepSeekAiPlayStrategy::candidateScore).reversed());
+        sorted.sort(Comparator.comparingInt(
+                (AiHeuristics.AiPlayCandidate candidate) ->
+                        DeepSeekAiPlayStrategy.candidateScore(candidate)).reversed());
         List<AiHeuristics.AiPlayCandidate> out = new ArrayList<>();
         for (int i = 0; i < Math.min(limit, sorted.size()); i++) {
             AiHeuristics.AiPlayCandidate c = sorted.get(i);

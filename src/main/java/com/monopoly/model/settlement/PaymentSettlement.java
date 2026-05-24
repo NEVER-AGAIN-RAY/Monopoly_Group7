@@ -73,6 +73,26 @@ public final class PaymentSettlement {
         return transferChosen(debtor, creditor, amountDue, chosen, sum, engine);
     }
 
+    public static PaymentChoice choosePayment(Player debtor, int amountDue) {
+        return chooseAutomaticPayment(debtor, amountDue);
+    }
+
+    public static Result settleWithChoice(
+            Player debtor,
+            Player creditor,
+            int amountDue,
+            PaymentChoice choice,
+            GameEngineSingleton engine) {
+        if (debtor == null || creditor == null || engine == null) {
+            return new Result(Status.FAILED, amountDue, 0, "参数无效");
+        }
+        if (amountDue <= 0) {
+            return new Result(Status.SUCCESS, amountDue, 0, "无需支付");
+        }
+        PaymentChoice effective = choice != null ? choice : chooseAutomaticPayment(debtor, amountDue);
+        return transferChosen(debtor, creditor, amountDue, effective.cards(), effective.amountPaid(), engine);
+    }
+
     /**
      * Explicit card ids for payment (tenant pass).
      */
@@ -314,25 +334,25 @@ public final class PaymentSettlement {
                 if (!debtor.removePropertyCard(pc)) {
                     return new Result(Status.FAILED, amountDue, 0, "状态不一致：无法移除房产牌");
                 }
-                creditor.receiveCardToHand(pc);
+                creditor.addToPropertyZone(pc);
             } else {
                 if (!debtor.removeFromBank(c)) {
                     return new Result(Status.FAILED, amountDue, 0, "状态不一致：无法移除银行牌");
                 }
-                creditor.receiveCardToHand(c);
+                creditor.addToBank(c);
             }
         }
 
         if (sum < amountDue) {
             return new Result(Status.SUCCESS, amountDue, sum,
                     "资产不足：已付尽可支付资产 " + sum + "M（应付 "
-                            + amountDue + "M），收款方收入手牌");
+                            + amountDue + "M），收款方收入对应桌面区域");
         }
         return new Result(Status.SUCCESS, amountDue, sum,
-                "支付成功：付出 " + sum + "M（应付 " + amountDue + "M，找零不退），收款方收入手牌");
+                "支付成功：付出 " + sum + "M（应付 " + amountDue + "M，找零不退），收款方收入对应桌面区域");
     }
 
-    record PaymentChoice(List<Card> cards, int amountPaid) {
+    public record PaymentChoice(List<Card> cards, int amountPaid) {
     }
 
     private record PayOption(Card card, int value, boolean property) {

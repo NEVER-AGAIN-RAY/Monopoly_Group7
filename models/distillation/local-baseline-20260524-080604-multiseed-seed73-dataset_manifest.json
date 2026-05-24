@@ -1,0 +1,55 @@
+{
+  "schema": "monopoly-deal-dataset-manifest-v1",
+  "generatedAtEpochMs": 1779594657575,
+  "path": "data/distillation/local-baseline-20260524-080604.jsonl",
+  "sha256": "a29e3f92d3c6de9894397285262762ee887d89ca354db669fd89d864df9da79e",
+  "rows": 4774,
+  "sessions": 60,
+  "actors": 5,
+  "byDecisionKind": {
+    "JUST_SAY_NO": 178,
+    "OVERFLOW_DISCARD": 66,
+    "PAYMENT": 840,
+    "PLAY_CARD": 3690
+  },
+  "byTeacherSource": {
+    "local_heuristic": 4774
+  },
+  "deepseekRatio": 0.0,
+  "fallbackRatio": 1.0,
+  "candidateCounts": {
+    "avg": 9.412,
+    "p50": 7,
+    "p90": 22,
+    "max": 32
+  },
+  "byPlayerCount": {
+    "2": 1055,
+    "3": 1267,
+    "4": 1223,
+    "5": 1229
+  },
+  "byRound": {
+    "1": 519,
+    "10": 66,
+    "11": 49,
+    "12": 30,
+    "13": 4,
+    "2": 873,
+    "3": 836,
+    "4": 810,
+    "5": 596,
+    "6": 408,
+    "7": 268,
+    "8": 205,
+    "9": 110
+  },
+  "tokenUsageEstimate": {
+    "rowsWithUsage": 0,
+    "promptTokensShare": 0.0,
+    "completionTokensShare": 0.0,
+    "totalTokensShare": 0.0,
+    "avgTotalTokensPerDecision": 0.0
+  },
+  "allDecisionKindsCovered": true
+}

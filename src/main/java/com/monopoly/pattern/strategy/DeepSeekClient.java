@@ -23,13 +23,15 @@ public final class DeepSeekClient {
     private static final String DEFAULT_MODEL = "deepseek-v4-flash";
     private static final String DEFAULT_FALLBACK_MODEL = "deepseek-chat";
     private static final AtomicInteger PREFERRED_JSON_FAILURES = new AtomicInteger();
+    private static final ThreadLocal<JsonObject> LAST_USAGE = new ThreadLocal<>();
 
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(timeoutSeconds()))
             .build();
 
-    String complete(String systemPrompt, String userPrompt, boolean strictJson)
+    public String complete(String systemPrompt, String userPrompt, boolean strictJson)
             throws IOException, InterruptedException {
+        LAST_USAGE.remove();
         if (strictJson && preferFallbackForStrictJson()) {
             AiBattleLogger.log("DeepSeek",
                     "strict JSON configured for fallback; using fallback model=" + fallbackModel()
@@ -41,19 +43,120 @@ public final class DeepSeekClient {
                     "preferred JSON circuit open; using fallback model=" + fallbackModel());
             return completeFallback(systemPrompt, userPrompt, true);
         }
-        try {
-            return completePreferred(systemPrompt, userPrompt, strictJson, model());
-        } catch (IOException ex) {
-            if (strictJson) {
-                recordPreferredJsonFailure(ex.getMessage());
+        int attempts = Math.max(1, Integer.getInteger("monopoly.deepseek.maxAttempts", 3));
+        IOException last = null;
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                return completePreferred(systemPrompt, userPrompt, strictJson, model());
+            } catch (IOException ex) {
+                last = ex;
+                if (strictJson) {
+                    recordPreferredJsonFailure(ex.getMessage());
+                }
+                if (attempt >= attempts || !isRetryable(ex)) {
+                    throw ex;
+                }
+                long sleepMs = retrySleepMs(attempt);
+                AiBattleLogger.log("DeepSeek",
+                        "retryable error attempt=" + attempt + "/" + attempts
+                                + " sleepMs=" + sleepMs
+                                + " reason=" + ex.getMessage());
+                sleep(sleepMs);
             }
-            throw ex;
+        }
+        if (last != null) {
+            throw last;
+        }
+        throw new IOException("DeepSeek request failed without response");
+    }
+
+    public JsonObject consumeLastUsage() {
+        JsonObject usage = LAST_USAGE.get();
+        LAST_USAGE.remove();
+        return usage == null ? new JsonObject() : usage.deepCopy();
+    }
+
+    public static boolean isRetryable(IOException ex) {
+        String message = ex == null || ex.getMessage() == null ? "" : ex.getMessage();
+        return message.contains("HTTP 408")
+                || message.contains("HTTP 409")
+                || message.contains("HTTP 425")
+                || message.contains("HTTP 429")
+                || message.contains("HTTP 500")
+                || message.contains("HTTP 502")
+                || message.contains("HTTP 503")
+                || message.contains("HTTP 504");
+    }
+
+    private static long retrySleepMs(int attempt) {
+        long base = Long.getLong("monopoly.deepseek.retryBaseMs", 750L);
+        long cap = Long.getLong("monopoly.deepseek.retryMaxMs", 8000L);
+        long value = base;
+        for (int i = 1; i < Math.max(1, attempt); i++) {
+            value = Math.min(cap, value * 2L);
+        }
+        return Math.min(cap, value);
+    }
+
+    private static void sleep(long millis) throws InterruptedException {
+        if (millis > 0L) {
+            Thread.sleep(millis);
         }
     }
 
-    String completeFallback(String systemPrompt, String userPrompt, boolean strictJson)
+    private String completePreferred(
+            String systemPrompt,
+            String userPrompt,
+            boolean strictJson,
+            String preferredModel) throws IOException, InterruptedException {
+        try {
+            return completeWithModel(preferredModel, systemPrompt, userPrompt, strictJson);
+        } catch (IOException ex) {
+            String fallback = fallbackModel();
+            if (fallback.equals(preferredModel) || !isJsonCompatibilityError(ex)) {
+                throw ex;
+            }
+            AiBattleLogger.log("DeepSeek",
+                    "model fallback " + preferredModel + " -> " + fallback
+                            + " after " + ex.getMessage());
+            return completeWithModel(fallback, systemPrompt, userPrompt, strictJson);
+        }
+    }
+
+    private static boolean isJsonCompatibilityError(IOException ex) {
+        String message = ex == null || ex.getMessage() == null ? "" : ex.getMessage();
+        return message.contains("response_format")
+                || message.contains("json_object")
+                || message.contains("JSON")
+                || message.contains("400")
+                || message.contains("422");
+    }
+
+    public String completeFallback(String systemPrompt, String userPrompt, boolean strictJson)
             throws IOException, InterruptedException {
-        return completeWithModel(fallbackModel(), systemPrompt, userPrompt, strictJson);
+        LAST_USAGE.remove();
+        int attempts = Math.max(1, Integer.getInteger("monopoly.deepseek.maxAttempts", 3));
+        IOException last = null;
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                return completeWithModel(fallbackModel(), systemPrompt, userPrompt, strictJson);
+            } catch (IOException ex) {
+                last = ex;
+                if (attempt >= attempts || !isRetryable(ex)) {
+                    throw ex;
+                }
+                long sleepMs = retrySleepMs(attempt);
+                AiBattleLogger.log("DeepSeek",
+                        "retryable fallback error attempt=" + attempt + "/" + attempts
+                                + " sleepMs=" + sleepMs
+                                + " reason=" + ex.getMessage());
+                sleep(sleepMs);
+            }
+        }
+        if (last != null) {
+            throw last;
+        }
+        throw new IOException("DeepSeek fallback request failed without response");
     }
 
     void recordPreferredJsonFailure(String reason) {
@@ -77,27 +180,12 @@ public final class DeepSeekClient {
         return !preferFallbackForStrictJson() && !preferredJsonCircuitOpen();
     }
 
-    private String completePreferred(
-            String systemPrompt,
-            String userPrompt,
-            boolean strictJson,
-            String preferredModel) throws IOException, InterruptedException {
-        try {
-            return completeWithModel(preferredModel, systemPrompt, userPrompt, strictJson);
-        } catch (IOException first) {
-            String fallback = fallbackModel();
-            if (fallback.equals(preferredModel)) {
-                throw first;
-            }
-            AiBattleLogger.log("DeepSeek",
-                    "model fallback " + preferredModel + " -> " + fallback
-                            + " after " + first.getMessage());
-            return completeWithModel(fallback, systemPrompt, userPrompt, strictJson);
-        }
-    }
-
     private String completeWithModel(String model, String systemPrompt, String userPrompt, boolean strictJson)
             throws IOException, InterruptedException {
+        String key = apiKey();
+        if (key.isBlank()) {
+            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY or -Dmonopoly.deepseek.apiKey.");
+        }
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
         body.addProperty("temperature", 0.2);
@@ -117,7 +205,7 @@ public final class DeepSeekClient {
                 .uri(URI.create(baseUrl() + "/chat/completions"))
                 .timeout(Duration.ofSeconds(timeoutSeconds()))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + apiKey())
+                .header("Authorization", "Bearer " + key)
                 .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body)))
                 .build();
 
@@ -135,8 +223,10 @@ public final class DeepSeekClient {
             throw new IOException("DeepSeek response has no message content.");
         }
         if (root.has("usage")) {
-            AiBattleLogger.log("DeepSeek",
-                    "usage model=" + model + " " + root.get("usage"));
+            JsonObject usage = root.getAsJsonObject("usage").deepCopy();
+            usage.addProperty("model", model);
+            LAST_USAGE.set(usage);
+            AiBattleLogger.log("DeepSeek", "usage model=" + model + " " + root.get("usage"));
         }
         return message.get("content").getAsString();
     }
@@ -176,11 +266,11 @@ public final class DeepSeekClient {
 
     private static String apiKey() throws IOException {
         String key = System.getProperty("monopoly.deepseek.apiKey",
-                System.getenv("DEEPSEEK_API_KEY"));
+                System.getenv().getOrDefault("DEEPSEEK_API_KEY", ""));
         if (key == null || key.isBlank()) {
-            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY or monopoly.deepseek.apiKey.");
+            throw new IOException("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY or -Dmonopoly.deepseek.apiKey.");
         }
-        return key;
+        return key.trim();
     }
 
     private static int timeoutSeconds() {

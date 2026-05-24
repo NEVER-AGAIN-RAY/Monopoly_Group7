@@ -16,6 +16,8 @@
 | [`docs/interface/websocket-protocol.md`](interface/websocket-protocol.md) | 客户端与服务端 **WebSocket JSON 协议**（消息类型、载荷、维护约定）。 |
 | [`docs/implementation/requirement-trace-and-deviations.md`](implementation/requirement-trace-and-deviations.md) | 需求**实现状态**、与需求表述的**偏差**及后续跟进行动。 |
 | **本文件 `docs/ENGINEERING.md`** | **变更记录**、协作约定、文档索引更新说明。 |
+| [`docs/ai-delivery-checklist.md`](ai-delivery-checklist.md) | AI 训练交付状态、当前 artifact 路径、DeepSeek production gate 与 Windows 5090 执行清单。 |
+| [`docs/ai-paper-outline.md`](ai-paper-outline.md) | AI 蒸馏方向的论文提纲、相关工作矩阵、实验表与 claim 边界。 |
 
 ---
 
@@ -28,6 +30,16 @@
 - **格式**：从新到旧排序（最新条目在最上）。
 
 ### 记录
+
+#### 2026-05-24 — 多会话隔离、训练样本平衡与缩放实验
+
+- **摘要**：`GameServer` 将保存/加载确认状态改为按 `sessionId` 隔离，加载跨 `sessionId` 存档时会迁移连接并刷新状态；训练脚本默认对 MLP/linear 学生启用决策类型 loss balancing，降低 `PLAY_CARD` 对稀有决策的淹没；新增 player-count 泛化切分（如 2/3 人训练、4/5 人验证）；新增 deterministic scaling subsets、缩放曲线训练脚本、gameplay matrix 评估脚本、forest-style 离线 baseline、付费 trace 审计脚本、多 trace 合并/去重脚本、训练交付 readiness gate、训练 run summary、多 seed replicate 工具、已有 trace 离线 DeepSeek relabel/选择工具、relabel paid probe 包装脚本与带显式付费确认的一键 DeepSeek production wrapper；补充多会话加载投票回归测试与训练日志。
+- **领域**：协议 / 多会话 / AI 训练 / 测试 / 文档
+
+#### 2026-05-24 — AI 批量模拟与蒸馏数据管线
+
+- **摘要**：新增 `simulation/` 包与 `SimulationBatchRunner`，支持多局真实后端规则并发推进、AI 决策进入 `DecisionBroker` 微批、DeepSeek 批量标注、JSONL 样本落盘；`AI_VS_AI` 增加可注入策略工厂以便模拟时替换为 `BrokeredAiPlayStrategy`；新增 `scripts/distill_dataset.py`、采集脚本、训练计划与训练日志；新增纯 Java `LocalLinearRankerAiPlayStrategy` 与本地学生模型对战评估脚本。
+- **领域**：AI / 模拟采集 / 测试 / 架构文档
 
 #### 2026-04-18 — 文档整理
 

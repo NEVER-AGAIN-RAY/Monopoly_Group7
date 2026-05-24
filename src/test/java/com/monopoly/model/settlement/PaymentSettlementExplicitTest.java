@@ -2,6 +2,7 @@ package com.monopoly.model.settlement;
 
 import com.monopoly.model.card.MoneyCard;
 import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.card.PropertyWildCard;
 import com.monopoly.model.player.HumanPlayer;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 import org.junit.jupiter.api.Test;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -30,8 +32,9 @@ class PaymentSettlementExplicitTest {
         assertTrue(r.isSuccess());
         assertEquals(1, debtor.getBankCardCount());
         assertTrue(debtor.getBankCardsView().contains(m1));
-        assertEquals(0, creditor.getBankCardCount());
-        assertTrue(creditor.getHandCardsView().contains(m5));
+        assertEquals(1, creditor.getBankCardCount());
+        assertTrue(creditor.getBankCardsView().contains(m5));
+        assertTrue(creditor.getHandCardsView().isEmpty());
     }
 
     @Test
@@ -75,10 +78,11 @@ class PaymentSettlementExplicitTest {
         assertTrue(r.isSuccess());
         assertEquals(0, debtor.getBankCardCount());
         assertEquals(0, debtor.getPropertyCardCount());
-        assertTrue(creditor.getHandCardsView().contains(m1));
-        assertTrue(creditor.getHandCardsView().contains(p));
-        assertEquals(0, creditor.getBankCardCount());
-        assertEquals(0, creditor.getPropertyCardCount());
+        assertTrue(creditor.getBankCardsView().contains(m1));
+        assertTrue(creditor.getPropertyCardsView().contains(p));
+        assertEquals(0, creditor.getHandCardCount());
+        assertEquals(1, creditor.getBankCardCount());
+        assertEquals(1, creditor.getPropertyCardCount());
     }
 
     @Test
@@ -96,7 +100,7 @@ class PaymentSettlementExplicitTest {
         assertTrue(r.isSuccess());
         assertEquals(0, debtor.getBankCardCount());
         assertEquals(1, debtor.getPropertyCardCount());
-        assertTrue(creditor.getHandCardsView().contains(m1));
+        assertTrue(creditor.getBankCardsView().contains(m1));
     }
 
     @Test
@@ -138,8 +142,8 @@ class PaymentSettlementExplicitTest {
         assertEquals(3, r.getAmountPaid());
         assertEquals(0, debtor.getBankCardCount());
         assertEquals(0, debtor.getPropertyCardCount());
-        assertTrue(creditor.getHandCardsView().contains(m1));
-        assertTrue(creditor.getHandCardsView().contains(p));
+        assertTrue(creditor.getBankCardsView().contains(m1));
+        assertTrue(creditor.getPropertyCardsView().contains(p));
         assertTrue(r.getMessage().contains("已付尽可支付资产"));
     }
 
@@ -159,7 +163,29 @@ class PaymentSettlementExplicitTest {
         assertEquals(3, r.getAmountPaid());
         assertEquals(0, debtor.getBankCardCount());
         assertEquals(0, debtor.getPropertyCardCount());
-        assertTrue(creditor.getHandCardsView().contains(m1));
-        assertTrue(creditor.getHandCardsView().contains(p));
+        assertTrue(creditor.getBankCardsView().contains(m1));
+        assertTrue(creditor.getPropertyCardsView().contains(p));
+    }
+
+    @Test
+    void propertyPaymentMovesAssignedWildToCreditorPropertyZone() {
+        HumanPlayer debtor = new HumanPlayer("d", "D");
+        HumanPlayer creditor = new HumanPlayer("c", "C");
+        PropertyWildCard wild = new PropertyWildCard(
+                "wild-r-y",
+                "Red Yellow Wild",
+                PropertyWildCard.WildPropertyKind.DUAL_COLOR,
+                List.of("RED", "YELLOW"));
+        wild.setAssignedColorKey("RED");
+        debtor.addToPropertyZone(wild);
+
+        PaymentSettlement.Result r = PaymentSettlement.settleWithExplicitCards(
+                debtor, creditor, 3, List.of("wild-r-y"), GameEngineSingleton.getInstance());
+
+        assertTrue(r.isSuccess());
+        assertFalse(debtor.getPropertyCardsView().contains(wild));
+        assertTrue(creditor.getPropertyCardsView().contains(wild));
+        assertEquals("RED", wild.getAssignedColorKey());
+        assertTrue(creditor.getHandCardsView().isEmpty());
     }
 }

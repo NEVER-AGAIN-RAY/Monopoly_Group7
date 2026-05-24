@@ -4,7 +4,6 @@ import com.monopoly.controller.GameController;
 import com.monopoly.model.player.Player;
 import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.pattern.observer.GameUpdateSubject;
-import com.monopoly.pattern.singleton.GameEngineSingleton;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,8 +32,8 @@ class GameSessionMementoTest {
         req.setRandomizeFirstPlayer(false);
         c1.startNewSession(req);
 
-        int draw1 = GameEngineSingleton.getInstance().remainingCount();
-        int disc1 = GameEngineSingleton.getInstance().discardCount();
+        int draw1 = c1.getEngine().remainingCount();
+        int disc1 = c1.getEngine().discardCount();
         int[] hands1 = handCounts(c1);
 
         GameSessionMemento memento = GameSessionMemento.capture(c1);
@@ -43,8 +42,8 @@ class GameSessionMementoTest {
         GameSessionMemento.resetSingletonEngineForTests();
         GameController c2 = GameSessionMemento.restoreFromJson(subject, json);
 
-        assertEquals(draw1, GameEngineSingleton.getInstance().remainingCount(), "抽牌堆张数应一致");
-        assertEquals(disc1, GameEngineSingleton.getInstance().discardCount(), "弃牌堆张数应一致");
+        assertEquals(draw1, c2.getEngine().remainingCount(), "抽牌堆张数应一致");
+        assertEquals(disc1, c2.getEngine().discardCount(), "弃牌堆张数应一致");
         int[] hands2 = handCounts(c2);
         assertEquals(hands1.length, hands2.length);
         for (int i = 0; i < hands1.length; i++) {

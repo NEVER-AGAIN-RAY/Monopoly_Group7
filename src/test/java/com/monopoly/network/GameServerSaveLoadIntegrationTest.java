@@ -85,8 +85,7 @@ class GameServerSaveLoadIntegrationTest {
                 .orElseThrow();
         assertTrue(JsonParser.parseString(loadReply).getAsJsonObject().getAsJsonObject("payload").get("ok").getAsBoolean());
 
-        int total = com.monopoly.pattern.singleton.GameEngineSingleton.getInstance()
-                .countAllCardsInPlay(loaded.getSessionPlayersView());
+        int total = loaded.getEngine().countAllCardsInPlay(loaded.getSessionPlayersView());
         assertEquals(GameConstants.STANDARD_DECK_SIZE, total);
     }
 
@@ -137,8 +136,7 @@ class GameServerSaveLoadIntegrationTest {
         out.clear();
         server.onMessage(client, GSON.toJson(loadRoot));
 
-        int total = com.monopoly.pattern.singleton.GameEngineSingleton.getInstance()
-                .countAllCardsInPlay(loaded.getSessionPlayersView());
+        int total = loaded.getEngine().countAllCardsInPlay(loaded.getSessionPlayersView());
         assertEquals(GameConstants.STANDARD_DECK_SIZE, total);
     }
 
@@ -228,6 +226,63 @@ class GameServerSaveLoadIntegrationTest {
     }
 
     @Test
+    void independentSessions_doNotBroadcastStateOrPrivateHandsAcrossSessions() {
+        GameServer server = new GameServer();
+        List<String> outA = new ArrayList<>();
+        List<String> outB = new ArrayList<>();
+        ClientConnection clientA = recordingClient(outA);
+        ClientConnection clientB = recordingClient(outB);
+        server.onClientConnected(clientA);
+        server.onClientConnected(clientB);
+
+        server.onMessage(clientA,
+                "{\"type\":\"AUTH\",\"payload\":{\"sessionId\":\"batch-a\",\"playerId\":\"human-1\"}}");
+        server.onMessage(clientB,
+                "{\"type\":\"AUTH\",\"payload\":{\"sessionId\":\"batch-b\",\"playerId\":\"human-1\"}}");
+
+        outA.clear();
+        outB.clear();
+        server.onMessage(clientA,
+                "{\"type\":\"START_SESSION\",\"payload\":{\"sessionId\":\"batch-a\","
+                        + "\"playerCount\":2,\"gameMode\":\"HVM\",\"aiDifficulty\":\"EASY\","
+                        + "\"randomizeFirstPlayer\":false}}");
+
+        assertTrue(outA.stream().anyMatch(s ->
+                s.contains("\"type\":\"STATE_UPDATE\"") && s.contains("\"sessionId\":\"batch-a\"")));
+        assertTrue(outA.stream().anyMatch(s ->
+                s.contains("\"type\":\"MY_HAND\"") && s.contains("\"playerId\":\"human-1\"")));
+        assertFalse(outB.stream().anyMatch(s -> s.contains("\"sessionId\":\"batch-a\"")));
+        assertFalse(outB.stream().anyMatch(s -> s.contains("\"type\":\"MY_HAND\"")));
+
+        outA.clear();
+        outB.clear();
+        server.onMessage(clientB,
+                "{\"type\":\"START_SESSION\",\"payload\":{\"sessionId\":\"batch-b\","
+                        + "\"playerCount\":2,\"gameMode\":\"HVM\",\"aiDifficulty\":\"EASY\","
+                        + "\"randomizeFirstPlayer\":false}}");
+
+        assertTrue(outB.stream().anyMatch(s ->
+                s.contains("\"type\":\"STATE_UPDATE\"") && s.contains("\"sessionId\":\"batch-b\"")));
+        assertTrue(outB.stream().anyMatch(s ->
+                s.contains("\"type\":\"MY_HAND\"") && s.contains("\"playerId\":\"human-1\"")));
+        assertFalse(outA.stream().anyMatch(s -> s.contains("\"sessionId\":\"batch-b\"")));
+        assertFalse(outA.stream().anyMatch(s -> s.contains("\"type\":\"MY_HAND\"")));
+
+        outA.clear();
+        outB.clear();
+        server.onMessage(clientA, "{\"type\":\"DRAW\",\"payload\":{\"sessionId\":\"batch-a\",\"count\":2}}");
+
+        JsonObject drawA = outA.stream()
+                .filter(s -> s.contains("\"type\":\"STATE_UPDATE\"") && s.contains("\"phase\":\"DRAW\""))
+                .map(GameServerSaveLoadIntegrationTest::payloadOf)
+                .reduce((a, b) -> b)
+                .orElseThrow();
+        assertEquals("batch-a", drawA.get("sessionId").getAsString());
+        assertEquals(GameConstants.STANDARD_DECK_SIZE - 12, drawA.get("drawPileCount").getAsInt());
+        assertFalse(outB.stream().anyMatch(s -> s.contains("\"phase\":\"DRAW\"")));
+    }
+
+    @Test
     void loadGame_requiresAllVotesInThreePlayerSession() {
         DefaultGameUpdateSubject subject = new DefaultGameUpdateSubject();
         GameController controller = new GameController(subject);
@@ -284,6 +339,61 @@ class GameServerSaveLoadIntegrationTest {
         assertEquals("target-3p", currentAfterThreeVotes);
     }
 
+    @Test
+    void loadVotes_areScopedBySessionWhenMultipleRoomsAreActive() {
+        GameServer server = new GameServer();
+        List<String> roomA1 = new ArrayList<>();
+        List<String> roomA2 = new ArrayList<>();
+        List<String> roomB1 = new ArrayList<>();
+        List<String> roomB2 = new ArrayList<>();
+        ClientConnection a1 = recordingClient(roomA1);
+        ClientConnection a2 = recordingClient(roomA2);
+        ClientConnection b1 = recordingClient(roomB1);
+        ClientConnection b2 = recordingClient(roomB2);
+        server.onClientConnected(a1);
+        server.onClientConnected(a2);
+        server.onClientConnected(b1);
+        server.onClientConnected(b2);
+
+        auth(server, a1, "room-a", "pvp-1");
+        auth(server, a2, "room-a", "pvp-2");
+        auth(server, b1, "room-b", "pvp-1");
+        auth(server, b2, "room-b", "pvp-2");
+        server.onMessage(a1, startPvp("room-a"));
+        server.onMessage(b1, startPvp("room-b"));
+
+        String roomATarget = mementoFor("room-a-loaded");
+        String roomBTarget = mementoFor("room-b-loaded");
+        requestLoad(server, a1, "room-a", "load-a", roomATarget);
+        requestLoad(server, b1, "room-b", "load-b", roomBTarget);
+
+        roomA1.clear();
+        roomA2.clear();
+        roomB1.clear();
+        roomB2.clear();
+        server.onMessage(a1, "{\"type\":\"LOAD_GAME_ACK\",\"payload\":{\"sessionId\":\"room-a\","
+                + "\"requestId\":\"load-a\",\"playerId\":\"pvp-1\"}}");
+        server.onMessage(a2, "{\"type\":\"LOAD_GAME_ACK\",\"payload\":{\"sessionId\":\"room-a\","
+                + "\"requestId\":\"load-a\",\"playerId\":\"pvp-2\"}}");
+
+        assertTrue(roomA1.stream().anyMatch(s ->
+                s.contains("\"type\":\"LOAD_GAME_RESULT\"") && s.contains("\"ok\":true")));
+        assertTrue(roomA1.stream().anyMatch(s -> s.contains("\"sessionId\":\"room-a-loaded\"")));
+        assertFalse(roomB1.stream().anyMatch(s -> s.contains("\"type\":\"LOAD_GAME_RESULT\"")));
+        assertFalse(roomB2.stream().anyMatch(s -> s.contains("\"type\":\"LOAD_GAME_RESULT\"")));
+
+        server.onMessage(b1, "{\"type\":\"LOAD_GAME_ACK\",\"payload\":{\"sessionId\":\"room-b\","
+                + "\"requestId\":\"load-b\",\"playerId\":\"pvp-1\"}}");
+        assertFalse(roomB1.stream().anyMatch(s ->
+                s.contains("\"type\":\"LOAD_GAME_RESULT\"") && s.contains("\"ok\":true")));
+
+        server.onMessage(b2, "{\"type\":\"LOAD_GAME_ACK\",\"payload\":{\"sessionId\":\"room-b\","
+                + "\"requestId\":\"load-b\",\"playerId\":\"pvp-2\"}}");
+        assertTrue(roomB1.stream().anyMatch(s ->
+                s.contains("\"type\":\"LOAD_GAME_RESULT\"") && s.contains("\"ok\":true")));
+        assertTrue(roomB1.stream().anyMatch(s -> s.contains("\"sessionId\":\"room-b-loaded\"")));
+    }
+
     private static ClientConnection recordingClient(List<String> sink) {
         return new ClientConnection() {
             @Override
@@ -309,5 +419,48 @@ class GameServerSaveLoadIntegrationTest {
             }
         }
         return false;
+    }
+
+    private static JsonObject payloadOf(String message) {
+        return JsonParser.parseString(message).getAsJsonObject().getAsJsonObject("payload");
+    }
+
+    private static void auth(GameServer server, ClientConnection client, String sessionId, String playerId) {
+        server.onMessage(client, "{\"type\":\"AUTH\",\"payload\":{\"sessionId\":\"" + sessionId
+                + "\",\"playerId\":\"" + playerId + "\"}}");
+    }
+
+    private static String startPvp(String sessionId) {
+        return "{\"type\":\"START_SESSION\",\"payload\":{\"sessionId\":\"" + sessionId
+                + "\",\"playerCount\":2,\"gameMode\":\"PVP\",\"randomizeFirstPlayer\":false}}";
+    }
+
+    private static String mementoFor(String sessionId) {
+        DefaultGameUpdateSubject subject = new DefaultGameUpdateSubject();
+        GameController controller = new GameController(subject);
+        StartSessionRequest req = new StartSessionRequest();
+        req.setSessionId(sessionId);
+        req.setPlayerCount(2);
+        req.setGameMode("PVP");
+        req.setRandomizeFirstPlayer(false);
+        controller.startNewSession(req);
+        return controller.exportSessionJson();
+    }
+
+    private static void requestLoad(
+            GameServer server,
+            ClientConnection client,
+            String sessionId,
+            String requestId,
+            String mementoJson
+    ) {
+        JsonObject payload = new JsonObject();
+        payload.addProperty("sessionId", sessionId);
+        payload.addProperty("requestId", requestId);
+        payload.addProperty("mementoJson", mementoJson);
+        JsonObject root = new JsonObject();
+        root.addProperty("type", "LOAD_GAME");
+        root.add("payload", payload);
+        server.onMessage(client, GSON.toJson(root));
     }
 }

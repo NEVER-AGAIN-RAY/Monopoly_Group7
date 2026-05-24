@@ -47,6 +47,15 @@ Minimum required flow coverage:
 - `SAVE_GAME`
 - `LOAD_GAME`
 
+### DRAW
+
+`DRAW.payload.count` is accepted only for legacy compatibility. The server owns
+the rule: the current player draws 2 cards at the start of a normal turn, or 5
+cards if their hand is empty before drawing. Client-supplied counts are ignored.
+If the draw pile is empty, the discard pile is shuffled into the draw pile; if
+both piles are empty, the player draws as many cards as are available, possibly
+0.
+
 ## Server -> Client Messages (ACK/REJECT-style included)
 
 - `STATE_UPDATE` (broadcast state snapshot)
@@ -58,6 +67,7 @@ Minimum required flow coverage:
 - `LOAD_GAME_RESULT` (`ok: true/false`, optional `error`)
 - `LOAD_VOTE_REQUIRED` (vote required notification)
 - `LOAD_VOTE_PROGRESS` (vote progress updates)
+- `PONG` (reply to `PING`; no active session required)
 
 Note: This project uses `*_RESULT` with `ok/error` fields as ACK/REJECT style responses.
 
@@ -66,6 +76,14 @@ Note: This project uses `*_RESULT` with `ok/error` fields as ACK/REJECT style re
 - `PAUSE` and `PAUSE_REQUEST` may both appear in clients. `PAUSE_REQUEST` is the explicit multi-player vote-oriented request.
 - `JOIN_SESSION` and `AUTH` are both used for identity/session binding workflows depending on client stage.
 - If legacy docs mention non-result ACK labels, treat `*_RESULT` + `ok/error` as the canonical replacement.
+
+## Session Scope
+
+- A single server process can host multiple active `sessionId` values. Each session owns an independent controller and game state.
+- Clients should include `payload.sessionId` on gameplay messages. If absent, the server uses the session bound by `AUTH` / `JOIN_SESSION` / `START_SESSION`.
+- `STATE_UPDATE`, `MY_HAND`, `SAVE_GAME_*`, and `LOAD_GAME_*` messages are scoped to the target session connections.
+- Save/load voting state is also scoped by `sessionId`; simultaneous rooms can run independent votes without consuming or completing each other's vote.
+- When `LOAD_GAME` imports a save with a different `sessionId`, the connected room is rebound to the loaded session id and receives a fresh state update for the loaded game.
 
 ## MY_HAND card fields
 
@@ -98,11 +116,11 @@ Each element of `STATE_UPDATE.payload.players` may include:
 | `propertyColorProgress` | Array of `{ colorKey, effectiveCount, need, completeSets }` |
 | `bankTotalValueM` | Sum of bank card payment values |
 
-Top-level `STATE_UPDATE.payload` may include `pendingPaymentAmountM` when `turnPhase` is `WAITING_FOR_RESPONSE` and the pending role is `TENANT` (amount for the first rent on the effect stack).
+Top-level `STATE_UPDATE.payload` may include `pendingPaymentAmountM` when `turnPhase` is `WAITING_FOR_RESPONSE` and the pending role is `TENANT` (amount for the first payable rent/debt/gift entry on the effect stack).
 
 ### PLAY: RESPONSE_PASS and rent payment
 
-`actionType`: `RESPONSE_PASS`, `actingPlayerId`: required. Optional `paymentCardIds`: array of card ids from the debtor’s bank and property zone; total face value must be ≥ the first payable rent amount (no change). If omitted or empty, the server selects cards automatically (smaller denominations first).
+`actionType`: `RESPONSE_PASS`, `actingPlayerId`: required. Optional `paymentCardIds`: array of card ids from the debtor’s bank and property zone; total face value must be ≥ the first payable rent/debt/gift amount (no change). If omitted or empty, the server selects cards automatically (smaller denominations first).
 
 The standalone `RESPONSE_PASS` message uses the same payload shape (parsed as `PlayActionRequest`).
 

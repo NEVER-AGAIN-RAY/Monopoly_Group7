@@ -24,8 +24,14 @@ Monopoly_Group7/
 │   │   └── requirement-trace-and-deviations.md
 │   ├── interface/
 │   │   └── websocket-protocol.md
+│   ├── ai-distillation-plan.md
+│   ├── ai-training-log.md
 │   └── requirements/
 │       └── requirements.md
+├── scripts/
+│   ├── distill_dataset.py
+│   ├── run_distillation_smoke.sh
+│   └── collect_deepseek_distillation.sh
 └── src/
     ├── main/java/com/monopoly/
     │   ├── ServerBootstrap.java
@@ -55,6 +61,8 @@ Monopoly_Group7/
     │   │   ├── observer/
     │   │   ├── singleton/
     │   │   └── strategy/
+    │   ├── simulation/
+    │   └── tools/
     │   └── persistence/
     ├── main/resources/com/monopoly/fx/MainView.fxml
     ├── main/resources/com/monopoly/fx/styles.css
@@ -89,7 +97,7 @@ Monopoly_Group7/
 |------|------|
 | **`GameController`** | 实现 `AiGameBridge`；持有 `GameEngineSingleton`、`TurnManager`、`CardFactory`、`GameUpdateSubject`、`GameContext`、会话玩家列表；将摸牌/出牌/弃牌/行动卡/结束回合委托给 `TurnFlowService`；将租金委托给 `RentSettlementService`；将暂停委托给 `PauseVoteService`；将存档委托给 `SaveLoadService`；将效果栈与响应窗口委托给 `EffectStackOrchestrator`；将 AI 回合委托给 `AiTurnService`；统一 `pushSnapshot` → `notifyStateChanged`。 |
 | **`TurnManager`** | 回合顺序：绑定 `List<Player>`、`advanceTurn()`、`getCurrentPlayer()`。 |
-| **`TurnFlowService`** | **回合流程核心**：维护 `currentTurnPlayerId`、`TurnPhase`（DRAW / PLAY / WAITING_FOR_RESPONSE / END_TURN）、`currentTurnActionCount`；实现摸牌、DEPOSIT/DEPLOY/ACTION 出牌、弃牌、万能房产改色、结束回合、行动卡解析与 `playActionCard`（收租入栈走 `EffectStackOrchestrator`，其余走 `ActionEffectDispatcher`）；胜负条件（≥3 套房产）。 |
+| **`TurnFlowService`** | **回合流程核心**：维护 `currentTurnPlayerId`、`TurnPhase`（DRAW / PLAY / WAITING_FOR_RESPONSE / END_TURN）、`currentTurnActionCount`；实现摸牌（服务端固定 2 张，空手 5 张）、DEPOSIT/DEPLOY/ACTION 出牌、弃牌、万能房产改色、结束回合、行动卡解析与 `playActionCard`（收租入栈走 `EffectStackOrchestrator`，其余走 `ActionEffectDispatcher`）；行动区作为本回合展示区，回合真正结束时清入弃牌堆；胜负条件（≥3 套房产）。 |
 | **`EffectStackOrchestrator`** | **效果栈编排**：收租/双倍收租后的响应窗口、`StackResponseState`、15 秒超时定时器、免租（Just Say No）与房东反制链；结算时调用 `EffectStackResolver` + `PaymentSettlement`。 |
 | **`AiTurnService`** | **AI 回合**：`drawCards` → 循环 `AiPlayStrategy.tryPlayOneCard` → 通过 `AiGameBridge.submitPlayAction` 复用人类同一校验链 → `endTurn`。 |
 | **`RentSettlementService`** | **租金结算**：`requestRentPayment`、`collectRentForColor`、`computeRentDueForColor`（委托领域计算器与 `PaymentSettlement`）。 |
@@ -194,9 +202,20 @@ Monopoly_Group7/
 | `factory/` | Factory Method | `CardFactory`、`MonopolyDealCardFactory`：生成标准 106 张可游戏牌。 |
 | `observer/` | Observer | `GameUpdateSubject`、`GameUpdateObserver`、`DefaultGameUpdateSubject`。 |
 | `singleton/` | Singleton | `GameEngineSingleton`：抽牌堆、弃牌堆、摸牌/洗牌/全场牌数统计。 |
-| `strategy/` | Strategy | `AiPlayStrategy` 及 Easy/Normal/Hard 实现；`AiStrategyProfile`、`AiHeuristics`（AI 决策管线）。 |
+| `strategy/` | Strategy | `AiPlayStrategy` 及 Easy/Normal/Hard/DeepSeek/Brokered 实现；`AiStrategyProfile`、`AiHeuristics`（AI 决策管线）；`AiChoiceAdvisor` 承接响应、支付、弃牌等非出牌选择。 |
 
-#### 2.8 测试代码：`src/test/java/com/monopoly`
+#### 2.8 `simulation/` 与 `tools/` — 批量模拟与蒸馏数据采集
+
+| 类型 | 职责 |
+|------|------|
+| `DecisionBroker` | 将多个真实对局中的 AI 决策收集成微批，调用 `SimulationDecisionTeacher`，再把结果分发回对应等待中的 worker。 |
+| `SimulationDecisionRequest` / `SimulationDecisionCandidate` / `SimulationDecisionResult` | 蒸馏样本的标准结构：真实局面上下文、合法候选项、教师标签。 |
+| `DeepSeekBatchDecisionTeacher` | 一次 DeepSeek 请求标注多个独立局面；关闭 DeepSeek 时可由本地 teacher 替代。 |
+| `JsonlDecisionTraceSink` | 将已标注决策追加写为 JSONL，供后续训练小模型。 |
+| `SimulationWorker` | 每个 worker 持有独立 `GameController` 和牌堆，用真实规则推进一局 AI_VS_AI；AI 策略替换为 `BrokeredAiPlayStrategy`。 |
+| `tools/SimulationBatchRunner` | 命令行离线采集入口：可配置局数、并发数、微批大小、trace 路径与 teacher 类型。 |
+
+#### 2.9 测试代码：`src/test/java/com/monopoly`
 
 | 目录 | 侧重点 |
 |------|--------|
@@ -205,6 +224,7 @@ Monopoly_Group7/
 | `network/` | 协议校验、PVP 存读档投票、错误码契约、集成测试。 |
 | `persistence/` | Memento 与加密。 |
 | `pattern/strategy/` | AI 策略差异化。 |
+| `simulation/` | 微批决策 Broker 与真实规则模拟 worker。 |
 | `performance/` | 性能烟测。 |
 
 ---

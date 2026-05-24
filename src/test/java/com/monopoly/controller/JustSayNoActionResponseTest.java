@@ -66,8 +66,37 @@ class JustSayNoActionResponseTest {
 
         assertNull(controller.getGameContext().getResponseState());
         assertFalse(target.getPropertyCardsView().contains(targetProperty));
-        assertTrue(actor.getHandCardsView().contains(targetProperty));
-        assertFalse(actor.getPropertyCardsView().contains(targetProperty));
+        assertTrue(actor.getPropertyCardsView().contains(targetProperty));
+        assertFalse(actor.getHandCardsView().contains(targetProperty));
+    }
+
+    @Test
+    void endTurnDiscardsResponderJustSayNoFromCurrentTurn() {
+        GameController controller = newPvpControllerInPlayPhase();
+        Player actor = controller.getSessionPlayersView().get(0);
+        Player target = controller.getSessionPlayersView().get(1);
+        PropertyCard targetProperty = new PropertyCard("target-brown", "Target Brown", "BROWN");
+        ActionCard steal = new ActionCard("steal-action", "Sly Deal", "STEAL_PROPERTY");
+        ActionCard targetNo = new ActionCard("target-no", "Just Say No", "RENT_WAIVER");
+        target.addToPropertyZone(targetProperty);
+        actor.receiveCardToHand(steal);
+        target.receiveCardToHand(targetNo);
+
+        playStealProperty(controller, actor, target, steal, targetProperty);
+        playJustSayNo(controller, target, targetNo);
+        passResponse(controller, actor);
+
+        assertTrue(actor.getActionZoneCardsView().contains(steal));
+        assertTrue(target.getActionZoneCardsView().contains(targetNo));
+
+        int discardBeforeEnd = controller.getEngine().discardCount();
+        controller.handleEndTurnCommand();
+
+        assertEquals(0, actor.getActionZoneCardCount());
+        assertEquals(0, target.getActionZoneCardCount());
+        assertEquals(discardBeforeEnd + 2, controller.getEngine().discardCount());
+        assertTrue(controller.getEngine().getDiscardPileView().contains(steal));
+        assertTrue(controller.getEngine().getDiscardPileView().contains(targetNo));
     }
 
     @Test
@@ -117,7 +146,66 @@ class JustSayNoActionResponseTest {
 
         assertNull(controller.getGameContext().getResponseState());
         assertFalse(target.getBankCardsView().contains(targetMoney));
-        assertTrue(actor.getHandCardsView().contains(targetMoney));
+        assertTrue(actor.getBankCardsView().contains(targetMoney));
+        assertFalse(actor.getHandCardsView().contains(targetMoney));
+    }
+
+    @Test
+    void debtCollectorResponsePassCanUseExplicitPaymentCards() {
+        GameController controller = newPvpControllerInPlayPhase();
+        Player actor = controller.getSessionPlayersView().get(0);
+        Player target = controller.getSessionPlayersView().get(1);
+        ActionCard debt = new ActionCard("debt-action", "Debt Collector", "DEBT_COLLECTOR");
+        MoneyCard one = new MoneyCard("target-1m", "1M", 1);
+        MoneyCard five = new MoneyCard("target-5m", "5M", 5);
+        actor.receiveCardToHand(debt);
+        target.addToBank(one);
+        target.addToBank(five);
+
+        PlayActionRequest req = new PlayActionRequest();
+        req.setActionType("ACTION");
+        req.setCardId(debt.getId());
+        req.setTargetPlayerId(target.getPlayerId());
+        controller.handlePlayActionRequest(req);
+
+        assertAwaiting(controller, target, StackResponseState.Role.TENANT);
+        assertEquals(5, controller.getGameContext().peekTopEffect().getAmountDue());
+
+        PlayActionRequest pass = new PlayActionRequest();
+        pass.setActionType("RESPONSE_PASS");
+        pass.setActingPlayerId(target.getPlayerId());
+        pass.setPaymentCardIds(java.util.List.of(five.getId()));
+        controller.handlePlayActionRequest(pass);
+
+        assertNull(controller.getGameContext().getResponseState());
+        assertTrue(target.getBankCardsView().contains(one));
+        assertFalse(target.getBankCardsView().contains(five));
+        assertTrue(actor.getBankCardsView().contains(five));
+        assertFalse(actor.getHandCardsView().contains(five));
+    }
+
+    @Test
+    void debtCollectorMayBeCancelledByJustSayNo() {
+        GameController controller = newPvpControllerInPlayPhase();
+        Player actor = controller.getSessionPlayersView().get(0);
+        Player target = controller.getSessionPlayersView().get(1);
+        ActionCard debt = new ActionCard("debt-action", "Debt Collector", "DEBT_COLLECTOR");
+        ActionCard targetNo = new ActionCard("target-no", "Just Say No", "RENT_WAIVER");
+        MoneyCard targetMoney = new MoneyCard("target-5m", "5M", 5);
+        actor.receiveCardToHand(debt);
+        target.receiveCardToHand(targetNo);
+        target.addToBank(targetMoney);
+
+        PlayActionRequest req = new PlayActionRequest();
+        req.setActionType("ACTION");
+        req.setCardId(debt.getId());
+        req.setTargetPlayerId(target.getPlayerId());
+        controller.handlePlayActionRequest(req);
+        playJustSayNo(controller, target, targetNo);
+        passResponse(controller, actor);
+
+        assertNull(controller.getGameContext().getResponseState());
+        assertTrue(target.getBankCardsView().contains(targetMoney));
         assertFalse(actor.getBankCardsView().contains(targetMoney));
     }
 
@@ -138,7 +226,8 @@ class JustSayNoActionResponseTest {
 
         assertNull(controller.getGameContext().getResponseState());
         assertFalse(ai.getBankCardsView().contains(aiMoney));
-        assertTrue(actor.getHandCardsView().contains(aiMoney));
+        assertTrue(actor.getBankCardsView().contains(aiMoney));
+        assertFalse(actor.getHandCardsView().contains(aiMoney));
     }
 
     @Test

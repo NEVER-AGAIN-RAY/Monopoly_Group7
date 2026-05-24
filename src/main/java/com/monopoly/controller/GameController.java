@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.IntFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -66,7 +67,7 @@ public class GameController implements AiGameBridge {
     private static final boolean VERIFY_DECK = Boolean.parseBoolean(
             System.getProperty("monopoly.verifyDeck", "false"));
 
-    private final GameEngineSingleton engine = GameEngineSingleton.getInstance();
+    private final GameEngineSingleton engine;
     private final TurnManager turnManager = new TurnManager();
     private final CardFactory cardFactory = new MonopolyDealCardFactory();
     private final GameUpdateSubject gameUpdateSubject;
@@ -94,11 +95,18 @@ public class GameController implements AiGameBridge {
     private int fullRoundsCompleted;
     private long playEventSequence;
     private long stateSequence;
+    private IntFunction<AiPlayStrategy> llmAiStrategyFactory =
+            ignored -> new DeepSeekAiPlayStrategy();
 
     // --- constructor ---
 
     public GameController(GameUpdateSubject gameUpdateSubject) {
+        this(gameUpdateSubject, GameEngineSingleton.createIsolated());
+    }
+
+    public GameController(GameUpdateSubject gameUpdateSubject, GameEngineSingleton engine) {
         this.gameUpdateSubject = gameUpdateSubject;
+        this.engine = engine != null ? engine : GameEngineSingleton.createIsolated();
         this.turnFlowService = new TurnFlowService(this);
         this.effectStackOrchestrator = new EffectStackOrchestrator(this, turnFlowService);
         this.turnFlowService.wireEffectStack(effectStackOrchestrator);
@@ -107,6 +115,15 @@ public class GameController implements AiGameBridge {
         this.pauseVoteService = new PauseVoteService(this);
         this.rentSettlementService = new RentSettlementService(this);
         clearLastError();
+    }
+
+    /**
+     * Test/simulation hook. Normal WebSocket sessions keep using DeepSeekAiPlayStrategy.
+     */
+    public void setLlmAiStrategyFactory(IntFunction<AiPlayStrategy> llmAiStrategyFactory) {
+        this.llmAiStrategyFactory = llmAiStrategyFactory == null
+                ? ignored -> new DeepSeekAiPlayStrategy()
+                : llmAiStrategyFactory;
     }
 
     // ═══════════════════════════════════════════════════════
@@ -182,20 +199,16 @@ public class GameController implements AiGameBridge {
         } else if ("LLM".equals(mode)) {
             sessionPlayers.add(new HumanPlayer("human-1", "Human"));
             for (int i = 1; i < count; i++) {
-                sessionPlayers.add(new AIPlayer("ai-" + i, "DeepSeek-AI-" + i, new DeepSeekAiPlayStrategy()));
+                sessionPlayers.add(new AIPlayer("ai-" + i, "DeepSeek-AI-" + i, createLlmAiStrategy(i)));
             }
             AiBattleLogger.log("Session", "Started LLM mode session=" + currentSessionId
                     + " players=" + count + " model=" + com.monopoly.pattern.strategy.DeepSeekClient.model());
         } else {
             for (int i = 1; i <= count; i++) {
-                sessionPlayers.add(new AIPlayer("ai-" + i, "DeepSeek-AI-" + i, new DeepSeekAiPlayStrategy()));
+                sessionPlayers.add(new AIPlayer("ai-" + i, "DeepSeek-AI-" + i, createLlmAiStrategy(i)));
             }
             AiBattleLogger.log("Session", "Started AI_VS_AI mode session=" + currentSessionId
                     + " players=" + count + " model=" + com.monopoly.pattern.strategy.DeepSeekClient.model());
-        }
-
-        if (req.isRandomizeFirstPlayer()) {
-            Collections.shuffle(sessionPlayers);
         }
 
         turnManager.bindTurnOrder(sessionPlayers);
@@ -216,6 +229,10 @@ public class GameController implements AiGameBridge {
             }
         }
 
+        if (req.isRandomizeFirstPlayer()) {
+            turnManager.setCurrentIndex(ThreadLocalRandom.current().nextInt(sessionPlayers.size()));
+        }
+
         Player current = turnManager.getCurrentPlayer();
         turnFlowService.initForSession(current);
         clearLastError();
@@ -232,6 +249,11 @@ public class GameController implements AiGameBridge {
             case "HARD" -> new HardAiPlayStrategy();
             default -> new EasyAiPlayStrategy();
         };
+    }
+
+    private AiPlayStrategy createLlmAiStrategy(int playerNumber) {
+        AiPlayStrategy strategy = llmAiStrategyFactory.apply(playerNumber);
+        return strategy == null ? new DeepSeekAiPlayStrategy() : strategy;
     }
 
     private static String formatAiDifficultyLabel(String normalizedDifficulty) {
@@ -396,7 +418,7 @@ public class GameController implements AiGameBridge {
                 throw new IllegalArgumentException("该卡牌不是行动牌。");
             }
             return ActionOptionsService.build(
-                    cur, ac, List.copyOf(sessionPlayers), engine);
+                    cur, ac, List.copyOf(sessionPlayers), engine, gameContext);
         } catch (RuntimeException e) {
             if (!PauseVoteService.MSG_PAUSED.equals(e.getMessage())) {
                 recordErrorAndSnapshot(e);
@@ -430,7 +452,7 @@ public class GameController implements AiGameBridge {
                 throw new IllegalStateException("仅在出牌阶段可查询出牌选项。");
             }
             Card c = turnFlowService.resolveCardInHand(cur, cardId, null);
-            return PlayOptionsService.build(cur, c, actionType, List.copyOf(sessionPlayers), engine);
+            return PlayOptionsService.build(cur, c, actionType, List.copyOf(sessionPlayers), engine, gameContext);
         } catch (RuntimeException e) {
             if (!PauseVoteService.MSG_PAUSED.equals(e.getMessage())) {
                 recordErrorAndSnapshot(e);
@@ -626,6 +648,10 @@ public class GameController implements AiGameBridge {
         saveLoadService.importSessionJson(json);
     }
 
+    public void pushCurrentState(String phase, String actionSummary) {
+        pushSnapshot(currentSessionId, phase, actionSummary);
+    }
+
     // ═══════════════════════════════════════════════════════
     //  Query API
     // ═══════════════════════════════════════════════════════
@@ -646,7 +672,15 @@ public class GameController implements AiGameBridge {
         return fullRoundsCompleted;
     }
 
+    public GameEngineSingleton getEngine() {
+        return engine;
+    }
+
     String getCurrentSessionId() {
+        return currentSessionId;
+    }
+
+    public String getCurrentSessionIdPublic() {
         return currentSessionId;
     }
 
@@ -670,6 +704,18 @@ public class GameController implements AiGameBridge {
         return gameContext;
     }
 
+    void refreshAiDecisionContext() {
+        gameContext.bindPlayers(getSessionPlayersView());
+        TurnFlowService.TurnPhase phase = turnFlowService.currentTurnPhase;
+        gameContext.setTurnState(
+                turnFlowService.currentTurnPlayerId,
+                phase == null ? "UNKNOWN" : phase.name(),
+                Math.max(1, fullRoundsCompleted + 1),
+                turnFlowService.currentTurnActionCount,
+                TurnFlowService.MAX_ACTIONS_PER_TURN);
+        gameContext.setStateSequence(stateSequence);
+    }
+
     Player resolvePlayer(String playerId) {
         if (playerId == null || playerId.isBlank()) {
             return null;
@@ -683,6 +729,10 @@ public class GameController implements AiGameBridge {
     }
 
     boolean isSessionForceEnded() {
+        return sessionForceEnded;
+    }
+
+    public boolean isSessionForceEndedPublic() {
         return sessionForceEnded;
     }
 
@@ -805,12 +855,24 @@ public class GameController implements AiGameBridge {
         snap.setLastActionSummary(summary);
         snap.setCurrentPlayerId(turnFlowService.currentTurnPlayerId);
         snap.setTurnPhase(tp == null ? "UNKNOWN" : tp.name());
+        snap.setActionsUsedThisTurn(turnFlowService.currentTurnActionCount);
+        snap.setActionsRemainingThisTurn(
+                Math.max(0, TurnFlowService.MAX_ACTIONS_PER_TURN - turnFlowService.currentTurnActionCount));
+        Player currentTurnPlayer = resolvePlayer(turnFlowService.currentTurnPlayerId);
+        boolean overflowDiscardPhase = tp == TurnFlowService.TurnPhase.END_TURN;
+        int overflowDiscardCount = !overflowDiscardPhase || currentTurnPlayer == null
+                ? 0
+                : Math.max(0, currentTurnPlayer.getHandCardCount() - TurnFlowService.MAX_HAND_SIZE);
+        snap.setOverflowDiscardCount(overflowDiscardCount);
+        snap.setRoundNumber(Math.max(1, fullRoundsCompleted + 1));
         snap.setDrawPileCount(engine.remainingCount());
         snap.setDiscardPileCount(engine.discardCount());
         Integer pendingPaymentAmt = null;
         if (tp == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
             StackResponseState st = gameContext.getResponseState();
             if (st != null) {
+                snap.setDecisionPlayerId(st.getAwaitingPlayerId());
+                snap.setDecisionDeadlineEpochMs(st.getDeadlineEpochMs());
                 snap.setPendingResponsePlayerId(st.getAwaitingPlayerId());
                 snap.setPendingResponseRole(st.getRole().name());
                 snap.setResponseDeadlineEpochMs(st.getDeadlineEpochMs());
@@ -822,9 +884,15 @@ public class GameController implements AiGameBridge {
                         pendingPaymentAmt = top.getAmountDue();
                     }
                 }
+                snap.setDecisionKind(decisionKindForResponse(st, pendingPaymentAmt));
+                snap.setDecisionLabel(decisionLabelForResponse(st, pendingPaymentAmt));
             }
             snap.setEffectStackDepth(gameContext.getEffectStackView().size());
         } else {
+            snap.setDecisionPlayerId(turnFlowService.currentTurnPlayerId);
+            snap.setDecisionKind(decisionKindForTurnPhase(tp));
+            snap.setDecisionLabel(decisionLabelForTurnPhase(tp));
+            snap.setDecisionDeadlineEpochMs(0L);
             snap.setPendingResponsePlayerId(null);
             snap.setPendingResponseRole(null);
             snap.setResponseDeadlineEpochMs(0L);
@@ -898,6 +966,7 @@ public class GameController implements AiGameBridge {
             case "DRAW" -> "Draw phase updated.";
             case "DEPLOY", "DEPOSIT", "ACTION", "DISCARD" -> "A play action completed.";
             case "TURN_END" -> "Turn ended.";
+            case "FORCE_DISCARD_REQUIRED" -> "Discard down to 7 cards before ending turn.";
             case "GAME_OVER" -> "Game over.";
             case "REASSIGN_WILD" -> "Wild property color changes are not allowed.";
             case "RENT_PAID", "RENT_FAILED" -> "Rent settlement updated.";
@@ -914,6 +983,56 @@ public class GameController implements AiGameBridge {
             case "RESPONSE_PASS", "RESPONSE_TIMEOUT" -> "Rent response chain updated.";
             default -> phase.replace('_', ' ');
         };
+    }
+
+    private static String decisionKindForTurnPhase(TurnFlowService.TurnPhase phase) {
+        if (phase == null) {
+            return "UNKNOWN";
+        }
+        return switch (phase) {
+            case DRAW -> "DRAW";
+            case PLAY -> "PLAY";
+            case END_TURN -> "END_TURN";
+            case WAITING_FOR_RESPONSE -> "RESPONSE";
+        };
+    }
+
+    private static String decisionLabelForTurnPhase(TurnFlowService.TurnPhase phase) {
+        if (phase == null) {
+            return "等待状态更新";
+        }
+        return switch (phase) {
+            case DRAW -> "摸牌";
+            case PLAY -> "出牌";
+            case END_TURN -> "结束回合";
+            case WAITING_FOR_RESPONSE -> "响应";
+        };
+    }
+
+    private static String decisionKindForResponse(StackResponseState st, Integer pendingPaymentAmt) {
+        if (st == null) {
+            return "RESPONSE";
+        }
+        if (st.getRole() == StackResponseState.Role.LANDLORD_COUNTER) {
+            return "JUST_SAY_NO_COUNTER";
+        }
+        if (pendingPaymentAmt != null && pendingPaymentAmt > 0) {
+            return "PAY_OR_JUST_SAY_NO";
+        }
+        return "JUST_SAY_NO_RESPONSE";
+    }
+
+    private static String decisionLabelForResponse(StackResponseState st, Integer pendingPaymentAmt) {
+        if (st == null) {
+            return "等待响应";
+        }
+        if (st.getRole() == StackResponseState.Role.LANDLORD_COUNTER) {
+            return "反制 Just Say No";
+        }
+        if (pendingPaymentAmt != null && pendingPaymentAmt > 0) {
+            return "付款或 Just Say No";
+        }
+        return "接受或 Just Say No";
     }
 
     private void maybeAutosaveAfterFullRound() {

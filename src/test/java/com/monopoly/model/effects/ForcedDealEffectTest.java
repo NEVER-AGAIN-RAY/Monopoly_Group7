@@ -8,13 +8,14 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ForcedDealEffectTest {
 
     @Test
-    void swappedPropertiesReturnToEachPlayersHand() {
+    void swappedPropertiesMoveBetweenPropertyZones() {
         Player actor = new HumanPlayer("a", "Actor");
         Player target = new HumanPlayer("t", "Target");
         PropertyCard actorProperty = new PropertyCard("actor-red", "Actor Red", "RED");
@@ -32,9 +33,37 @@ class ForcedDealEffectTest {
         ActionEffectResult result = new ForcedDealEffect().execute(ctx);
 
         assertTrue(result.isSuccess());
-        assertTrue(actor.getHandCardsView().contains(targetProperty));
-        assertTrue(target.getHandCardsView().contains(actorProperty));
-        assertFalse(actor.getPropertyCardsView().contains(targetProperty));
-        assertFalse(target.getPropertyCardsView().contains(actorProperty));
+        assertTrue(actor.getPropertyCardsView().contains(targetProperty));
+        assertTrue(target.getPropertyCardsView().contains(actorProperty));
+        assertFalse(actor.getPropertyCardsView().contains(actorProperty));
+        assertFalse(target.getPropertyCardsView().contains(targetProperty));
+        assertEquals(0, actor.getHandCardsView().size());
+        assertEquals(0, target.getHandCardsView().size());
+    }
+
+    @Test
+    void forcedDealCannotTradeCompleteSetProperty() {
+        Player actor = new HumanPlayer("a", "Actor");
+        Player target = new HumanPlayer("t", "Target");
+        PropertyCard actorProperty = new PropertyCard("actor-red", "Actor Red", "RED");
+        PropertyCard targetBrown1 = new PropertyCard("target-brown-1", "Target Brown 1", "BROWN");
+        PropertyCard targetBrown2 = new PropertyCard("target-brown-2", "Target Brown 2", "BROWN");
+        actor.addToPropertyZone(actorProperty);
+        target.addToPropertyZone(targetBrown1);
+        target.addToPropertyZone(targetBrown2);
+
+        ActionEffectContext ctx = ActionEffectContext
+                .builder(actor, GameEngineSingleton.getInstance(), List.of(actor, target))
+                .target(target)
+                .actorProperty(actorProperty)
+                .targetProperty(targetBrown1)
+                .build();
+
+        ActionEffectResult result = new ForcedDealEffect().execute(ctx);
+
+        assertFalse(result.isSuccess());
+        assertTrue(actor.getPropertyCardsView().contains(actorProperty));
+        assertTrue(target.getPropertyCardsView().contains(targetBrown1));
+        assertTrue(target.getPropertyCardsView().contains(targetBrown2));
     }
 }

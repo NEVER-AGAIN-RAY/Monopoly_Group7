@@ -7,7 +7,9 @@ import com.monopoly.pattern.observer.GameUpdateObserver;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 import com.monopoly.pattern.strategy.AiBattleLogger;
 import com.monopoly.pattern.strategy.DeepSeekClient;
+import com.monopoly.pattern.strategy.LocalRankerAiPlayStrategy;
 
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -46,6 +48,7 @@ public final class AiBattleExperimentRunner {
             int remaining = maxSnapshots - totalSnapshots;
             SnapshotSubject subject = new SnapshotSubject(game, totalSnapshots, remaining);
             GameController controller = new GameController(subject);
+            configureAiStrategy(controller);
             subject.controller = controller;
             req.setSessionId(sessionPrefix + "-g" + game);
             AiBattleLogger.log("Experiment",
@@ -74,6 +77,22 @@ public final class AiBattleExperimentRunner {
                         + " recommendation=inspect repeated fallbacks, invalid candidates, token usage, and long response waits.");
         AiBattleLogger.log("Experiment",
                 metrics.summary(totalSnapshots, game));
+    }
+
+    private static void configureAiStrategy(GameController controller) {
+        String strategy = System.getProperty("monopoly.aiBattle.strategy", "deepseek")
+                .trim()
+                .toLowerCase(java.util.Locale.ROOT);
+        if (!"local_linear".equals(strategy) && !"local_ranker".equals(strategy)) {
+            return;
+        }
+        String path = System.getProperty("monopoly.localRanker.modelPath", "").trim();
+        if (path.isBlank()) {
+            throw new IllegalArgumentException(
+                    "monopoly.localRanker.modelPath is required when monopoly.aiBattle.strategy=local_linear");
+        }
+        controller.setLlmAiStrategyFactory(
+                ignored -> new LocalRankerAiPlayStrategy(Path.of(path)));
     }
 
     private static final class SnapshotSubject implements GameUpdateSubject {

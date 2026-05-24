@@ -1,0 +1,121 @@
+{
+  "schema": "monopoly-deal-seed-run-summary-v1",
+  "runs": 3,
+  "readyRuns": 3,
+  "productionReadyRuns": 0,
+  "rows": [
+    {
+      "path": "models/distillation/local-baseline-20260524-080604-multiseed-seed11-run_summary.json",
+      "outputPrefix": "models/distillation/local-baseline-20260524-080604-multiseed-seed11",
+      "handoffReady": true,
+      "productionReady": false,
+      "readinessMode": "local",
+      "rows": 4774,
+      "validationTop1": 0.8089385474860336,
+      "validationMrr": 0.8903884011705244,
+      "firstCandidateTop1": 0.34301675977653634,
+      "randomExpectedTop1": 0.22724842773860754,
+      "averageRankerBoardRank": 2.0,
+      "rankerBoardLeadRate": 0.0,
+      "rankerWinRate": 0.0,
+      "naturalWinRate": 0.5,
+      "evaluatedGames": 4,
+      "completedGames": 2,
+      "device": "mps",
+      "splitBy": "session",
+      "epochs": 6
+    },
+    {
+      "path": "models/distillation/local-baseline-20260524-080604-multiseed-seed42-run_summary.json",
+      "outputPrefix": "models/distillation/local-baseline-20260524-080604-multiseed-seed42",
+      "handoffReady": true,
+      "productionReady": false,
+      "readinessMode": "local",
+      "rows": 4774,
+      "validationTop1": 0.8296059637912673,
+      "validationMrr": 0.9036158020183581,
+      "firstCandidateTop1": 0.3365282215122471,
+      "randomExpectedTop1": 0.21255901543356356,
+      "averageRankerBoardRank": 1.75,
+      "rankerBoardLeadRate": 0.5,
+      "rankerWinRate": 0.5,
+      "naturalWinRate": 1.0,
+      "evaluatedGames": 4,
+      "completedGames": 4,
+      "device": "mps",
+      "splitBy": "session",
+      "epochs": 6
+    },
+    {
+      "path": "models/distillation/local-baseline-20260524-080604-multiseed-seed73-run_summary.json",
+      "outputPrefix": "models/distillation/local-baseline-20260524-080604-multiseed-seed73",
+      "handoffReady": true,
+      "productionReady": false,
+      "readinessMode": "local",
+      "rows": 4774,
+      "validationTop1": 0.7909663865546218,
+      "validationMrr": 0.8814767573696145,
+      "firstCandidateTop1": 0.3172268907563025,
+      "randomExpectedTop1": 0.21517609891815986,
+      "averageRankerBoardRank": 1.75,
+      "rankerBoardLeadRate": 0.5,
+      "rankerWinRate": 0.25,
+      "naturalWinRate": 0.75,
+      "evaluatedGames": 4,
+      "completedGames": 3,
+      "device": "mps",
+      "splitBy": "session",
+      "epochs": 6
+    }
+  ],
+  "aggregates": {
+    "validationTop1": {
+      "mean": 0.8098369659439743,
+      "std": 0.015787328231862602,
+      "min": 0.7909663865546218,
+      "max": 0.8296059637912673
+    },
+    "validationMrr": {
+      "mean": 0.8918269868528323,
+      "std": 0.009095290761845634,
+      "min": 0.8814767573696145,
+      "max": 0.9036158020183581
+    },
+    "firstCandidateTop1": {
+      "mean": 0.33225729068169535,
+      "std": 0.010953233119029971,
+      "min": 0.3172268907563025,
+      "max": 0.34301675977653634
+    },
+    "randomExpectedTop1": {
+      "mean": 0.21832784736344366,
+      "std": 0.006397647857541391,
+      "min": 0.21255901543356356,
+      "max": 0.22724842773860754
+    },
+    "averageRankerBoardRank": {
+      "mean": 1.8333333333333333,
+      "std": 0.11785113019775792,
+      "min": 1.75,
+      "max": 2.0
+    },
+    "rankerBoardLeadRate": {
+      "mean": 0.3333333333333333,
+      "std": 0.23570226039551584,
+      "min": 0.0,
+      "max": 0.5
+    },
+    "rankerWinRate": {
+      "mean": 0.25,
+      "std": 0.2041241452319315,
+      "min": 0.0,
+      "max": 0.5
+    },
+    "naturalWinRate": {
+      "mean": 0.75,
+      "std": 0.2041241452319315,
+      "min": 0.5,
+      "max": 1.0
+    }
+  }
+}

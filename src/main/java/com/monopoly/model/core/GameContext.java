@@ -22,6 +22,10 @@ public class GameContext {
     private String pendingDoubleRentPlayerId;
     private int currentTurnActionCount;
     private int maxActionsPerTurn = 3;
+    private String currentTurnPlayerId;
+    private String currentTurnPhase = "UNKNOWN";
+    private int roundNumber = 1;
+    private long stateSequence;
 
     public void bindPlayers(List<Player> players) {
         this.players = players == null ? List.of() : Collections.unmodifiableList(players);
@@ -94,8 +98,49 @@ public class GameContext {
         this.maxActionsPerTurn = Math.max(1, maxActionsPerTurn);
     }
 
+    public void setTurnState(
+            String currentTurnPlayerId,
+            String currentTurnPhase,
+            int roundNumber,
+            int currentTurnActionCount,
+            int maxActionsPerTurn) {
+        this.currentTurnPlayerId = currentTurnPlayerId;
+        this.currentTurnPhase = currentTurnPhase == null || currentTurnPhase.isBlank()
+                ? "UNKNOWN" : currentTurnPhase;
+        this.roundNumber = Math.max(1, roundNumber);
+        setTurnActionBudget(currentTurnActionCount, maxActionsPerTurn);
+    }
+
+    public String getCurrentTurnPlayerId() {
+        return currentTurnPlayerId;
+    }
+
+    public String getCurrentTurnPhase() {
+        return currentTurnPhase;
+    }
+
+    public int getCurrentTurnActionCount() {
+        return currentTurnActionCount;
+    }
+
+    public int getMaxActionsPerTurn() {
+        return maxActionsPerTurn;
+    }
+
+    public int getRoundNumber() {
+        return roundNumber;
+    }
+
     public int remainingTurnActions() {
         return Math.max(0, maxActionsPerTurn - currentTurnActionCount);
+    }
+
+    public long getStateSequence() {
+        return stateSequence;
+    }
+
+    public void setStateSequence(long stateSequence) {
+        this.stateSequence = Math.max(0L, stateSequence);
     }
 
     public StackResponseState getResponseState() {

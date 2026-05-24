@@ -31,6 +31,11 @@
 
 ### 记录
 
+#### 2026-05-24 — DeepSeek 结构化历史摘要
+
+- **摘要**：新增 `AiHistoryTracker`，在服务端快照路径维护每局公开局势的压缩历史；DeepSeek prompt 增加私有 `memory` schema，包含最近关键事件、争夺颜色、玩家压力与战略提醒，帮助 LLM 处理长期规划、被抢后的反击优先级和现金饱和问题；付款/弃牌等非主出牌决策使用 compact memory 降低 token 成本。该记忆只进入 AI 内部决策 JSON，不改变 WebSocket `STATE_UPDATE` 协议。
+- **领域**：AI / 测试 / 文档
+
 #### 2026-05-24 — DeepSeek 节奏决策与响应栈元数据增强
 
 - **摘要**：DeepSeek 决策 prompt 升级到 `v5-tempo`，强化三套胜利优先、现金饱和时降低存钱/纯收钱优先级，并在有抢地/换地/抢整套候选时过滤低节奏候选；Just Say No 响应栈为 ACTION 增加行动牌名称与 effectCode 元数据，AI 可区分 Deal Breaker、Sly Deal、Forced Deal 等高威胁行动；付款 prompt 标记拆完整套与 wild 风险，并在模型付款方案明显更伤局面时回退到本地兜底。

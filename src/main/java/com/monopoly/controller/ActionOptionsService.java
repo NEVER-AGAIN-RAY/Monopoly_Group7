@@ -98,7 +98,7 @@ public final class ActionOptionsService {
         }
     }
 
-    /** 房规：双色全员依次收租。 */
+    /** House-rule mode: a dual-color rent card charges every other player in turn. */
     private static void buildRentDualAllOthersOptions(
             Player actor,
             ActionCard card,
@@ -139,7 +139,7 @@ public final class ActionOptionsService {
         }
     }
 
-    /** 实体默认：双色租金 1 对 1。 */
+    /** Retail-rule mode: a dual-color rent card targets one chosen opponent. */
     private static void buildRentDualOneVsOneOptions(
             Player actor,
             ActionCard card,

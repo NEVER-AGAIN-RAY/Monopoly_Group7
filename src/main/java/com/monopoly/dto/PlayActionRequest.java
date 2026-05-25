@@ -7,19 +7,19 @@ import java.util.List;
  */
 public class PlayActionRequest {
 
-    /** 要打出的手牌卡牌 ID（优先于 handIndex） */
+    /** Card id from hand; preferred over handIndex when both are supplied. */
     private String cardId;
-    /** 兼容旧客户端：手牌下标，当 cardId 为空时使用 */
+    /** Legacy client fallback: hand index used only when cardId is blank. */
     private Integer handIndex;
-    /** DEPLOY / DEPOSIT / ACTION / DISCARD（出牌阶段弃入手牌至弃牌堆） */
+    /** DEPLOY / DEPOSIT / ACTION / DISCARD. */
     private String actionType;
     private String targetPlayerId;
     private String targetColorKey;
-    /** 目标财产区房产卡 ID（偷牌、强制交换等） */
+    /** Target property card id for steal, forced deal, and similar actions. */
     private String targetCardId;
-    /** 己方财产区房产卡 ID（强制交换） */
+    /** Actor-side property card id, mainly used by Forced Deal. */
     private String actorCardId;
-    /** 偷牌目标分区：PROPERTY（财产区）或 BANK（银行堆） */
+    /** Requested target zone for steal-style actions: PROPERTY or BANK. */
     private String targetZone;
     /**
      * actingPlayerId for RESPONSE_PASS or waiver during rent response window.

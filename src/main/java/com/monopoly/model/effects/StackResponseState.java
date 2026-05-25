@@ -6,9 +6,9 @@ package com.monopoly.model.effects;
 public final class StackResponseState {
 
     public enum Role {
-        /** 被收租方是否免租 */
+        /** Tenant may play Just Say No or pass and pay. */
         TENANT,
-        /** 收租方是否反制对方的免租 */
+        /** Landlord may counter the tenant's Just Say No. */
         LANDLORD_COUNTER
     }
 

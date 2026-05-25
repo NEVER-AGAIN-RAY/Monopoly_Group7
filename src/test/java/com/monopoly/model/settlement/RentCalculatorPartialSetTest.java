@@ -2,6 +2,7 @@ package com.monopoly.model.settlement;
 
 import com.monopoly.model.card.BuildingLevel;
 import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.card.PropertyWildCard;
 import com.monopoly.model.player.HumanPlayer;
 import org.junit.jupiter.api.Test;
 

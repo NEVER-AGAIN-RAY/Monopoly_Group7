@@ -55,6 +55,25 @@ class PropertyWildCardKindTest {
     }
 
     @Test
+    void assignedWild_rejectsClearingAfterDeploy() {
+        PropertyWildCard w = new PropertyWildCard("w1", "w");
+        w.setAssignedColorKey("GREEN");
+
+        assertThrows(IllegalStateException.class, () -> w.setAssignedColorKey(" "));
+        assertEquals("GREEN", w.getAssignedColorKey());
+    }
+
+    @Test
+    void dualWildConstructor_rejectsInvalidPrintedPair() {
+        assertThrows(IllegalArgumentException.class, () -> new PropertyWildCard(
+                "w1", "w", PropertyWildCard.WildPropertyKind.DUAL_COLOR,
+                List.of("BROWN")));
+        assertThrows(IllegalArgumentException.class, () -> new PropertyWildCard(
+                "w2", "w", PropertyWildCard.WildPropertyKind.DUAL_COLOR,
+                List.of("BROWN", "NOT_A_COLOR")));
+    }
+
+    @Test
     void anyColorWild_hasNoPaymentValue() {
         PropertyWildCard w = new PropertyWildCard("w1", "w");
         assertEquals(0, w.getPaymentValue());

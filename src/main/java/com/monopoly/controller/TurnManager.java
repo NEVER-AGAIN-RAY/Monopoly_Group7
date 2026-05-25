@@ -32,7 +32,7 @@ public class TurnManager {
         return turnOrder.get(currentIndex);
     }
 
-    /** 结束当前玩家回合，切换至下一位 */
+    /** Finish the current player's turn and move the cursor to the next player. */
     public void advanceTurn() {
         if (turnOrder == null || turnOrder.isEmpty()) {
             return;

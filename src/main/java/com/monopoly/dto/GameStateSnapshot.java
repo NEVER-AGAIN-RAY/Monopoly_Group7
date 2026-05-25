@@ -36,27 +36,27 @@ public class GameStateSnapshot {
     private int overflowDiscardCount;
     /** One-based round number for display. */
     private int roundNumber;
-    /** 等待打出免租/放弃的玩家（效果栈响应阶段） */
+    /** Player currently asked to play Just Say No or pass during an effect-stack response. */
     private String pendingResponsePlayerId;
     private String pendingResponseRole;
     private long responseDeadlineEpochMs;
     private String pendingResponseHint;
     private int effectStackDepth;
-    /** 承租人响应窗口内首笔应付租金（M），非该阶段为 null */
+    /** First payment amount in M during the tenant response window; null outside that phase. */
     private Integer pendingPaymentAmountM;
-    /** 最近一次规则/操作错误码，无则为 null */
+    /** Last rule or operation error code; null when there is no current error. */
     private String lastErrorCode;
-    /** 最近一次错误说明，无则为 null */
+    /** Human-readable message for the last error; null when there is no current error. */
     private String lastErrorMessage;
-    /** 最近一次错误时间（毫秒 epoch），无错误时为 0 */
+    /** Epoch milliseconds for the last error; 0 when no error has been recorded. */
     private long lastErrorTimestampEpochMs;
-    /** 是否已结束对局（自然胜利或强制结束） */
+    /** True after a normal win or a forced session end. */
     private boolean gameOver;
-    /** 强制结束原因，如 TIMEOUT；非强制结束时为 null */
+    /** Reason for a forced end, such as TIMEOUT; null for normal play or a normal win. */
     private String forceEndReason;
-    /** 最近一次操作的简述（供客户端 / JSON 展示），如摸牌、出牌、结束回合 */
+    /** Short summary of the latest visible action for clients and JSON logs. */
     private String lastActionSummary;
-    /** 最近一次出牌事件序号；没有出牌事件时为 0。 */
+    /** Sequence number for the latest played-card event; 0 before any card has been played. */
     private long lastPlayedSequence;
     private String lastPlayedPlayerId;
     private String lastPlayedActionType;

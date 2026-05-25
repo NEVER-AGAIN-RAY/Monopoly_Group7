@@ -16,7 +16,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 非技术用户向：从列表中选择对手、颜色等。
+ * Small non-technical picker for choosing opponents, colors, and similar play
+ * parameters from a list.
  */
 public final class TargetPickerDialog {
 

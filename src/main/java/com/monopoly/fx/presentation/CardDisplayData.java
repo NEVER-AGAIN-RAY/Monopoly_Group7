@@ -4,7 +4,8 @@ import com.google.gson.JsonObject;
 import com.monopoly.fx.I18n;
 
 /**
- * MY_HAND 单张牌在客户端的展示模型（兼容旧版仅 id/name）。
+ * Client display model for one MY_HAND card. It still tolerates older payloads
+ * that only provide id and name.
  */
 public final class CardDisplayData {
 

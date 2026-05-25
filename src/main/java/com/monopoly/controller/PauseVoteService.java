@@ -125,7 +125,7 @@ final class PauseVoteService {
         throw new IllegalStateException(MSG_PAUSED);
     }
 
-    /** 会话启动 / 存档恢复时重置暂停状态。 */
+    /** Reset pause voting when a session starts or a save is restored. */
     void reset() {
         paused = false;
         pausePending = false;

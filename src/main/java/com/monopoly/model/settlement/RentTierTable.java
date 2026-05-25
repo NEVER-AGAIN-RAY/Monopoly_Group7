@@ -33,7 +33,7 @@ public final class RentTierTable {
         };
     }
 
-    /** 持有 propertyCount 张该色房产时的<strong>基础租合计</strong>（未计房/旅馆）。 */
+    /** Base rent for propertyCount cards in one color, before house or hotel bonuses. */
     public static int baseRentForPropertyCount(String colorKey, int propertyCount) {
         if (propertyCount <= 0) {
             return 0;
@@ -52,7 +52,7 @@ public final class RentTierTable {
         return total;
     }
 
-    /** 首张（1 张）对应的基础租，供 UI 提示。 */
+    /** Base rent for the first card in a color, used by UI previews. */
     public static int firstTierRent(String colorKey) {
         int[] t = tiersForColor(colorKey);
         return t.length > 0 ? t[0] : 0;

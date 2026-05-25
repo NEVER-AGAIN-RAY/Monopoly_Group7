@@ -63,7 +63,7 @@ public final class ActionEffectDispatcher {
         return effect.execute(ctx);
     }
 
-    /** 是否存在该 effectCode 对应的效果处理器。 */
+    /** Whether an effect handler has been registered for this effectCode. */
     public static boolean isKnown(String effectCode) {
         if (effectCode == null) {
             return false;

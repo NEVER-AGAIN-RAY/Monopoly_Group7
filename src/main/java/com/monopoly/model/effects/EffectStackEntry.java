@@ -16,13 +16,13 @@ public final class EffectStackEntry {
 
     private final String id;
     private final Kind kind;
-    /** 收租方 / 打出免租牌的一方 */
+    /** Landlord, action actor, or the player who played Just Say No. */
     private final String actorPlayerId;
-    /** 付租方（仅收租类） */
+    /** Tenant player id for rent-like entries. */
     private final String tenantPlayerId;
     private final String colorKey;
     private final int amountDue;
-    /** 免租指向的栈条目 id（另一条收租或上一条免租） */
+    /** Stack entry id targeted by a waiver, either a rent entry or the previous waiver. */
     private final String waiverTargetEntryId;
 
     private EffectStackEntry(

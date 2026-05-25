@@ -11,7 +11,7 @@ public final class ActionParamContext {
     private final String targetColorKey;
     private final String targetCardId;
     private final String actorCardId;
-    /** 偷牌目标分区：PROPERTY / BANK */
+    /** Zone requested by steal-style actions: PROPERTY or BANK. */
     private final String targetZone;
 
     public ActionParamContext(

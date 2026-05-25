@@ -25,7 +25,7 @@ public final class SaveEncryption {
     private SaveEncryption() {
     }
 
-    /** @return 已 trim 的密钥，未配置则 null */
+    /** @return trimmed configured save key, or null when encryption is not enabled */
     public static String getKeyOrNull() {
         String k = System.getProperty(GameConstants.SAVE_KEY_PROPERTY);
         if (k == null || k.isBlank()) {

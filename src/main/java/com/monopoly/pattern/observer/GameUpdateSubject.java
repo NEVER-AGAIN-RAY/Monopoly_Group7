@@ -11,6 +11,6 @@ public interface GameUpdateSubject {
 
     void unregisterObserver(GameUpdateObserver observer);
 
-    /** 由模型或控制器在数据变更后调用，驱动网络层向客户端推送 JSON */
+    /** Called after model or controller state changes so observers can push JSON to clients. */
     void notifyStateChanged(GameStateSnapshot snapshot);
 }

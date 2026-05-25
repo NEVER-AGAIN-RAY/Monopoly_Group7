@@ -69,4 +69,59 @@ class RentDualModeCanPlayTest {
                 "r1", null, null, "BROWN", null, null, null);
         assertTrue(card.canPlay(actor, p, ctx));
     }
+
+    @Test
+    void rentDual_rejectsColorOutsidePrintedPalette() {
+        HumanPlayer actor = new HumanPlayer("a", "A");
+        actor.addToPropertyZone(new PropertyCard("p1", "n", "BROWN"));
+        actor.addToPropertyZone(new PropertyCard("p2", "n", "RED"));
+        ActionCard card = new ActionCard(
+                "r1", "r", "RENT_DUAL",
+                1,
+                List.of("BROWN", "LIGHT_BLUE"),
+                false,
+                false);
+        HumanPlayer other = new HumanPlayer("b", "B");
+        GameContext ctx = new GameContext();
+        ctx.bindPlayers(List.of(actor, other));
+
+        ActionParamContext redNotOnCard = new ActionParamContext(
+                "r1", null, "b", "RED", null, null, null);
+        assertFalse(card.canPlay(actor, redNotOnCard, ctx));
+    }
+
+    @Test
+    void rentDual_rejectsPrintedColorNotOwnedByActor() {
+        HumanPlayer actor = new HumanPlayer("a", "A");
+        actor.addToPropertyZone(new PropertyCard("p1", "n", "BROWN"));
+        ActionCard card = new ActionCard(
+                "r1", "r", "RENT_DUAL",
+                1,
+                List.of("BROWN", "LIGHT_BLUE"),
+                false,
+                false);
+        HumanPlayer other = new HumanPlayer("b", "B");
+        GameContext ctx = new GameContext();
+        ctx.bindPlayers(List.of(actor, other));
+
+        ActionParamContext notOwned = new ActionParamContext(
+                "r1", null, "b", "LIGHT_BLUE", null, null, null);
+        assertFalse(card.canPlay(actor, notOwned, ctx));
+    }
+
+    @Test
+    void doubleRentRequiresRentablePropertyAndNoPendingDoubleRent() {
+        HumanPlayer actor = new HumanPlayer("a", "A");
+        ActionCard doubleRent = new ActionCard("double", "Double Rent", "DOUBLE_RENT");
+        GameContext ctx = new GameContext();
+        ctx.bindPlayers(List.of(actor));
+
+        assertFalse(doubleRent.canPlay(actor, null, ctx));
+
+        actor.addToPropertyZone(new PropertyCard("p1", "n", "BROWN"));
+        assertTrue(doubleRent.canPlay(actor, null, ctx));
+
+        ctx.setPendingDoubleRentFor(actor.getPlayerId());
+        assertFalse(doubleRent.canPlay(actor, null, ctx));
+    }
 }

@@ -19,13 +19,13 @@ public class ActionCard extends Card implements Payable {
 
     private final String effectCode;
     private final int bankValueM;
-    /** 仅 RENT_DUAL：卡面两色键，其余类型为空列表。 */
+    /** Printed color pair for RENT_DUAL cards; empty for other action types. */
     private final List<String> rentPalette;
     /**
      * RENT_DUAL flag: charge every opponent when true.
      */
     private final boolean rentDualChargesEachOtherPlayer;
-    /** 仅 RENT：卡面为「任意色」租金牌（展示用），规则同单色收租。 */
+    /** True when a RENT card is printed as "any color"; rules still use the chosen color. */
     private final boolean wildcardRentCard;
 
     public ActionCard(String id, String name, String effectCode) {
@@ -60,7 +60,7 @@ public class ActionCard extends Card implements Payable {
         this.wildcardRentCard = wildcardRentCard;
     }
 
-    /** 不可变；非双色收租牌为空列表。 */
+    /** Immutable view; non-dual rent cards return an empty list. */
     public List<String> getRentPaletteView() {
         return rentPalette;
     }

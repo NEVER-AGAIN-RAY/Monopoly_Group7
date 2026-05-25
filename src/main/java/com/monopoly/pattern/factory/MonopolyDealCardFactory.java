@@ -40,10 +40,10 @@ public class MonopolyDealCardFactory extends CardFactory {
             - PROPERTY_DEAL_ORDER.length - PROPERTY_WILD_COUNT - MONEY_COUNT;
 
     private static final String[] ACTION_EFFECT_CYCLE;
-    /** 与 .ACTION_EFFECT_CYCLE 同下标；仅对效果码 RENT 有效。 */
+    /** Same indexes as ACTION_EFFECT_CYCLE; meaningful only for RENT entries. */
     private static final boolean[] ACTION_RENT_IS_WILDCARD;
 
-    /** 实体 10 张「双色租金」1v1 的卡面色对（每组 2 张）。 */
+    /** Printed color pairs for the ten retail 1-vs-1 dual-rent cards, two of each pair. */
     private static final String[][] RENT_DUAL_1V1_PALETTES = {
             {"LIGHT_BLUE", "BROWN"},
             {"PINK", "ORANGE"},
@@ -52,7 +52,7 @@ public class MonopolyDealCardFactory extends CardFactory {
             {"RAILROAD", "UTILITY"}
     };
 
-    /** WILD_2..WILD_10 共 9 张印定双色万能。 */
+    /** The nine printed dual-color wilds, WILD_2 through WILD_10. */
     private static final String[][] WILD_DUAL_PAIRS = {
             {"LIGHT_BLUE", "BROWN"},
             {"LIGHT_BLUE", "RAILROAD"},

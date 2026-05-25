@@ -12,16 +12,16 @@ import java.util.Locale;
 public class PropertyWildCard extends PropertyCard {
 
     public enum WildPropertyKind {
-        /** 十种标准色任选其一声明 */
+        /** May be declared as any of the ten standard color groups. */
         ANY_COLOR,
-        /** 仅可声明为卡面印有的两色之一 */
+        /** May only be declared as one of the two printed colors. */
         DUAL_COLOR
     }
 
     private final WildPropertyKind wildKind;
     private final List<String> printedColorPair;
 
-    /** 部署时由客户端/AI 传入并保存；未指定前不得计入任意颜色套数 */
+    /** Chosen at deploy time by the client or AI; unassigned wilds count toward no color. */
     private String assignedColorKey;
 
     public PropertyWildCard(String id, String name) {
@@ -51,7 +51,7 @@ public class PropertyWildCard extends PropertyCard {
         return wildKind;
     }
 
-    /** 仅 WildPropertyKind.DUAL_COLOR 非空，长度 2。 */
+    /** Non-empty only for DUAL_COLOR wilds, where it contains exactly two colors. */
     public List<String> getPrintedColorPairView() {
         return Collections.unmodifiableList(printedColorPair);
     }

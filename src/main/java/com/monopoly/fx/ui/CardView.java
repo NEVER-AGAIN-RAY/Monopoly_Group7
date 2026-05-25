@@ -14,7 +14,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 /**
- * 单张手牌可视化控件（样式见 styles.css）。
+ * Visual control for one hand card; styling lives in styles.css.
  */
 public class CardView extends ToggleButton {
 

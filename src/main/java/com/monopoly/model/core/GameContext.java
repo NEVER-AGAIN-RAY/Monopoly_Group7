@@ -161,7 +161,7 @@ public class GameContext {
         return null;
     }
 
-    /** 栈底方向第一个可被 Just Say No 抵消的非收租行动。 */
+    /** First non-rent action from the bottom of the stack that Just Say No may cancel. */
     public String findBottomActionEntryId() {
         for (EffectStackEntry e : effectStack) {
             if (e.isActionLike()) {

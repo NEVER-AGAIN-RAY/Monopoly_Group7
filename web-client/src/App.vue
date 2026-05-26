@@ -8,6 +8,8 @@ const playerCount = ref(2)
 const gameMode = ref('HVM')
 const aiDifficulty = ref('NORMAL')
 const randomFirst = ref(false)
+const language = ref('zh')
+const infoPanel = ref('intro')
 const connected = ref(false)
 const connecting = ref(false)
 const screen = ref('start')
@@ -35,6 +37,319 @@ let revealTimer = null
 let clockTimer = null
 let autoPassTimer = null
 let lastHandledPlaySequence = 0
+
+const I18N = {
+  zh: {
+    brandKicker: '浏览器牌桌',
+    brandIntro: '快速体验 Monopoly Deal 的联机、AI 对战、出牌和结算流程。',
+    language: '语言',
+    mode: '模式',
+    players: '人数',
+    playerId: '玩家 ID',
+    session: '会话',
+    backend: '后端',
+    randomFirst: '随机先手',
+    startGame: '开始游戏',
+    connecting: '连接中...',
+    connectOnly: '只连接',
+    setup: '设置',
+    disconnect: '断开',
+    online: '在线',
+    offline: '离线',
+    round: '第 {n} 轮',
+    phase: '阶段 {value}',
+    actions: '已出 {used}/3 · 剩 {left}',
+    drawPile: '抽牌 {n}',
+    discardPile: '弃牌 {n}',
+    gameOver: '游戏结束',
+    ready: '牌桌就绪',
+    yourDecision: '轮到你决策',
+    yourTurn: '你的回合',
+    waitingFor: '等待 {name}',
+    waitingResponse: '等待 {name} 响应{suffix}',
+    waitingYouResponse: '等待你响应{suffix}',
+    responseCounter: '对方打出免租，你可以用 Just Say No 反制',
+    responsePayment: '需要支付 {amount}M',
+    responseTargeted: '对方行动正在指向你',
+    responsePaymentBody: '已选 {selected}M。可以打出 Just Say No，也可以支付。',
+    responseCounterBody: '对方已经打出 Just Say No，你可以继续用 Just Say No 反制，也可以放弃。',
+    responseDefaultBody: '可以打出 Just Say No 取消这张行动，也可以放弃响应。',
+    noJsnPay: '你手里没有 Just Say No，请选择支付。',
+    noJsnAccept: '你手里没有 Just Say No，自动接受。',
+    autoPay: '自动支付',
+    passResponse: '放弃响应',
+    paySelected: '按所选支付',
+    skipAi: '跳过 AI 动画',
+    opponentsEmpty: '等待其他玩家入座',
+    hand: '手牌',
+    handHint: '鼠标悬停会展开牌面。',
+    emptyHand: '还没有收到手牌。先开始游戏，再摸牌。',
+    actionArea: '操作区',
+    endTurn: '结束回合',
+    deposit: '存入银行',
+    deploy: '部署房产',
+    playAction: '打出行动牌',
+    discard: '弃牌',
+    bank: '银行',
+    property: '房产',
+    propertyZone: '我的置牌区',
+    bankEmpty: '打出的现金 / 存入银行的行动牌会摊在这里',
+    propertyEmpty: '部署后的房产会按颜色堆叠',
+    playedEmpty: '出过的牌会依次摊在这里',
+    chooseLegalOption: '选择一个合法目标 / 参数',
+    chooseWildColor: '选择这张万能房产当前计入哪个颜色。',
+    current: '当前',
+    backSetup: '回设置',
+    closeResult: '关闭结果',
+    infoIntro: '游戏介绍',
+    infoRules: '规则说明',
+    infoGuide: '联机说明',
+    infoIntroTitle: '这是什么',
+    infoRulesTitle: '核心规则',
+    infoGuideTitle: '如何启动',
+    infoIntroItems: [
+      '这是 Monopoly Deal 的浏览器牌桌，连接同一个 Java WebSocket 后端。',
+      'HVM 是人机模式，PVP 需要多个客户端加入同一个会话。',
+      '目标是先集齐 3 套完整房产。'
+    ],
+    infoRulesItems: [
+      '每回合自动摸牌，出牌阶段最多打出 3 张牌。',
+      '现金和行动牌可以存入银行；房产牌部署到自己的房产区。',
+      '收租、讨债、偷牌等行动会进入响应窗口，被指向的玩家可使用 Just Say No。',
+      '支付没有找零；资产不足时付出能付的全部资产。'
+    ],
+    infoGuideItems: [
+      '先在一个终端运行 mvn -q exec:java 启动后端。',
+      'Web 端默认连接 ws://localhost:8025/ws。',
+      '多人 PVP 时，所有客户端使用相同会话 ID，不同玩家 ID。'
+    ],
+    connectBackend: '正在连接后端...',
+    connected: '已连接',
+    disconnected: '连接已断开',
+    connectFailed: '连接失败：确认 Java 后端正在 ws://localhost:8025/ws 运行',
+    notConnected: '还没连接后端',
+    authOk: '认证成功',
+    authFailed: '认证失败',
+    serverError: '服务器返回错误',
+    processing: '处理中...',
+    deciding: '决策中',
+    playNamedCard: '打出 {card}',
+    noOptions: '当前牌没有可用操作',
+    needDiscard: '手牌超过 7 张，需要先弃 {n} 张。',
+    selectCardFirst: '先点一张手牌',
+    queryingOptions: '正在查询可选目标...',
+    deployColor: '选择部署颜色：{card}',
+    defaultPlay: '默认{action}：{card}',
+    playing: '正在{action}...',
+    reassignWild: '正在把万能房产改为{color}色...',
+    drawing: '正在摸牌...',
+    endingTurn: '正在结束回合...',
+    autoDrawing: '正在自动摸牌...',
+    noJsnAuto: '没有 Just Say No，自动接受。',
+    noJsnWaitPay: '没有 Just Say No，等待你选择支付。',
+    autoPaying: '正在自动支付租金...',
+    passingResponse: '正在放弃响应...',
+    insufficientPayment: '已选 {selected}M，不足 {due}M',
+    payAll: '正在付尽可支付资产...',
+    payingSelected: '正在按所选牌支付租金...',
+    playingJsn: '正在打出 Just Say No...',
+    actionDeposit: '存入银行',
+    actionDeploy: '部署房产',
+    actionAction: '打出行动牌',
+    actionDiscard: '弃牌',
+    actionPlay: '出牌',
+    deployAsColor: '作为{color}色部署',
+    directPlay: '直接打出',
+    playerFallback: '玩家',
+    cardFallback: '卡牌',
+    money: '现金',
+    propertyCard: '房产牌',
+    actionCard: '行动牌',
+    wildProperty: '万能房产',
+    wild: '万能',
+    colorBROWN: '棕',
+    colorLIGHT_BLUE: '浅蓝',
+    colorPINK: '粉',
+    colorORANGE: '橙',
+    colorRED: '红',
+    colorYELLOW: '黄',
+    colorGREEN: '绿',
+    colorDARK_BLUE: '深蓝',
+    colorRAILROAD: '铁路',
+    colorUTILITY: '公共',
+    timeout: '本局因时间限制结束。',
+    allQuit: '所有玩家已退出，本局结束。',
+    aiBattleLimit: 'AI 自战达到实验回合上限。',
+    forcedEnd: '本局已强制结束：{reason}',
+    endedLabel: '结束',
+    gameEndedTitle: '游戏结束',
+    winLabel: '胜利',
+    loseLabel: '失败',
+    youWon: '你赢了',
+    youLost: '你输了',
+    wonDetail: '你已经集齐 3 套完整房产。',
+    lostDetail: '{name} 集齐了 3 套完整房产。',
+    sets: '套',
+    handCount: '{n} 张手牌 · {sets}/3 套',
+    bankSummary: '{bank}M 银行 · {properties} 张房产',
+    setsSummary: '{sets}/3 套'
+  },
+  en: {
+    brandKicker: 'Browser Table',
+    brandIntro: 'Play Monopoly Deal through the shared Java WebSocket backend.',
+    language: 'Language',
+    mode: 'Mode',
+    players: 'Players',
+    playerId: 'Player ID',
+    session: 'Session',
+    backend: 'Backend',
+    randomFirst: 'Random first player',
+    startGame: 'Start Game',
+    connecting: 'Connecting...',
+    connectOnly: 'Connect only',
+    setup: 'Setup',
+    disconnect: 'Disconnect',
+    online: 'online',
+    offline: 'offline',
+    round: 'Round {n}',
+    phase: 'Phase {value}',
+    actions: 'Played {used}/3 · Left {left}',
+    drawPile: 'Draw {n}',
+    discardPile: 'Discard {n}',
+    gameOver: 'Game Over',
+    ready: 'Table ready',
+    yourDecision: 'Your decision',
+    yourTurn: 'Your turn',
+    waitingFor: 'Waiting for {name}',
+    waitingResponse: 'Waiting for {name}{suffix}',
+    waitingYouResponse: 'Waiting for your response{suffix}',
+    responseCounter: 'Opponent played Just Say No. You may counter with Just Say No.',
+    responsePayment: 'Pay {amount}M',
+    responseTargeted: 'An action is targeting you',
+    responsePaymentBody: 'Selected {selected}M. You may play Just Say No or pay.',
+    responseCounterBody: 'Opponent canceled with Just Say No. Counter or pass.',
+    responseDefaultBody: 'Play Just Say No to cancel this action, or pass.',
+    noJsnPay: 'No Just Say No in hand. Choose payment.',
+    noJsnAccept: 'No Just Say No in hand. Accepting automatically.',
+    autoPay: 'Auto Pay',
+    passResponse: 'Pass',
+    paySelected: 'Pay Selected',
+    skipAi: 'Skip AI animation',
+    opponentsEmpty: 'Waiting for other players',
+    hand: 'Hand',
+    handHint: 'Hover cards to inspect them.',
+    emptyHand: 'No hand yet. Start a game, then draw.',
+    actionArea: 'Actions',
+    endTurn: 'End Turn',
+    deposit: 'Deposit',
+    deploy: 'Deploy Property',
+    playAction: 'Play Action',
+    discard: 'Discard',
+    bank: 'Bank',
+    property: 'Property',
+    propertyZone: 'My Board',
+    bankEmpty: 'Money and banked action cards appear here',
+    propertyEmpty: 'Deployed properties stack by color',
+    playedEmpty: 'Played cards appear here in order',
+    chooseLegalOption: 'Choose a legal target / parameter',
+    chooseWildColor: 'Choose which color this wild property counts as.',
+    current: 'current',
+    backSetup: 'Back to Setup',
+    closeResult: 'Close Result',
+    infoIntro: 'Intro',
+    infoRules: 'Rules',
+    infoGuide: 'Guide',
+    infoIntroTitle: 'What This Is',
+    infoRulesTitle: 'Core Rules',
+    infoGuideTitle: 'How To Start',
+    infoIntroItems: [
+      'This browser table connects to the same Java WebSocket backend as the JavaFX client.',
+      'HVM is human-vs-machine. PVP needs multiple clients in the same session.',
+      'The goal is to complete 3 full property sets first.'
+    ],
+    infoRulesItems: [
+      'Each turn draws automatically, then the player may play up to 3 cards.',
+      'Money and action cards may be banked; property cards go to your property area.',
+      'Rent, debt, and steal actions open a response window where the target may play Just Say No.',
+      'There is no change for payment; if you cannot pay enough, pay all available assets.'
+    ],
+    infoGuideItems: [
+      'Start the backend in a terminal with mvn -q exec:java.',
+      'The Web client connects to ws://localhost:8025/ws by default.',
+      'For PVP, use the same session ID and different player IDs in each client.'
+    ],
+    connectBackend: 'Connecting to backend...',
+    connected: 'Connected',
+    disconnected: 'Disconnected',
+    connectFailed: 'Connection failed: make sure the Java backend is running at ws://localhost:8025/ws',
+    notConnected: 'Not connected to backend',
+    authOk: 'Authenticated',
+    authFailed: 'Authentication failed',
+    serverError: 'Server returned an error',
+    processing: 'Processing...',
+    deciding: 'Deciding',
+    playNamedCard: 'Play {card}',
+    noOptions: 'No legal option for this card',
+    needDiscard: 'Hand has more than 7 cards. Discard {n} first.',
+    selectCardFirst: 'Select a card first',
+    queryingOptions: 'Fetching legal targets...',
+    deployColor: 'Choose deploy color: {card}',
+    defaultPlay: 'Default {action}: {card}',
+    playing: '{action}...',
+    reassignWild: 'Changing wild property to {color}...',
+    drawing: 'Drawing...',
+    endingTurn: 'Ending turn...',
+    autoDrawing: 'Auto drawing...',
+    noJsnAuto: 'No Just Say No. Accepting automatically.',
+    noJsnWaitPay: 'No Just Say No. Waiting for your payment.',
+    autoPaying: 'Auto paying rent...',
+    passingResponse: 'Passing response...',
+    insufficientPayment: 'Selected {selected}M, below {due}M',
+    payAll: 'Paying all available assets...',
+    payingSelected: 'Paying selected cards...',
+    playingJsn: 'Playing Just Say No...',
+    actionDeposit: 'Deposit',
+    actionDeploy: 'Deploy Property',
+    actionAction: 'Play Action',
+    actionDiscard: 'Discard',
+    actionPlay: 'Play',
+    deployAsColor: 'Deploy as {color}',
+    directPlay: 'Play directly',
+    playerFallback: 'Player',
+    cardFallback: 'Card',
+    money: 'Money',
+    propertyCard: 'Property',
+    actionCard: 'Action',
+    wildProperty: 'Wild Property',
+    wild: 'Wild',
+    colorBROWN: 'Brown',
+    colorLIGHT_BLUE: 'Light Blue',
+    colorPINK: 'Pink',
+    colorORANGE: 'Orange',
+    colorRED: 'Red',
+    colorYELLOW: 'Yellow',
+    colorGREEN: 'Green',
+    colorDARK_BLUE: 'Dark Blue',
+    colorRAILROAD: 'Railroad',
+    colorUTILITY: 'Utility',
+    timeout: 'The game ended because of the time limit.',
+    allQuit: 'All players quit. The game ended.',
+    aiBattleLimit: 'AI battle reached the experiment turn limit.',
+    forcedEnd: 'The game was force-ended: {reason}',
+    endedLabel: 'Ended',
+    gameEndedTitle: 'Game Over',
+    winLabel: 'Win',
+    loseLabel: 'Loss',
+    youWon: 'You won',
+    youLost: 'You lost',
+    wonDetail: 'You completed 3 full property sets.',
+    lostDetail: '{name} completed 3 full property sets.',
+    sets: 'sets',
+    handCount: '{n} cards · {sets}/3 sets',
+    bankSummary: '{bank}M bank · {properties} properties',
+    setsSummary: '{sets}/3 sets'
+  }
+}
 
 const CARD_IMAGE_BASE = '/cards/'
 const PROPERTY_CARD_IMAGES = {
@@ -177,18 +492,18 @@ const waitingResponseText = computed(() => {
   const pendingId = state.value?.pendingResponsePlayerId || ''
   if (!responsePending.value || !pendingId) return ''
   const suffix = hasResponseCountdown.value ? ` · ${responseSecondsLeft.value}s` : ''
-  if (pendingId === playerId.value) return `等待你响应${suffix}`
-  return `等待 ${displayNameForPlayer(pendingId)} 响应${suffix}`
+  if (pendingId === playerId.value) return t('waitingYouResponse', { suffix })
+  return t('waitingResponse', { name: displayNameForPlayer(pendingId), suffix })
 })
 const responseRoleText = computed(() => {
-  if (state.value?.pendingResponseRole === 'LANDLORD_COUNTER') return '对方打出免租，你可以用 Just Say No 反制'
-  if (awaitingPayment.value) return `需要支付 ${paymentDue.value}M`
-  return '对方行动正在指向你'
+  if (state.value?.pendingResponseRole === 'LANDLORD_COUNTER') return t('responseCounter')
+  if (awaitingPayment.value) return t('responsePayment', { amount: paymentDue.value })
+  return t('responseTargeted')
 })
 const responseBodyText = computed(() => {
-  if (awaitingPayment.value) return `已选 ${selectedPaymentTotal.value}M。可以打出 Just Say No，也可以支付。`
-  if (state.value?.pendingResponseRole === 'LANDLORD_COUNTER') return '对方已经打出 Just Say No，你可以继续用 Just Say No 反制，也可以放弃。'
-  return '可以打出 Just Say No 取消这张行动，也可以放弃响应。'
+  if (awaitingPayment.value) return t('responsePaymentBody', { selected: selectedPaymentTotal.value })
+  if (state.value?.pendingResponseRole === 'LANDLORD_COUNTER') return t('responseCounterBody')
+  return t('responseDefaultBody')
 })
 const justSayNoCards = computed(() => {
   return hand.value.filter((card) => String(card.effectCode || '').toUpperCase() === 'RENT_WAIVER')
@@ -197,8 +512,8 @@ const paymentCards = computed(() => {
   const p = localPlayer.value
   if (!p) return []
   return [
-    ...(p.bankCards || []).map((card) => ({ ...card, zone: '银行', zoneKey: 'BANK' })),
-    ...(p.propertyZoneCards || []).map((card) => ({ ...card, zone: '房产', zoneKey: 'PROPERTY' }))
+    ...(p.bankCards || []).map((card) => ({ ...card, zone: t('bank'), zoneKey: 'BANK' })),
+    ...(p.propertyZoneCards || []).map((card) => ({ ...card, zone: t('property'), zoneKey: 'PROPERTY' }))
   ]
 })
 const selectedPaymentTotal = computed(() => {
@@ -211,17 +526,17 @@ const totalPayableValue = computed(() => {
 })
 const recommendedPaymentIds = computed(() => bestPaymentCardIds(paymentCards.value, paymentDue.value))
 const tableStatus = computed(() => {
-  if (state.value?.gameOver) return '游戏结束'
-  if (playerId.value === decisionPlayerId.value) return decisionLabel.value || '轮到你决策'
-  if (decisionPlayerId.value) return `等待 ${displayNameForPlayer(decisionPlayerId.value)}`
-  if (playerId.value === currentPlayerId.value) return '你的回合'
-  if (currentPlayerId.value) return `等待 ${displayNameForPlayer(currentPlayerId.value)}`
-  return '牌桌就绪'
+  if (state.value?.gameOver) return t('gameOver')
+  if (playerId.value === decisionPlayerId.value) return decisionLabel.value || t('yourDecision')
+  if (decisionPlayerId.value) return t('waitingFor', { name: displayNameForPlayer(decisionPlayerId.value) })
+  if (playerId.value === currentPlayerId.value) return t('yourTurn')
+  if (currentPlayerId.value) return t('waitingFor', { name: displayNameForPlayer(currentPlayerId.value) })
+  return t('ready')
 })
 const eventLine = computed(() => {
-  if (actionBusy.value) return notice.value || '处理中...'
+  if (actionBusy.value) return notice.value || t('processing')
   if (waitingResponseText.value) return waitingResponseText.value
-  return notice.value || state.value?.lastActionSummary || '摸牌、出牌和房产变化会显示在这里'
+  return notice.value || state.value?.lastActionSummary || t('brandIntro')
 })
 const winnerPlayer = computed(() => {
   return players.value.find((p) => Number(p.completePropertySets || 0) >= 3) || null
@@ -231,8 +546,8 @@ const gameResult = computed(() => {
   if (state.value.forceEndReason) {
     return {
       tone: 'ended',
-      label: '对局结束',
-      title: '游戏结束',
+      label: t('endedLabel'),
+      title: t('gameEndedTitle'),
       detail: forceEndText(state.value.forceEndReason),
       summary: state.value.lastActionSummary || ''
     }
@@ -242,21 +557,21 @@ const gameResult = computed(() => {
     const won = winner.playerId === playerId.value
     return {
       tone: won ? 'win' : 'lose',
-      label: won ? '胜利' : '失败',
-      title: won ? '你赢了' : '你输了',
+      label: won ? t('winLabel') : t('loseLabel'),
+      title: won ? t('youWon') : t('youLost'),
       detail: won
-        ? '你已经集齐 3 套完整房产。'
-        : `${winner.displayName || winner.playerId} 集齐了 3 套完整房产。`,
+        ? t('wonDetail')
+        : t('lostDetail', { name: winner.displayName || winner.playerId }),
       summary: state.value.lastActionSummary || ''
     }
   }
-  const summary = state.value.lastActionSummary || '对局已结束。'
+  const summary = state.value.lastActionSummary || t('gameEndedTitle')
   const mine = localPlayer.value
   const maybeWon = summary.includes(playerId.value) || (mine?.displayName && summary.includes(mine.displayName))
   return {
     tone: maybeWon ? 'win' : 'ended',
-    label: maybeWon ? '胜利' : '结束',
-    title: maybeWon ? '你赢了' : '游戏结束',
+    label: maybeWon ? t('winLabel') : t('endedLabel'),
+    title: maybeWon ? t('youWon') : t('gameEndedTitle'),
     detail: summary,
     summary
   }
@@ -282,6 +597,33 @@ const tablePlayedByPlayer = computed(() => {
   }
   return groups.sort((a, b) => playedGroupPriority(a.playerId) - playedGroupPriority(b.playerId))
 })
+const infoContent = computed(() => {
+  const titleKey = {
+    intro: 'infoIntroTitle',
+    rules: 'infoRulesTitle',
+    guide: 'infoGuideTitle'
+  }[infoPanel.value] || 'infoIntroTitle'
+  const itemsKey = {
+    intro: 'infoIntroItems',
+    rules: 'infoRulesItems',
+    guide: 'infoGuideItems'
+  }[infoPanel.value] || 'infoIntroItems'
+  return {
+    title: t(titleKey),
+    items: t(itemsKey)
+  }
+})
+
+function t(key, values = {}) {
+  const dict = I18N[language.value] || I18N.zh
+  const raw = dict[key] ?? I18N.zh[key] ?? key
+  if (Array.isArray(raw)) return raw
+  return String(raw).replace(/\{(\w+)}/g, (_, name) => values[name] ?? '')
+}
+
+function isEnglish() {
+  return language.value === 'en'
+}
 
 function playedGroupPriority(id) {
   if (id === decisionPlayerId.value) return 0
@@ -302,10 +644,10 @@ function modeChanged() {
 
 function forceEndText(reason) {
   return ({
-    TIMEOUT: '本局因时间限制结束。',
-    ALL_QUIT: '所有玩家已退出，本局结束。',
-    AI_BATTLE_TURN_LIMIT: 'AI 自战达到实验回合上限。'
-  })[reason] || `本局已强制结束：${reason}`
+    TIMEOUT: t('timeout'),
+    ALL_QUIT: t('allQuit'),
+    AI_BATTLE_TURN_LIMIT: t('aiBattleLimit')
+  })[reason] || t('forcedEnd', { reason })
 }
 
 function dismissGameOver() {
@@ -324,12 +666,12 @@ function connect(autoStart = false) {
   }
   if (connected.value || connecting.value) return
   connecting.value = true
-  notice.value = '正在连接后端...'
+  notice.value = t('connectBackend')
   socket = new WebSocket(wsUrl.value)
   socket.addEventListener('open', () => {
     connected.value = true
     connecting.value = false
-    notice.value = '已连接'
+    notice.value = t('connected')
     log('system', 'WebSocket connected')
     if (autoStart) authAndStart()
   })
@@ -337,12 +679,12 @@ function connect(autoStart = false) {
   socket.addEventListener('close', () => {
     connected.value = false
     connecting.value = false
-    notice.value = '连接已断开'
+    notice.value = t('disconnected')
     log('system', 'WebSocket closed')
   })
   socket.addEventListener('error', () => {
     connecting.value = false
-    notice.value = '连接失败：确认 Java 后端正在 ws://localhost:8025/ws 运行'
+    notice.value = t('connectFailed')
   })
 }
 
@@ -352,7 +694,7 @@ function disconnect() {
 
 function send(type, payload = {}) {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
-    notice.value = '还没连接后端'
+    notice.value = t('notConnected')
     clearBusy()
     return false
   }
@@ -389,7 +731,7 @@ function handleMessage(raw) {
   const payload = root.payload || {}
   switch (root.type) {
     case 'AUTH_RESULT':
-      notice.value = payload.ok ? '认证成功' : payload.error || '认证失败'
+      notice.value = payload.ok ? t('authOk') : payload.error || t('authFailed')
       break
     case 'STATE_UPDATE':
       {
@@ -424,7 +766,7 @@ function handleMessage(raw) {
       handleOptions(payload)
       break
     case 'ERROR':
-      notice.value = payload.message || payload.error || '服务器返回错误'
+      notice.value = payload.message || payload.error || t('serverError')
       pendingPlay.value = null
       clearBusy()
       break
@@ -591,13 +933,13 @@ function isAiPlayerId(id) {
 
 function displayNameForPlayer(id) {
   const p = players.value.find((player) => player.playerId === id)
-  return p?.displayName || id || '玩家'
+  return p?.displayName || id || t('playerFallback')
 }
 
 function handleOptions(payload) {
   if (!pendingPlay.value) return
   if (!payload.ok) {
-    notice.value = payload.error || '当前牌没有可用操作'
+    notice.value = payload.error || t('noOptions')
     pendingPlay.value = null
     clearBusy()
     return
@@ -609,7 +951,7 @@ function handleOptions(payload) {
     return
   }
   optionSheet.value = {
-    title: selectedCard.value?.titleZh || selectedCard.value?.name || '选择目标',
+    title: cardTitle(selectedCard.value) || t('chooseLegalOption'),
     options
   }
   clearBusy()
@@ -618,11 +960,11 @@ function handleOptions(payload) {
 function queryPlay(actionType) {
   if (playControlsDisabled.value) return
   if (needsOverflowDiscard.value && actionType !== 'DISCARD') {
-    notice.value = `手牌超过 7 张，需要先弃 ${state.value.overflowDiscardCount} 张。`
+    notice.value = t('needDiscard', { n: state.value.overflowDiscardCount })
     return
   }
   if (!selectedCard.value) {
-    notice.value = '先点一张手牌'
+    notice.value = t('selectCardFirst')
     return
   }
   const directPayload = directPlayPayload(selectedCard.value, actionType)
@@ -631,7 +973,7 @@ function queryPlay(actionType) {
     return
   }
   pendingPlay.value = { actionType, cardId: selectedCard.value.id, card: selectedCard.value }
-  markBusy(selectedCard.value.id, '正在查询可选目标...')
+  markBusy(selectedCard.value.id, t('queryingOptions'))
   send('PLAY_OPTIONS', {
     playerId: playerId.value,
     cardId: selectedCard.value.id,
@@ -653,7 +995,7 @@ function quickPlay(card) {
   const actionType = defaultActionForCard(card)
   if (needsOverflowDiscard.value && actionType !== 'DISCARD') {
     selectedCardId.value = card.id
-    notice.value = `手牌超过 7 张，需要先弃 ${state.value.overflowDiscardCount} 张。`
+    notice.value = t('needDiscard', { n: state.value.overflowDiscardCount })
     return
   }
   selectedCardId.value = card.id
@@ -664,7 +1006,9 @@ function quickPlay(card) {
   }
   const needsChoice = requiresExplicitOption(card, actionType)
   pendingPlay.value = { actionType, cardId: card.id, card, autoDefault: !needsChoice }
-  markBusy(card.id, needsChoice ? `选择部署颜色：${cardTitle(card)}` : `默认${actionLabel(actionType)}：${cardTitle(card)}`)
+  markBusy(card.id, needsChoice
+    ? t('deployColor', { card: cardTitle(card) })
+    : t('defaultPlay', { action: actionLabel(actionType), card: cardTitle(card) }))
   send('PLAY_OPTIONS', {
     playerId: playerId.value,
     cardId: card.id,
@@ -687,7 +1031,7 @@ function playWithOption(row = {}) {
   const actionType = pendingPlay.value.actionType
   optionSheet.value = null
   pendingPlay.value = null
-  markBusy(cardId, `正在${actionLabel(actionType)}...`)
+  markBusy(cardId, t('playing', { action: actionLabel(actionType) }))
   send('PLAY', compact(payload))
 }
 
@@ -717,7 +1061,7 @@ function reassignWildColor(colorKey) {
   if (!sheet?.card?.id) return
   const normalized = normalizeColorKey(colorKey)
   wildReassignSheet.value = null
-  markBusy(sheet.card.id, `正在把万能房产改为${colorName(normalized)}色...`)
+  markBusy(sheet.card.id, t('reassignWild', { color: colorName(normalized) }))
   send('REASSIGN_WILD', {
     wildPropertyCardId: sheet.card.id,
     newColorKey: normalized
@@ -726,18 +1070,18 @@ function reassignWildColor(colorKey) {
 
 function actionLabel(actionType) {
   return ({
-    DEPOSIT: '存入银行',
-    DEPLOY: '部署房产',
-    ACTION: '打出行动牌',
-    DISCARD: '弃牌'
-  })[actionType] || '出牌'
+    DEPOSIT: t('actionDeposit'),
+    DEPLOY: t('actionDeploy'),
+    ACTION: t('actionAction'),
+    DISCARD: t('actionDiscard')
+  })[actionType] || t('actionPlay')
 }
 
 function optionLabel(option = {}) {
   if (pendingPlay.value?.actionType === 'DEPLOY' && option.targetColorKey) {
-    return `作为${colorName(normalizeColorKey(option.targetColorKey))}色部署`
+    return t('deployAsColor', { color: colorName(normalizeColorKey(option.targetColorKey)) })
   }
-  return option.labelZh || option.targetPlayerId || option.targetCardId || '直接打出'
+  return (isEnglish() ? option.labelEn : option.labelZh) || option.targetPlayerId || option.targetCardId || t('directPlay')
 }
 
 function markBusy(cardId, text) {
@@ -771,25 +1115,25 @@ function playDirect(payload, card, actionType) {
   selectedCardId.value = card.id
   pendingPlay.value = null
   optionSheet.value = null
-  markBusy(card.id, `正在${actionLabel(actionType)}：${cardTitle(card)}`)
+  markBusy(card.id, t('playing', { action: `${actionLabel(actionType)}: ${cardTitle(card)}` }))
   send('PLAY', compact(payload))
 }
 
 function draw() {
   if (playControlsDisabled.value) return
-  notice.value = '正在摸牌...'
+  notice.value = t('drawing')
   send('DRAW', { count: 2 })
 }
 
 function endTurn() {
   if (playControlsDisabled.value) return
   if (needsOverflowDiscard.value) {
-    const text = `手牌超过 7 张，需要弃 ${state.value.overflowDiscardCount} 张。`
+    const text = t('needDiscard', { n: state.value.overflowDiscardCount })
     notice.value = text
     window.alert(text)
     return
   }
-  notice.value = '正在结束回合...'
+  notice.value = t('endingTurn')
   send('END_TURN', {})
 }
 
@@ -798,14 +1142,14 @@ function maybeAutoDraw() {
   if (state.value?.gameOver) return
   if (currentPlayerId.value !== playerId.value) return
   if (turnPhase.value !== 'DRAW') return
-  notice.value = '正在自动摸牌...'
+  notice.value = t('autoDrawing')
   send('DRAW', { count: 2 })
 }
 
 function maybeAutoPassResponse() {
   if (!awaitingResponse.value || actionBusy.value) return
   if (justSayNoCards.value.length) return
-  notice.value = awaitingPayment.value ? '没有 Just Say No，等待你选择支付。' : '没有 Just Say No，自动接受。'
+  notice.value = awaitingPayment.value ? t('noJsnWaitPay') : t('noJsnAuto')
   if (!awaitingPayment.value) autoPayRent()
 }
 
@@ -822,7 +1166,7 @@ function scheduleAutoPassResponse() {
 
 function autoPayRent() {
   if (actionBusy.value) return
-  markBusy('', awaitingPayment.value ? '正在自动支付租金...' : '正在放弃响应...')
+  markBusy('', awaitingPayment.value ? t('autoPaying') : t('passingResponse'))
   const ids = awaitingPayment.value ? recommendedPaymentIds.value : []
   send('PLAY', compact({
     actionType: 'RESPONSE_PASS',
@@ -835,10 +1179,10 @@ function confirmPayRent() {
   if (actionBusy.value) return
   const canOnlyPayPartially = totalPayableValue.value < paymentDue.value
   if (selectedPaymentTotal.value < paymentDue.value && selectedPaymentTotal.value < totalPayableValue.value) {
-    notice.value = `已选 ${selectedPaymentTotal.value}M，不足 ${paymentDue.value}M`
+    notice.value = t('insufficientPayment', { selected: selectedPaymentTotal.value, due: paymentDue.value })
     return
   }
-  markBusy('', canOnlyPayPartially ? '正在付尽可支付资产...' : '正在按所选牌支付租金...')
+  markBusy('', canOnlyPayPartially ? t('payAll') : t('payingSelected'))
   send('PLAY', {
     actionType: 'RESPONSE_PASS',
     actingPlayerId: playerId.value,
@@ -848,7 +1192,7 @@ function confirmPayRent() {
 
 function playJustSayNo(card) {
   if (actionBusy.value || !card?.id) return
-  markBusy(card.id, '正在打出 Just Say No...')
+  markBusy(card.id, t('playingJsn'))
   send('PLAY', {
     actionType: 'ACTION',
     actingPlayerId: playerId.value,
@@ -927,11 +1271,11 @@ function comparePaymentChoice(amountA, a, amountB, b) {
 }
 
 function cardTitle(card) {
-  return card?.titleZh || card?.name || card?.id || 'Card'
+  return (isEnglish() ? card?.titleEn : card?.titleZh) || card?.name || card?.id || t('cardFallback')
 }
 
 function cardHint(card) {
-  return card?.hintZh || card?.effectCode || card?.colorGroup || ''
+  return (isEnglish() ? card?.hintEn : card?.hintZh) || card?.effectCode || card?.colorGroup || ''
 }
 
 function cardClass(card) {
@@ -1048,21 +1392,21 @@ function cardIcon(card) {
 
 function cardKindLabel(card) {
   return ({
-    ACTION: '行动牌',
-    PROPERTY: '房产牌',
-    MONEY: '现金',
-    WILD: '万能房产'
-  })[card?.kind] || '卡牌'
+    ACTION: t('actionCard'),
+    PROPERTY: t('propertyCard'),
+    MONEY: t('money'),
+    WILD: t('wildProperty')
+  })[card?.kind] || t('cardFallback')
 }
 
 function playActionLabel(actionType) {
   return ({
-    DEPOSIT: '存入银行',
-    DEPLOY: '部署房产',
-    ACTION: '打出行动牌',
-    DISCARD: '弃牌',
-    FORCE_DISCARD: '弃牌'
-  })[normalizeActionType(actionType)] || '出牌'
+    DEPOSIT: t('actionDeposit'),
+    DEPLOY: t('actionDeploy'),
+    ACTION: t('actionAction'),
+    DISCARD: t('actionDiscard'),
+    FORCE_DISCARD: t('actionDiscard')
+  })[normalizeActionType(actionType)] || t('actionPlay')
 }
 
 function colorStyle(card) {
@@ -1166,8 +1510,16 @@ function fanCardStyle(card, index) {
 
 function colorName(key) {
   return ({
-    BROWN: '棕', LIGHT_BLUE: '浅蓝', PINK: '粉', ORANGE: '橙', RED: '红',
-    YELLOW: '黄', GREEN: '绿', DARK_BLUE: '深蓝', RAILROAD: '铁路', UTILITY: '公共'
+    BROWN: t('colorBROWN'),
+    LIGHT_BLUE: t('colorLIGHT_BLUE'),
+    PINK: t('colorPINK'),
+    ORANGE: t('colorORANGE'),
+    RED: t('colorRED'),
+    YELLOW: t('colorYELLOW'),
+    GREEN: t('colorGREEN'),
+    DARK_BLUE: t('colorDARK_BLUE'),
+    RAILROAD: t('colorRAILROAD'),
+    UTILITY: t('colorUTILITY')
   })[key] || key
 }
 
@@ -1203,14 +1555,14 @@ onBeforeUnmount(() => {
   <main class="app-shell">
     <section v-if="screen === 'start'" class="start-screen">
       <div class="brand-lockup">
-        <div class="brand-kicker">WEB TABLE PROTOTYPE</div>
+        <div class="brand-kicker">{{ t('brandKicker') }}</div>
         <h1>Monopoly Deal</h1>
-        <p>浏览器版牌桌，用来快速批注视觉、布局和交互。</p>
+        <p>{{ t('brandIntro') }}</p>
       </div>
 
       <div class="setup-panel">
         <label>
-          模式
+          {{ t('mode') }}
           <select v-model="gameMode" @change="modeChanged">
             <option>HVM</option>
             <option>PVP</option>
@@ -1219,7 +1571,7 @@ onBeforeUnmount(() => {
           </select>
         </label>
         <label>
-          人数
+          {{ t('players') }}
           <input v-model.number="playerCount" min="2" max="5" type="number" />
         </label>
         <label v-if="gameMode === 'HVM'">
@@ -1231,25 +1583,46 @@ onBeforeUnmount(() => {
           </select>
         </label>
         <label>
-          玩家 ID
+          {{ t('playerId') }}
           <input v-model="playerId" />
         </label>
         <label>
-          会话
+          {{ t('session') }}
           <input v-model="sessionId" />
         </label>
         <label>
-          后端
+          {{ t('backend') }}
           <input v-model="wsUrl" />
+        </label>
+        <label>
+          {{ t('language') }}
+          <select v-model="language">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+          </select>
         </label>
       </div>
 
+      <section class="start-info">
+        <div class="info-tabs">
+          <button :class="{ active: infoPanel === 'intro' }" @click="infoPanel = 'intro'">{{ t('infoIntro') }}</button>
+          <button :class="{ active: infoPanel === 'rules' }" @click="infoPanel = 'rules'">{{ t('infoRules') }}</button>
+          <button :class="{ active: infoPanel === 'guide' }" @click="infoPanel = 'guide'">{{ t('infoGuide') }}</button>
+        </div>
+        <div class="info-copy">
+          <h2>{{ infoContent.title }}</h2>
+          <ul>
+            <li v-for="item in infoContent.items" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+      </section>
+
       <div class="start-actions">
         <button class="primary" @click="connect(true)" :disabled="connecting">
-          {{ connecting ? '连接中...' : '开始游戏' }}
+          {{ connecting ? t('connecting') : t('startGame') }}
         </button>
-        <button class="secondary" @click="connect(false)" :disabled="connected || connecting">只连接</button>
-        <label class="check-row"><input type="checkbox" v-model="randomFirst" /> 随机先手</label>
+        <button class="secondary" @click="connect(false)" :disabled="connected || connecting">{{ t('connectOnly') }}</button>
+        <label class="check-row"><input type="checkbox" v-model="randomFirst" /> {{ t('randomFirst') }}</label>
       </div>
 
       <div class="notice" v-if="notice">{{ notice }}</div>
@@ -1259,22 +1632,26 @@ onBeforeUnmount(() => {
       <header class="top-hud">
         <div>
           <div class="brand-small">MONOPOLY DEAL</div>
-          <div class="session-line">{{ sessionId }} · {{ connected ? 'online' : 'offline' }}</div>
+          <div class="session-line">{{ sessionId }} · {{ connected ? t('online') : t('offline') }}</div>
         </div>
         <div class="hud-status">
           <div class="state-line">
             <span>{{ tableStatus }}</span>
-            <span>第 {{ roundNumber }} 轮</span>
-            <span>阶段 {{ state?.phase || '-' }}</span>
+            <span>{{ t('round', { n: roundNumber }) }}</span>
+            <span>{{ t('phase', { value: state?.phase || '-' }) }}</span>
             <span>{{ decisionLabel || turnPhase || '-' }}</span>
-            <span v-if="decisionKind === 'PLAY'">已出 {{ actionsUsedThisTurn }}/3 · 剩 {{ actionsRemainingThisTurn }}</span>
-            <span>抽牌 {{ state?.drawPileCount ?? '-' }}</span>
-            <span>弃牌 {{ state?.discardPileCount ?? '-' }}</span>
+            <span v-if="decisionKind === 'PLAY'">{{ t('actions', { used: actionsUsedThisTurn, left: actionsRemainingThisTurn }) }}</span>
+            <span>{{ t('drawPile', { n: state?.drawPileCount ?? '-' }) }}</span>
+            <span>{{ t('discardPile', { n: state?.discardPileCount ?? '-' }) }}</span>
           </div>
           <div class="event-line">{{ eventLine }}</div>
         </div>
-        <button class="secondary compact" @click="screen = 'start'">设置</button>
-        <button class="secondary compact" @click="disconnect">断开</button>
+        <select class="language-mini" v-model="language" :aria-label="t('language')">
+          <option value="zh">中文</option>
+          <option value="en">EN</option>
+        </select>
+        <button class="secondary compact" @click="screen = 'start'">{{ t('setup') }}</button>
+        <button class="secondary compact" @click="disconnect">{{ t('disconnect') }}</button>
       </header>
 
       <div class="table-stage">
@@ -1290,14 +1667,14 @@ onBeforeUnmount(() => {
                 <div class="avatar">{{ (player.displayName || player.playerId).slice(0, 2).toUpperCase() }}</div>
                 <div>
                   <h2>{{ player.displayName || player.playerId }}</h2>
-                  <p>{{ player.handCount }} 张手牌 · {{ visibleCompleteSets(player) }}/3 套</p>
+                  <p>{{ t('handCount', { n: player.handCount, sets: visibleCompleteSets(player) }) }}</p>
                 </div>
-                <span v-if="player.playerId === decisionPlayerId">{{ decisionLabel || '决策中' }}</span>
-                <span v-else-if="player.playerId === currentPlayerId">回合中</span>
+                <span v-if="player.playerId === decisionPlayerId">{{ decisionLabel || t('deciding') }}</span>
+                <span v-else-if="player.playerId === currentPlayerId">{{ t('yourTurn') }}</span>
               </header>
               <div class="revealed-zones">
                 <section class="revealed-zone">
-                  <h3>银行 <b>{{ visibleBankTotal(player) }}M</b></h3>
+                  <h3>{{ t('bank') }} <b>{{ visibleBankTotal(player) }}M</b></h3>
                   <div class="visible-card-row small-cards">
                     <article v-for="card in visibleBankCards(player)" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
                       <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
@@ -1306,11 +1683,11 @@ onBeforeUnmount(() => {
                       <strong>{{ cardTitle(card) }}</strong>
                       <b class="value-badge" v-if="card.valueM !== undefined">{{ card.valueM }}M</b>
                     </article>
-                    <em v-if="!visibleBankCards(player).length">银行空</em>
+                    <em v-if="!visibleBankCards(player).length">{{ t('bank') }} 0</em>
                   </div>
                 </section>
                 <section class="revealed-zone property-zone">
-                  <h3>房产 <b>{{ visiblePropertyCount(player) }}</b></h3>
+                  <h3>{{ t('property') }} <b>{{ visiblePropertyCount(player) }}</b></h3>
                   <div class="property-stack-grid small-stacks">
                     <div
                       v-for="stack in propertyStacks(visiblePropertyCards(player))"
@@ -1329,7 +1706,7 @@ onBeforeUnmount(() => {
                           :key="card.id"
                           :class="stackCardClass(card, stack, player.playerId)"
                           :style="stackCardStyle(card, cardIndex)"
-                          :title="card.kind === 'WILD' ? '万能房产' : cardTitle(card)"
+                          :title="card.kind === 'WILD' ? t('wildProperty') : cardTitle(card)"
                           @click="openWildReassign(card, player.playerId)"
                         >
                           <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
@@ -1341,12 +1718,12 @@ onBeforeUnmount(() => {
                         </article>
                       </div>
                     </div>
-                    <em v-if="!visiblePropertyCards(player).length">还没有房产</em>
+                    <em v-if="!visiblePropertyCards(player).length">{{ t('propertyEmpty') }}</em>
                   </div>
                 </section>
               </div>
             </article>
-            <article v-if="!opponents.length" class="tableau empty-seat">等待其他玩家入座</article>
+            <article v-if="!opponents.length" class="tableau empty-seat">{{ t('opponentsEmpty') }}</article>
           </section>
 
           <div class="center-play">
@@ -1379,10 +1756,10 @@ onBeforeUnmount(() => {
                   </article>
                 </div>
               </div>
-              <em v-if="!tablePlayedCards.length">出过的牌会依次摊在这里</em>
+              <em v-if="!tablePlayedCards.length">{{ t('playedEmpty') }}</em>
             </section>
             <button v-if="aiAnimationActive" class="skip-ai-button" @click="skipAiPlayAnimation">
-              跳过 AI 动画
+              {{ t('skipAi') }}
             </button>
           </div>
 
@@ -1395,13 +1772,13 @@ onBeforeUnmount(() => {
               <header class="tableau-head">
                 <div class="avatar">{{ (localBoard.displayName || localBoard.playerId).slice(0, 2).toUpperCase() }}</div>
                 <div>
-                  <h2>我的置牌区</h2>
-                  <p>{{ visibleBankTotal(localBoard) }}M 银行 · {{ visiblePropertyCount(localBoard) }} 张房产</p>
+                  <h2>{{ t('propertyZone') }}</h2>
+                  <p>{{ t('bankSummary', { bank: visibleBankTotal(localBoard), properties: visiblePropertyCount(localBoard) }) }}</p>
                 </div>
               </header>
               <div class="revealed-zones my-zones">
                 <section class="revealed-zone">
-                  <h3>银行 <b>{{ visibleBankTotal(localBoard) }}M</b></h3>
+                  <h3>{{ t('bank') }} <b>{{ visibleBankTotal(localBoard) }}M</b></h3>
                   <div class="visible-card-row">
                     <article v-for="card in visibleBankCards(localBoard)" :key="card.id" :class="tableCardClass(card)" :style="cardVars(card)">
                       <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
@@ -1411,11 +1788,11 @@ onBeforeUnmount(() => {
                       <strong>{{ cardTitle(card) }}</strong>
                       <b class="value-badge" v-if="card.valueM !== undefined">{{ card.valueM }}M</b>
                     </article>
-                    <em v-if="!visibleBankCards(localBoard).length">打出的现金 / 存入银行的行动牌会摊在这里</em>
+                    <em v-if="!visibleBankCards(localBoard).length">{{ t('bankEmpty') }}</em>
                   </div>
                 </section>
                 <section class="revealed-zone property-zone">
-                  <h3>房产 <b>{{ visibleCompleteSets(localBoard) }}/3 套</b></h3>
+                  <h3>{{ t('property') }} <b>{{ t('setsSummary', { sets: visibleCompleteSets(localBoard) }) }}</b></h3>
                   <div class="property-stack-grid">
                     <div
                       v-for="stack in propertyStacks(visiblePropertyCards(localBoard))"
@@ -1434,7 +1811,7 @@ onBeforeUnmount(() => {
                           :key="card.id"
                           :class="stackCardClass(card, stack, localBoard.playerId)"
                           :style="stackCardStyle(card, cardIndex)"
-                          :title="card.kind === 'WILD' ? '点击切换声明颜色' : cardTitle(card)"
+                          :title="card.kind === 'WILD' ? t('chooseWildColor') : cardTitle(card)"
                           @click="openWildReassign(card, localBoard.playerId)"
                         >
                           <img v-if="cardImageUrl(card)" class="card-face-img" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
@@ -1447,7 +1824,7 @@ onBeforeUnmount(() => {
                         </article>
                       </div>
                     </div>
-                    <em v-if="!visiblePropertyCards(localBoard).length">部署后的房产会按颜色堆叠</em>
+                    <em v-if="!visiblePropertyCards(localBoard).length">{{ t('propertyEmpty') }}</em>
                   </div>
                 </section>
               </div>
@@ -1455,8 +1832,8 @@ onBeforeUnmount(() => {
 
             <section class="hand-fan-panel">
               <div class="hand-title">
-                <h2>手牌</h2>
-                <p>{{ selectedCard ? cardTitle(selectedCard) : '鼠标悬停会展开牌面。' }}</p>
+                <h2>{{ t('hand') }}</h2>
+                <p>{{ selectedCard ? cardTitle(selectedCard) : t('handHint') }}</p>
               </div>
               <div class="fan-hand">
                 <button
@@ -1464,7 +1841,7 @@ onBeforeUnmount(() => {
                   :key="card.id"
                   :class="cardClass(card)"
                   :style="fanCardStyle(card, index)"
-                  :title="'双击默认出牌：' + cardTitle(card)"
+                  :title="t('defaultPlay', { action: actionLabel(defaultActionForCard(card)), card: cardTitle(card) })"
                   :disabled="playControlsDisabled"
                   @click="selectedCardId = card.id"
                   @dblclick.prevent.stop="quickPlay(card)"
@@ -1484,19 +1861,19 @@ onBeforeUnmount(() => {
                     <i v-if="card.valueM !== undefined">{{ card.valueM }}M</i>
                   </span>
                 </button>
-                <div v-if="!hand.length" class="empty-hand">还没有收到手牌。先开始游戏，再摸牌。</div>
+                <div v-if="!hand.length" class="empty-hand">{{ t('emptyHand') }}</div>
               </div>
             </section>
 
             <section class="action-pad">
-              <h2>操作区</h2>
+              <h2>{{ t('actionArea') }}</h2>
               <p v-if="waitingForOtherResponse" class="action-pad-note">{{ waitingResponseText }}</p>
-              <button v-if="drawActionVisible" class="primary small" @click="draw" :disabled="playControlsDisabled">摸 2 张</button>
-              <button class="secondary small" @click="endTurn" :disabled="playControlsDisabled">结束回合</button>
-              <button class="green small" @click="queryPlay('DEPOSIT')" :disabled="!selectedCard || playControlsDisabled">存入银行</button>
-              <button class="blue small" @click="queryPlay('DEPLOY')" :disabled="!selectedCard || playControlsDisabled">部署房产</button>
-              <button class="purple small" @click="queryPlay('ACTION')" :disabled="!selectedCard || playControlsDisabled">打出行动牌</button>
-              <button class="gray small" @click="queryPlay('DISCARD')" :disabled="!selectedCard || playControlsDisabled">弃牌</button>
+              <button v-if="drawActionVisible" class="primary small" @click="draw" :disabled="playControlsDisabled">{{ t('drawPile', { n: 2 }) }}</button>
+              <button class="secondary small" @click="endTurn" :disabled="playControlsDisabled">{{ t('endTurn') }}</button>
+              <button class="green small" @click="queryPlay('DEPOSIT')" :disabled="!selectedCard || playControlsDisabled">{{ t('deposit') }}</button>
+              <button class="blue small" @click="queryPlay('DEPLOY')" :disabled="!selectedCard || playControlsDisabled">{{ t('deploy') }}</button>
+              <button class="purple small" @click="queryPlay('ACTION')" :disabled="!selectedCard || playControlsDisabled">{{ t('playAction') }}</button>
+              <button class="gray small" @click="queryPlay('DISCARD')" :disabled="!selectedCard || playControlsDisabled">{{ t('discard') }}</button>
             </section>
           </section>
 
@@ -1506,11 +1883,11 @@ onBeforeUnmount(() => {
             <div v-if="justSayNoCards.length" class="response-cards">
               <button v-for="card in justSayNoCards" :key="card.id" class="nope-card" @click="playJustSayNo(card)" :disabled="actionBusy">
                 <img v-if="cardImageUrl(card)" :src="cardImageUrl(card)" :alt="cardTitle(card)" loading="lazy" />
-                <span>打出 {{ cardTitle(card) }}</span>
+                <span>{{ t('playNamedCard', { card: cardTitle(card) }) }}</span>
               </button>
             </div>
             <p v-else class="response-empty">
-              {{ awaitingPayment ? '你手里没有 Just Say No，请选择支付。' : '你手里没有 Just Say No，自动接受。' }}
+              {{ awaitingPayment ? t('noJsnPay') : t('noJsnAccept') }}
             </p>
             <div v-if="awaitingPayment" class="payment-list">
               <button v-for="card in paymentCards" :key="card.id" :class="{ picked: paymentSelection.has(card.id) }" @click="togglePayment(card.id)">
@@ -1518,8 +1895,8 @@ onBeforeUnmount(() => {
               </button>
             </div>
             <div class="payment-actions">
-              <button class="primary small" @click="autoPayRent" :disabled="actionBusy">{{ awaitingPayment ? '自动支付' : '放弃响应' }}</button>
-              <button v-if="awaitingPayment" class="secondary small" @click="confirmPayRent" :disabled="actionBusy">按所选支付</button>
+              <button class="primary small" @click="autoPayRent" :disabled="actionBusy">{{ awaitingPayment ? t('autoPay') : t('passResponse') }}</button>
+              <button v-if="awaitingPayment" class="secondary small" @click="confirmPayRent" :disabled="actionBusy">{{ t('paySelected') }}</button>
             </div>
           </div>
         </div>
@@ -1529,7 +1906,7 @@ onBeforeUnmount(() => {
     <div v-if="optionSheet" class="modal-backdrop" @click.self="optionSheet = null">
       <section class="option-modal">
         <h2>{{ optionSheet.title }}</h2>
-        <p>选择一个合法目标 / 参数</p>
+        <p>{{ t('chooseLegalOption') }}</p>
         <button v-for="(option, index) in optionSheet.options" :key="index" @click="playWithOption(option)">
           {{ optionLabel(option) }}
         </button>
@@ -1539,14 +1916,14 @@ onBeforeUnmount(() => {
     <div v-if="wildReassignSheet" class="modal-backdrop" @click.self="wildReassignSheet = null">
       <section class="option-modal">
         <h2>{{ wildReassignSheet.title }}</h2>
-        <p>选择这张万能房产当前计入哪个颜色。</p>
+        <p>{{ t('chooseWildColor') }}</p>
         <button
           v-for="color in wildReassignSheet.options"
           :key="color"
           :class="{ picked: color === wildReassignSheet.current }"
           @click="reassignWildColor(color)"
         >
-          {{ colorName(color) }}{{ color === wildReassignSheet.current ? '（当前）' : '' }}
+          {{ colorName(color) }}{{ color === wildReassignSheet.current ? ` (${t('current')})` : '' }}
         </button>
       </section>
     </div>
@@ -1559,12 +1936,12 @@ onBeforeUnmount(() => {
         <small v-if="gameResult.summary">{{ gameResult.summary }}</small>
         <div class="result-stats">
           <span v-for="player in players" :key="player.playerId">
-            {{ player.displayName || player.playerId }} · {{ player.completePropertySets || 0 }}/3 套
+            {{ player.displayName || player.playerId }} · {{ t('setsSummary', { sets: player.completePropertySets || 0 }) }}
           </span>
         </div>
         <div class="result-actions">
-          <button class="primary small" @click="backToSetupAfterGameOver">回设置</button>
-          <button class="secondary small" @click="dismissGameOver">关闭结果</button>
+          <button class="primary small" @click="backToSetupAfterGameOver">{{ t('backSetup') }}</button>
+          <button class="secondary small" @click="dismissGameOver">{{ t('closeResult') }}</button>
         </div>
       </section>
     </div>

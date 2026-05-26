@@ -121,6 +121,64 @@ select:focus {
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
 }
 
+.start-info {
+  width: min(900px, 92vw);
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  color: #243023;
+  background: rgba(249, 244, 220, 0.96);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.28);
+}
+
+.info-tabs {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 14px;
+  background: rgba(36, 83, 56, 0.1);
+}
+
+.info-tabs button {
+  min-height: 40px;
+  padding: 9px 12px;
+  color: #2f2515;
+  background: rgba(255, 255, 255, 0.56);
+  text-align: left;
+}
+
+.info-tabs button.active {
+  color: #fff8d8;
+  background: #245338;
+}
+
+.info-copy {
+  min-height: 158px;
+  padding: 16px 20px;
+}
+
+.info-copy h2 {
+  margin: 0 0 9px;
+  color: #c62828;
+  font-size: 18px;
+}
+
+.info-copy ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.info-copy li {
+  color: #3f4d38;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.45;
+}
+
 .setup-panel label {
   display: grid;
   gap: 6px;
@@ -209,7 +267,7 @@ select:focus {
 .top-hud {
   min-height: 74px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 12px;
   border-radius: 14px;
@@ -218,6 +276,13 @@ select:focus {
   background: rgba(249, 244, 220, 0.96);
   color: #1b2228;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.language-mini {
+  width: 86px;
+  padding: 8px 9px;
+  font-size: 12px;
+  font-weight: 850;
 }
 
 .brand-small {

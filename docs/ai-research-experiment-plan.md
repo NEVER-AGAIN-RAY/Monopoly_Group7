@@ -22,10 +22,10 @@ The practical question is not whether a small model can generate valid game text
 - Rows: 1k-5k
 - Goal: verify legal-state generation, JSONL validation, feature extraction, MPS training, Java inference, and JSON gameplay evaluation.
 - Current evidence:
-  - `data/distillation/local-enhanced-20260524.jsonl`
-  - `models/distillation/local-enhanced-20260524-multiseed-quality_gate.md`
-  - `models/distillation/local-enhanced-20260524-multiseed-seed_summary.md`
-  - `models/distillation/local-enhanced-20260524-multiseed-gameplay-matrix-smoke/summary.md`
+  - `training/data/distillation/local-enhanced-20260524.jsonl`
+  - `backend/models/distillation/local-enhanced-20260524-multiseed-quality_gate.md`
+  - `backend/models/distillation/local-enhanced-20260524-multiseed-seed_summary.md`
+  - `backend/models/distillation/local-enhanced-20260524-multiseed-gameplay-matrix-smoke/summary.md`
 
 The local teacher is a deterministic rule scorer. It rewards property completion, Deal Breaker, Forced Deal, steal actions, rent/debt expected payment, low-overpay payment choices, and low-opportunity-cost discards. This makes it useful for repeatable smoke tests and cheap pretraining, but it is not a high-quality strategic oracle. A local-student win-rate gap against the hard heuristic is expected and should be reported as a limitation, not hidden.
 
@@ -34,7 +34,7 @@ The local teacher is a deterministic rule scorer. It rewards property completion
 - Teacher: `deepseek`
 - Rows: at least 5k
 - Player counts: 2,3,4,5 mixed
-- Required report: `models/distillation/deepseek-run1-quality_report.md`
+- Required report: `backend/models/distillation/deepseek-run1-quality_report.md`
 - Gate: at least 95% `deepseek` rows, all four decision kinds present, validation top-1 above first/random baseline.
 
 ### Stage 2: Scaling Curve
@@ -46,7 +46,7 @@ Train the same model family at these row counts:
 - 20k
 - 100k
 
-Use `scripts/make_scaling_subsets.py` to create deterministic cumulative subsets from one paid trace. This avoids paying DeepSeek again for each curve point and makes the curve reproducible.
+Use `training/scripts/make_scaling_subsets.py` to create deterministic cumulative subsets from one paid trace. This avoids paying DeepSeek again for each curve point and makes the curve reproducible.
 
 For each checkpoint, record:
 
@@ -87,7 +87,7 @@ Recommended gameplay protocol:
 - For each player count, evaluate against `easy`, `normal`, and `hard` opponent strategies.
 - Use at least 50 games for a cheap checkpoint and 200+ games for a reportable result.
 - Record both natural wins and force-end reasons, because snapshot-limit games should not be counted as real wins.
-- Use `scripts/evaluate_gameplay_matrix.sh` to run the matrix and `summary.md` for report tables.
+- Use `training/scripts/evaluate_gameplay_matrix.sh` to run the matrix and `summary.md` for report tables.
 
 Current pilot matrix:
 
@@ -97,9 +97,9 @@ MONOPOLY_MATRIX_SNAPSHOTS=260 \
 MONOPOLY_MATRIX_PLAYERS=2,3,4 \
 MONOPOLY_MATRIX_OPPONENTS=easy,normal,hard \
 MONOPOLY_MATRIX_SEATS=1 \
-scripts/evaluate_gameplay_matrix.sh \
-  models/distillation/local-enhanced-20260524-multiseed-seed73-mlp/candidate_ranker_mlp.json \
-  models/distillation/local-enhanced-20260524-multiseed-gameplay-matrix-smoke
+training/scripts/evaluate_gameplay_matrix.sh \
+  backend/models/distillation/local-enhanced-20260524-multiseed-seed73-mlp/candidate_ranker_mlp.json \
+  backend/models/distillation/local-enhanced-20260524-multiseed-gameplay-matrix-smoke
 ```
 
 Result: 9 conditions, 18 games requested, 14 natural completions, ranker win rate 0.278, average ranker board rank 1.89. The 2-player cells look much stronger than the 3-player and 4-player cells, so player-count generalization is a real risk to test after DeepSeek labels.
@@ -107,22 +107,22 @@ Result: 9 conditions, 18 games requested, 14 natural completions, ranker win rat
 Quality gate:
 
 ```bash
-python3 scripts/check_ai_quality_gate.py --require local
+python3 training/scripts/check_ai_quality_gate.py --require local
 ```
 
 Current gate status is `local-training-ready`: local training and handoff are valid, but production and paper evidence gates are intentionally false. A production dataset must pass:
 
 ```bash
-python3 scripts/check_ai_quality_gate.py \
-  --production-prefix models/distillation/deepseek-run1 \
+python3 training/scripts/check_ai_quality_gate.py \
+  --production-prefix backend/models/distillation/deepseek-run1 \
   --require production
 ```
 
 Paper-strength evidence must pass:
 
 ```bash
-python3 scripts/check_ai_quality_gate.py \
-  --production-prefix models/distillation/deepseek-run1 \
+python3 training/scripts/check_ai_quality_gate.py \
+  --production-prefix backend/models/distillation/deepseek-run1 \
   --require paper
 ```
 

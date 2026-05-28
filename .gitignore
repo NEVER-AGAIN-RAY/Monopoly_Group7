@@ -6,6 +6,7 @@
 
 # --- Maven (如果你打算用它管理项目) ---
 target/
+backend/target/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -14,8 +15,8 @@ release.properties
 
 # --- Node / Vite frontend ---
 node_modules/
-web-client/node_modules/
-web-client/dist/
+frontend/node_modules/
+frontend/dist/
 
 # --- Gradle (如果你用 Gradle) ---
 .gradle/
@@ -37,17 +38,27 @@ bin/
 .DS_Store
 Thumbs.db
 
-# User-imported raw card scans copied into web-client/public/cards/
+# User-imported raw card scans copied into frontend/public/cards/
 pictures/
 
 # Local AI battle experiment output
 AI_BATTLE_LOG.md
 AI_BATTLE_RUNNER.out
-models/evaluation/
+training/data/models/evaluation/
 
-# Local distillation datasets and trained model artifacts
-data/distillation/*.jsonl
-models/distillation/
+# Local distillation datasets and generated training artifacts
+/data/
+/models/
+/training/data/
+training/data/models/selfplay/
+training/data/models/traces/
+
+# Keep runtime ranker checkpoints under backend/models; ignore generated reports
+# and bulky handoff archives by default.
+/backend/models/**/*
+!/backend/models/**/
+!/backend/models/**/candidate_ranker*.json
+!/backend/models/**/candidate_ranker*.pt
 
 # Local secrets
 .env

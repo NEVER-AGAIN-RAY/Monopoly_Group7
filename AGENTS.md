@@ -20,6 +20,9 @@ mvn -q exec:java
 # Start JavaFX desktop client (requires server running)
 mvn javafx:run
 
+# Build Web/Vite frontend
+npm run build --prefix frontend
+
 # Quick connectivity test
 wscat -c ws://localhost:8025/ws
 # Send: {"type":"PING","payload":{}}
@@ -38,6 +41,13 @@ wscat -c ws://localhost:8025/ws
 ## Architecture
 
 **Stack**: Java 17, Maven 3.9+, Gson, Tyrus (Jakarta WebSocket), JavaFX + FXML, JUnit 5.
+
+**Repository layout**: Java backend and JavaFX sources live under `backend/src/`;
+runtime local ranker checkpoints live under `backend/models/`; the Vite/Vue web
+client lives under `frontend/`; training and evaluation utilities live under
+`training/scripts/`; generated training data, traces, reports, and old large
+experiment artifacts live under `training/data/` and are intentionally ignored
+by Git.
 
 **Topology**: The server is a single-process WebSocket server (`WsServerMain` → Tyrus/Grizzly on port 8025). The JavaFX client (`MonopolyFxApp`) connects as a WebSocket client. Both can run on the same machine. The communication protocol is JSON envelopes over WebSocket text frames (see `docs/interface/websocket-protocol.md`).
 

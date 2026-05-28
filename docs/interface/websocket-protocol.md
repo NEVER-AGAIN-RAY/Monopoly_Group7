@@ -19,6 +19,12 @@ Implemented message types:
 
 - `AUTH`
 - `JOIN_SESSION`
+- `ROOM_LIST`
+- `CREATE_ROOM`
+- `JOIN_ROOM`
+- `ROOM_SET_SEAT`
+- `LEAVE_ROOM`
+- `START_ROOM`
 - `START_SESSION`
 - `PAUSE`
 - `PAUSE_REQUEST`
@@ -53,15 +59,22 @@ Minimum required flow coverage:
 
 | Mode | Seats |
 | ---- | ----- |
-| `HVM` | `human-1`, then local AI seats using `aiDifficulty` (`EASY` / `NORMAL` / `HARD`) |
+| `HVM` | `human-1`, then local AI seats using `aiDifficulty` (`EASY` / `NORMAL` / `HARD` / `STRONG`) |
 | `PVP` | all human seats: `pvp-1`, `pvp-2`, ... |
 | `LLM` | `human-1`, then DeepSeek AI seats |
 | `AI_VS_AI` | all DeepSeek AI seats |
 | `CUSTOM` | explicit mixed lineup |
 
+`STRONG`, `LOOKAHEAD`, and `SEARCH` all select the same strong local search AI;
+it does not call a remote LLM.
+
 `CUSTOM` accepts either `customLineup` as a comma/space separated string or
 `playerRoles` as an array. Supported roles are `human`, `easy`, `normal`,
-`hard`, and `llm` / `deepseek`. Example:
+`hard`, `lookahead` / `search` / `local_strong` / `strong`, `student` /
+`llm_student` / `local_ranker`, and `llm` / `deepseek`. `lookahead` / `strong`
+is the strong local search AI; `student` is the local distilled ranker and uses
+`-Dmonopoly.localRanker.modelPath=...` when provided, otherwise the bundled
+distillation model fallback. Example:
 
 ```json
 {
@@ -69,14 +82,47 @@ Minimum required flow coverage:
   "payload": {
     "sessionId": "friends-and-llm",
     "gameMode": "CUSTOM",
-    "customLineup": "human,human,llm,llm",
+    "customLineup": "human,human,lookahead,llm",
     "randomizeFirstPlayer": true
   }
 }
 ```
 
-For `CUSTOM`, human seats use `pvp-<seatNumber>` so two-human plus two-LLM games
+For `CUSTOM`, human seats use `pvp-<seatNumber>` so two-human plus AI mixed games
 use client player ids `pvp-1` and `pvp-2`. Ordinary `PVP` remains unchanged.
+
+### ROOM_LIST
+
+`ROOM_LIST` has an empty payload and can be sent before joining a game. The
+server returns `ROOM_LIST_RESULT` to the requester and also broadcasts it after
+sessions start or clients disconnect.
+
+```json
+{
+  "type": "ROOM_LIST",
+  "payload": {}
+}
+```
+
+`ROOM_LIST_RESULT.payload.rooms[]` contains `sessionId`, `seatCount`,
+`humanSeats`, `connectedPlayers`, `connections`, `started`, and
+`currentPlayerId`.
+
+### Lobby Rooms
+
+The web lobby uses a pre-game room layer before `START_SESSION`.
+
+- `CREATE_ROOM.payload`: `sessionId`, `nickname`
+- `JOIN_ROOM.payload`: `sessionId`, `nickname`; nickname must be unique inside the room
+- `ROOM_SET_SEAT.payload`: `sessionId`, `seatIndex` (`0`-based), `role`, optional `nickname`; only the host can change seats
+- `LEAVE_ROOM.payload`: `sessionId`
+- `START_ROOM.payload`: `sessionId`, `randomizeFirstPlayer`
+
+`ROOM_STATE` is broadcast to the room after create/join/seat changes. Human
+seats can only reference nicknames that are already in `ROOM_STATE.members`.
+When the host starts the room, the server converts active lobby seats into a
+`CUSTOM` game and maps human seats to `pvp-1`, `pvp-2`, ... while preserving the
+selected nicknames as display names.
 
 ### DRAW
 
@@ -92,6 +138,9 @@ both piles are empty, the player draws as many cards as are available, possibly
 - `STATE_UPDATE` (broadcast state snapshot)
 - `MY_HAND` (private hand payload; see **MY_HAND card fields** below)
 - `AUTH_RESULT` (`ok: true/false`, includes error on failure)
+- `ROOM_LIST_RESULT` (lobby room listing)
+- `ROOM_STATE` (pre-game room members and seats)
+- `ROOM_ERROR` (`ok:false`, includes `error`)
 - `ACTION_OPTIONS_RESULT`（仅请求方连接收到；见下文）
 - `PLAY_OPTIONS_RESULT`（仅请求方连接收到；载荷形状与 `ACTION_OPTIONS_RESULT` 相同）
 - `SAVE_GAME_RESULT` (`ok: true/false`, optional `error`)

@@ -6,8 +6,8 @@ A paid DeepSeek relabel run has completed for the enhanced local legal-candidate
 
 Primary trace and prefix:
 
-- Trace: `data/distillation/deepseek-production-20260524/merged-full-plus-direct-8940.jsonl`
-- Prefix: `models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940`
+- Trace: `training/data/distillation/deepseek-production-20260524/merged-full-plus-direct-8940.jsonl`
+- Prefix: `backend/models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940`
 
 Result:
 
@@ -21,7 +21,7 @@ Result:
 - Gameplay vs hard: 20 games, ranker win rate 0.300, average board rank 2.10
 - Estimated cost from recorded usage and configured prices: 1.498805
 
-The relabel run isolated one problem row in `models/distillation/deepseek-production-20260524/full-relabel-6372-problem-ids.jsonl` rather than allowing local fallback labels into the production trace.
+The relabel run isolated one problem row in `backend/models/distillation/deepseek-production-20260524/full-relabel-6372-problem-ids.jsonl` rather than allowing local fallback labels into the production trace.
 
 ## Practical Run Levels
 
@@ -55,9 +55,9 @@ Do not spend heavily until the quality report shows at least 95% `deepseek` rows
 After a paid trace exists, build the scaling curve from subsets of that same trace rather than making new DeepSeek calls for every curve point:
 
 ```bash
-python3 scripts/make_scaling_subsets.py \
-  data/distillation/deepseek-run1.jsonl \
-  --output-dir models/distillation/deepseek-run1-subsets \
+python3 training/scripts/make_scaling_subsets.py \
+  training/data/distillation/deepseek-run1.jsonl \
+  --output-dir backend/models/distillation/deepseek-run1-subsets \
   --sizes 1000,5000,20000,100000 \
   --prefix deepseek-run1
 ```
@@ -77,14 +77,14 @@ Use the prices shown in the DeepSeek account dashboard at run time. Do not hard-
 The helper command is:
 
 ```bash
-scripts/estimate_deepseek_cost.py \
-  models/distillation/deepseek-run1-dataset_manifest.json \
+training/scripts/estimate_deepseek_cost.py \
+  backend/models/distillation/deepseek-run1-dataset_manifest.json \
   --prompt-price-per-million <dashboard-prompt-price> \
   --completion-price-per-million <dashboard-completion-price> \
   --target-labels 100000
 ```
 
-Use `scripts/preflight_paid_collection.sh data/distillation/deepseek-run1.jsonl` before spending tokens. It fails fast when the key is absent or the trace path would accidentally reuse an old file.
+Use `training/scripts/preflight_paid_collection.sh training/data/distillation/deepseek-run1.jsonl` before spending tokens. It fails fast when the key is absent or the trace path would accidentally reuse an old file.
 
 Run a small paid probe before overnight collection:
 
@@ -92,9 +92,9 @@ Run a small paid probe before overnight collection:
 DEEPSEEK_API_KEY=... \
 MONOPOLY_PROMPT_PRICE_PER_MILLION=<dashboard-prompt-price> \
 MONOPOLY_COMPLETION_PRICE_PER_MILLION=<dashboard-completion-price> \
-scripts/run_paid_probe.sh \
-  data/distillation/deepseek-probe-run1.jsonl \
-  models/distillation/deepseek-probe-run1
+training/scripts/run_paid_probe.sh \
+  training/data/distillation/deepseek-probe-run1.jsonl \
+  backend/models/distillation/deepseek-probe-run1
 ```
 
 Scale only if the probe report shows mostly `deepseek` rows, no severe fallback issue, and acceptable projected cost.
@@ -104,10 +104,10 @@ When a local trace already has useful legal-state coverage, use offline relabeli
 
 ```bash
 DEEPSEEK_API_KEY=... \
-scripts/run_relabel_paid_probe.sh \
-  data/distillation/local-enhanced-20260524.jsonl \
-  data/distillation/deepseek-relabel-probe.jsonl \
-  models/distillation/deepseek-relabel-probe
+training/scripts/run_relabel_paid_probe.sh \
+  training/data/distillation/local-enhanced-20260524.jsonl \
+  training/data/distillation/deepseek-relabel-probe.jsonl \
+  backend/models/distillation/deepseek-relabel-probe
 ```
 
 Lower-level equivalent:
@@ -116,10 +116,10 @@ Lower-level equivalent:
 DEEPSEEK_API_KEY=... \
 MONOPOLY_RELABEL_SELECT=true \
 MONOPOLY_RELABEL_MAX_BY_KIND=PLAY_CARD:250,PAYMENT:120,JUST_SAY_NO:80,OVERFLOW_DISCARD:50 \
-scripts/relabel_distillation_trace.sh \
-  data/distillation/local-enhanced-20260524.jsonl \
-  data/distillation/deepseek-relabel-probe.jsonl \
-  models/distillation/deepseek-relabel-probe
+training/scripts/relabel_distillation_trace.sh \
+  training/data/distillation/local-enhanced-20260524.jsonl \
+  training/data/distillation/deepseek-relabel-probe.jsonl \
+  backend/models/distillation/deepseek-relabel-probe
 ```
 
 This spends tokens only on labeling existing candidates. The enhanced local trace is the preferred relabel source because it has 6372 backend-legal decisions and clears the local rare-kind floor. The selector keeps the probe representative enough to inspect rare response decisions and writes a selection report before paid relabeling. It is good for a fast probe, but production readiness still depends on the relabeled trace passing the same DeepSeek source, token-usage, row-count, and rare-kind gates.
@@ -131,12 +131,12 @@ DEEPSEEK_API_KEY=... \
 MONOPOLY_PRODUCTION_RUN_ID=deepseek-run1 \
 MONOPOLY_PROMPT_PRICE_PER_MILLION=<dashboard-prompt-price> \
 MONOPOLY_COMPLETION_PRICE_PER_MILLION=<dashboard-completion-price> \
-scripts/run_deepseek_production_pipeline.sh
+training/scripts/run_deepseek_production_pipeline.sh
 
 DEEPSEEK_API_KEY=... \
 MONOPOLY_PRODUCTION_RUN_ID=deepseek-run1 \
 MONOPOLY_PAID_CONFIRM=run-paid-overnight \
-scripts/run_deepseek_production_pipeline.sh
+training/scripts/run_deepseek_production_pipeline.sh
 ```
 
 The first command runs only the paid probe and then exits. The second command reuses the probe, runs the larger collection, merges traces, audits the merged trace, trains the students, checks production readiness, and packages artifacts.
@@ -144,11 +144,11 @@ The first command runs only the paid probe and then exits. The second command re
 After training, use readiness as the handoff decision:
 
 ```bash
-python3 scripts/check_training_readiness.py \
-  data/distillation/deepseek-run1.jsonl \
-  models/distillation/deepseek-run1 \
+python3 training/scripts/check_training_readiness.py \
+  training/data/distillation/deepseek-run1.jsonl \
+  backend/models/distillation/deepseek-run1 \
   --mode production \
-  --output models/distillation/deepseek-run1-readiness.json
+  --output backend/models/distillation/deepseek-run1-readiness.json
 ```
 
 Do not call a run production-ready unless this report has `"ready": true`. A local heuristic run may pass `--mode local`, but that only proves the pipeline and does not count as high-quality DeepSeek training data.
@@ -156,11 +156,11 @@ Do not call a run production-ready unless this report has `"ready": true`. A loc
 If several probe or overnight traces were collected separately, merge them before cost reporting, scaling subsets, and training:
 
 ```bash
-python3 scripts/merge_distillation_traces.py \
-  data/distillation/deepseek-probe-run*.jsonl \
+python3 training/scripts/merge_distillation_traces.py \
+  training/data/distillation/deepseek-probe-run*.jsonl \
   --include-sources deepseek \
-  --output data/distillation/deepseek-merged.jsonl \
-  --report models/distillation/deepseek-merged-trace_merge.json
+  --output training/data/distillation/deepseek-merged.jsonl \
+  --report backend/models/distillation/deepseek-merged-trace_merge.json
 ```
 
 Keep the default conflict policy. A conflicting duplicate `decisionId` means two labels claim to answer the same backend decision, so the merged training set should stop until that source trace is inspected.
@@ -177,9 +177,9 @@ MONOPOLY_MIN_TRAIN_ROWS=5000 \
 MONOPOLY_TRAIN_EPOCHS=20 \
 MONOPOLY_EVAL_GAMES=50 \
 MONOPOLY_EVAL_OPPONENT_STRATEGY=hard \
-scripts/overnight_distillation_run.sh \
-  data/distillation/deepseek-overnight.jsonl \
-  models/distillation/deepseek-overnight
+training/scripts/overnight_distillation_run.sh \
+  training/data/distillation/deepseek-overnight.jsonl \
+  backend/models/distillation/deepseek-overnight
 ```
 
 If no key is set, this command falls back to local heuristic data. That is useful for dry-runs only.
@@ -204,8 +204,8 @@ Minimum reportable gameplay result: 50 games per cell. Better: 200 games per cel
 
 Current local pilot matrix:
 
-- Model: `models/distillation/local-enhanced-20260524-multiseed-seed73-mlp/candidate_ranker_mlp.json`
-- Output: `models/distillation/local-enhanced-20260524-multiseed-gameplay-matrix-smoke/summary.md`
+- Model: `backend/models/distillation/local-enhanced-20260524-multiseed-seed73-mlp/candidate_ranker_mlp.json`
+- Output: `backend/models/distillation/local-enhanced-20260524-multiseed-gameplay-matrix-smoke/summary.md`
 - Conditions: 2/3/4 players x easy/normal/hard, ranker seat 1, 2 games per cell
 - Games requested: 18
 - Natural completions: 14
@@ -221,9 +221,9 @@ MONOPOLY_MATRIX_SNAPSHOTS=500 \
 MONOPOLY_MATRIX_PLAYERS=2,3,4,5 \
 MONOPOLY_MATRIX_OPPONENTS=easy,normal,hard \
 MONOPOLY_MATRIX_SEATS=1 \
-scripts/evaluate_gameplay_matrix.sh \
-  models/distillation/deepseek-run1-mlp/candidate_ranker_mlp.json \
-  models/distillation/deepseek-run1-gameplay-matrix
+training/scripts/evaluate_gameplay_matrix.sh \
+  backend/models/distillation/deepseek-run1-mlp/candidate_ranker_mlp.json \
+  backend/models/distillation/deepseek-run1-gameplay-matrix
 ```
 
 ## Research Framing

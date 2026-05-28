@@ -1,7 +1,0 @@
-[ERROR] Failed to execute goal org.codehaus.mojo:exec-maven-plugin:3.5.0:java (default-cli) on project monopoly-deal-server: An exception occurred while executing the Java class. teacher result source local_fallback_missing does not match required source deepseek for sim-1779581165904-g39-ai-4-PLAY_CARD-3018 -> [Help 1]
-[ERROR]
-[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
-[ERROR] Re-run Maven using the -X switch to enable full debug logging.
-[ERROR]
-[ERROR] For more information about the errors and possible solutions, please read the following articles:
-[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException

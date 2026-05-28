@@ -19,8 +19,8 @@ For the current handoff status, artifact paths, and production completion gate, 
 5. `DecisionBroker` collects decisions across games into micro-batches.
 6. `DeepSeekBatchDecisionTeacher` can label a whole micro-batch with one DeepSeek request.
 7. `JsonlDecisionTraceSink` writes one JSONL row per labeled decision.
-8. `scripts/distill_dataset.py` validates JSONL, extracts candidate features, trains a PyTorch ranker, and reports metrics.
-9. `LocalRankerAiPlayStrategy` loads the exported Java JSON model and ranks the same four decision kinds during backend gameplay.
+8. `training/scripts/distill_dataset.py` validates JSONL, extracts candidate features, trains a PyTorch ranker, and reports metrics.
+9. `LocalRankerAiPlayStrategy` loads the exported Java JSON model. The current safe runtime default ranks only `PLAY_CARD`; `PAYMENT`, `JUST_SAY_NO`, and `OVERFLOW_DISCARD` use the existing hard fallback unless `-Dmonopoly.localRanker.rankAuxiliaryDecisions=true` is enabled for an experiment.
 
 The normal WebSocket server also supports multiple active `sessionId` values in one process. Each session maps to its own `GameController`; state broadcasts and private hand updates are scoped to the matching session connections. This is separate from the offline simulator, but it confirms that the backend architecture does not require one JVM per game.
 Save/load votes are also session-scoped, so one busy backend can run many independent collection or play rooms without sharing pending confirmation state.
@@ -59,7 +59,7 @@ The first production model is a candidate ranker, not a language model:
 - Output: scalar score.
 - Inference: score all backend-legal candidates and choose the highest.
 - Loss: weighted binary cross entropy over teacher-positive vs teacher-negative candidates.
-- Default balancing: `scripts/train_distilled_rankers.sh` enables decision-kind loss balancing for MLP and linear students. Rare kinds get a capped `sqrt(max_kind_count / kind_count)` multiplier, default cap `4.0`, so `JUST_SAY_NO`, `PAYMENT`, and `OVERFLOW_DISCARD` are not drowned by common `PLAY_CARD` rows. Set `MONOPOLY_TRAIN_BALANCE_BY_KIND=false` to disable this for ablations.
+- Default balancing: `training/scripts/train_distilled_rankers.sh` enables decision-kind loss balancing for MLP and linear students. Rare kinds get a capped `sqrt(max_kind_count / kind_count)` multiplier, default cap `4.0`, so `JUST_SAY_NO`, `PAYMENT`, and `OVERFLOW_DISCARD` are not drowned by common `PLAY_CARD` rows. Set `MONOPOLY_TRAIN_BALANCE_BY_KIND=false` to disable this for ablations.
 - Metrics:
   - Top-1 imitation accuracy by decision.
   - MRR by decision.
@@ -74,7 +74,7 @@ Two student formats are supported:
 - KNN nearest-neighbor baseline (`--model-type knn`): no Java runtime export, but useful as a non-neural offline comparison for reports and paper-style ablations.
 - Forest-style bagged linear baseline (`--model-type forest`): no Java runtime export and no sklearn dependency; useful as a traditional model-family comparator alongside KNN.
 
-Both Java formats are constrained to backend-generated legal candidates. In gameplay they rank `PLAY_CARD`, `PAYMENT`, `JUST_SAY_NO`, and `OVERFLOW_DISCARD`; if inference fails, the strategy falls back to the existing hard heuristic.
+Both Java formats are constrained to backend-generated legal candidates. In gameplay the current default ranks `PLAY_CARD` only, because the latest lookahead-student checkpoints were trained on play-card labels. Auxiliary decision ranking is still implemented, but it is disabled by default and should only be enabled for models trained and validated on those decision kinds. If inference fails, the strategy falls back to the existing hard heuristic.
 
 ## Hardware Plan
 
@@ -95,15 +95,15 @@ Recommended overnight run:
 
 ```bash
 DEEPSEEK_API_KEY=... \
-scripts/overnight_distillation_run.sh \
-  data/distillation/deepseek-overnight.jsonl \
-  models/distillation/deepseek-overnight
+training/scripts/overnight_distillation_run.sh \
+  training/data/distillation/deepseek-overnight.jsonl \
+  backend/models/distillation/deepseek-overnight
 ```
 
 Before a paid run, use the preflight script:
 
 ```bash
-scripts/preflight_paid_collection.sh data/distillation/deepseek-run1.jsonl
+training/scripts/preflight_paid_collection.sh training/data/distillation/deepseek-run1.jsonl
 ```
 
 It checks the key, trace reuse policy, Python scripts, shell scripts, and targeted Java simulator tests before any large collection starts.
@@ -115,9 +115,9 @@ Recommended paid flow:
 DEEPSEEK_API_KEY=... \
 MONOPOLY_PROMPT_PRICE_PER_MILLION=<dashboard-prompt-price> \
 MONOPOLY_COMPLETION_PRICE_PER_MILLION=<dashboard-completion-price> \
-scripts/run_paid_probe.sh \
-  data/distillation/deepseek-probe-run1.jsonl \
-  models/distillation/deepseek-probe-run1
+training/scripts/run_paid_probe.sh \
+  training/data/distillation/deepseek-probe-run1.jsonl \
+  backend/models/distillation/deepseek-probe-run1
 
 # 2. Read the probe report and cost estimate.
 # 3. Only then scale to the overnight command.
@@ -129,10 +129,10 @@ Fast relabel path from an existing legal trace:
 
 ```bash
 DEEPSEEK_API_KEY=... \
-scripts/run_relabel_paid_probe.sh \
-  data/distillation/local-enhanced-20260524.jsonl \
-  data/distillation/deepseek-relabel-probe.jsonl \
-  models/distillation/deepseek-relabel-probe
+training/scripts/run_relabel_paid_probe.sh \
+  training/data/distillation/local-enhanced-20260524.jsonl \
+  training/data/distillation/deepseek-relabel-probe.jsonl \
+  backend/models/distillation/deepseek-relabel-probe
 ```
 
 Lower-level equivalent:
@@ -141,10 +141,10 @@ Lower-level equivalent:
 DEEPSEEK_API_KEY=... \
 MONOPOLY_RELABEL_SELECT=true \
 MONOPOLY_RELABEL_MAX_BY_KIND=PLAY_CARD:250,PAYMENT:120,JUST_SAY_NO:80,OVERFLOW_DISCARD:50 \
-scripts/relabel_distillation_trace.sh \
-  data/distillation/local-enhanced-20260524.jsonl \
-  data/distillation/deepseek-relabel-probe.jsonl \
-  models/distillation/deepseek-relabel-probe
+training/scripts/relabel_distillation_trace.sh \
+  training/data/distillation/local-enhanced-20260524.jsonl \
+  training/data/distillation/deepseek-relabel-probe.jsonl \
+  backend/models/distillation/deepseek-relabel-probe
 ```
 
 This reuses the saved backend-generated legal candidates and asks the paid teacher only for new labels. It is useful for a quick paid probe or for recovering value from a good local trace without rerunning simulation. Use `MONOPOLY_RELABEL_SELECT=true` plus `MONOPOLY_RELABEL_MAX_BY_KIND` so the probe selects a diverse subset across decision kinds, player counts, and sessions before spending tokens. The wrapper writes `<output-prefix>-selection_report.json` before relabeling. It writes a new JSONL path, refuses to overwrite by default, and requires every paid result row to have `result.metadata.source=deepseek`. If DeepSeek parsing falls back to the local teacher, the relabel run exits instead of silently producing mixed-source production data.
@@ -155,9 +155,9 @@ Multi-seed training replicates for report claims:
 MONOPOLY_SEEDS=11,42,73 \
 MONOPOLY_TRAIN_SOURCES=deepseek \
 MONOPOLY_MIN_TRAIN_ROWS=5000 \
-scripts/run_seed_replicates.sh \
-  data/distillation/deepseek-run1-merged.jsonl \
-  models/distillation/deepseek-run1
+training/scripts/run_seed_replicates.sh \
+  training/data/distillation/deepseek-run1-merged.jsonl \
+  backend/models/distillation/deepseek-run1
 ```
 
 This writes `<output-prefix>-seed_summary.md` and `.json`, aggregating top-1, MRR, baselines, board-rank metrics, and readiness across runs. Use this after a production-ready trace exists; for paper-facing claims, report mean and standard deviation or explicitly mark the result as single-seed.
@@ -169,7 +169,7 @@ DEEPSEEK_API_KEY=... \
 MONOPOLY_PRODUCTION_RUN_ID=deepseek-run1 \
 MONOPOLY_PROMPT_PRICE_PER_MILLION=<dashboard-prompt-price> \
 MONOPOLY_COMPLETION_PRICE_PER_MILLION=<dashboard-completion-price> \
-scripts/run_deepseek_production_pipeline.sh
+training/scripts/run_deepseek_production_pipeline.sh
 ```
 
 By default this stops after the paid probe. After reading the probe audit, quality report, and cost estimate, continue only with explicit confirmation:
@@ -178,7 +178,7 @@ By default this stops after the paid probe. After reading the probe audit, quali
 DEEPSEEK_API_KEY=... \
 MONOPOLY_PRODUCTION_RUN_ID=deepseek-run1 \
 MONOPOLY_PAID_CONFIRM=run-paid-overnight \
-scripts/run_deepseek_production_pipeline.sh
+training/scripts/run_deepseek_production_pipeline.sh
 ```
 
 The confirmed production wrapper collects the main trace, merges probe and main DeepSeek rows, audits the merged trace, trains students, runs readiness, and writes both artifact and Windows handoff archives. It exits non-zero unless production readiness passes.
@@ -188,7 +188,7 @@ If no key is present, the production wrapper exits before collection. Use the sm
 Smoke pipeline without DeepSeek cost:
 
 ```bash
-scripts/run_distillation_smoke.sh
+training/scripts/run_distillation_smoke.sh
 ```
 
 Smoke result on 2026-05-24 local Mac:
@@ -205,10 +205,10 @@ Smoke result on 2026-05-24 local Mac:
 - First-candidate baseline: 0.278.
 - Random expected top-1: 0.184.
 - Output artifacts:
-  - `data/distillation/smoke.jsonl` (ignored by Git)
-  - `models/distillation/smoke/candidate_ranker.pt` (ignored by Git)
-  - `models/distillation/smoke-linear/candidate_ranker_linear.json` (ignored by Git)
-  - `models/distillation/smoke/metrics.json` (ignored by Git)
+  - `training/data/distillation/smoke.jsonl` (ignored by Git)
+  - `backend/models/distillation/smoke/candidate_ranker.pt` (ignored by Git)
+  - `backend/models/distillation/smoke-linear/candidate_ranker_linear.json` (ignored by Git)
+  - `backend/models/distillation/smoke/metrics.json` (ignored by Git)
 
 Batch collect with DeepSeek:
 
@@ -223,7 +223,7 @@ mvn -q exec:java \
   -Dmonopoly.simulation.playerCounts=2,3,4,5 \
   -Dmonopoly.simulation.batchSize=32 \
   -Dmonopoly.simulation.maxByKind=PLAY_CARD:20000,PAYMENT:5000,JUST_SAY_NO:5000,OVERFLOW_DISCARD:5000 \
-  -Dmonopoly.simulation.tracePath=data/distillation/deepseek-200g.jsonl
+  -Dmonopoly.simulation.tracePath=training/data/distillation/deepseek-200g.jsonl
 ```
 
 `monopoly.simulation.maxByKind` is optional. It prevents common `PLAY_CARD` rows from consuming the whole paid budget before rarer `JUST_SAY_NO`, `PAYMENT`, and `OVERFLOW_DISCARD` choices are collected. Quota-full decisions still get a local fallback so the simulated game can continue; they are just not recorded or sent to the paid teacher.
@@ -233,9 +233,9 @@ Trace output defaults to `fail_if_exists`. This is intentional: reusing a JSONL 
 Train:
 
 ```bash
-scripts/train_distilled_rankers.sh \
-  data/distillation/deepseek-200g.jsonl \
-  models/distillation/deepseek-200g
+training/scripts/train_distilled_rankers.sh \
+  training/data/distillation/deepseek-200g.jsonl \
+  backend/models/distillation/deepseek-200g
 ```
 
 The training script validates DeepSeek-only rows, trains the MLP student, exports the Java-loadable linear student, runs a Java local-ranker battle smoke, emits JSON gameplay-evaluation metrics, writes quality reports, writes `<output-prefix>-trace_audit.json`, writes `<output-prefix>-readiness.json`, and writes a human-readable `<output-prefix>-run_summary.md`.
@@ -244,9 +244,9 @@ By default it uses a session-level validation split. For a generalization experi
 ```bash
 MONOPOLY_TRAIN_SPLIT_BY=player-count \
 MONOPOLY_VALIDATION_PLAYER_COUNTS=4,5 \
-scripts/train_distilled_rankers.sh \
-  data/distillation/deepseek-200g.jsonl \
-  models/distillation/deepseek-200g-generalization-45
+training/scripts/train_distilled_rankers.sh \
+  training/data/distillation/deepseek-200g.jsonl \
+  backend/models/distillation/deepseek-200g-generalization-45
 ```
 
 Validation is strict enough to catch common data corruption before training: duplicate visible card ids, mismatched actor/self/player metadata, candidate ids that diverge between request and prompt context, and candidate payloads that reference cards outside the legal source zone.
@@ -282,27 +282,27 @@ Every full training run also writes `<output-prefix>-readiness.json`. This is th
 Manual check:
 
 ```bash
-python3 scripts/check_training_readiness.py \
-  data/distillation/deepseek-run1.jsonl \
-  models/distillation/deepseek-run1 \
+python3 training/scripts/check_training_readiness.py \
+  training/data/distillation/deepseek-run1.jsonl \
+  backend/models/distillation/deepseek-run1 \
   --mode production \
-  --output models/distillation/deepseek-run1-readiness.json
+  --output backend/models/distillation/deepseek-run1-readiness.json
 ```
 
 When multiple paid probes, overnight runs, machines, or accounts produce separate traces, merge them before audit/training:
 
 ```bash
-python3 scripts/merge_distillation_traces.py \
-  data/distillation/deepseek-probe-*.jsonl \
+python3 training/scripts/merge_distillation_traces.py \
+  training/data/distillation/deepseek-probe-*.jsonl \
   --include-sources deepseek \
-  --output data/distillation/deepseek-merged.jsonl \
-  --report models/distillation/deepseek-merged-trace_merge.json
+  --output training/data/distillation/deepseek-merged.jsonl \
+  --report backend/models/distillation/deepseek-merged-trace_merge.json
 
-python3 scripts/audit_distillation_trace.py \
-  data/distillation/deepseek-merged.jsonl \
+python3 training/scripts/audit_distillation_trace.py \
+  training/data/distillation/deepseek-merged.jsonl \
   --preferred-source deepseek \
   --require-token-usage \
-  --output models/distillation/deepseek-merged-trace_audit.json
+  --output backend/models/distillation/deepseek-merged-trace_audit.json
 ```
 
 The merge script preserves raw JSONL rows and deduplicates by `request.decisionId`. Identical duplicate rows are skipped; conflicting duplicate rows stop the merge by default, because a single backend decision must not enter training with two labels.
@@ -310,9 +310,9 @@ The merge script preserves raw JSONL rows and deduplicates by `request.decisionI
 Generate label-efficiency subsets from one paid trace:
 
 ```bash
-python3 scripts/make_scaling_subsets.py \
-  data/distillation/deepseek-run1.jsonl \
-  --output-dir models/distillation/deepseek-run1-subsets \
+python3 training/scripts/make_scaling_subsets.py \
+  training/data/distillation/deepseek-run1.jsonl \
+  --output-dir backend/models/distillation/deepseek-run1-subsets \
   --sizes 1000,5000,20000,100000 \
   --prefix deepseek-run1
 ```
@@ -323,9 +323,9 @@ Train the full scaling curve:
 
 ```bash
 MONOPOLY_SCALING_SIZES=1000,5000,20000,100000 \
-scripts/run_scaling_curve.sh \
-  data/distillation/deepseek-run1.jsonl \
-  models/distillation/deepseek-run1-scaling
+training/scripts/run_scaling_curve.sh \
+  training/data/distillation/deepseek-run1.jsonl \
+  backend/models/distillation/deepseek-run1-scaling
 ```
 
 This does not spend more DeepSeek tokens. It reuses the one paid trace and trains multiple students.
@@ -333,8 +333,8 @@ This does not spend more DeepSeek tokens. It reuses the one paid trace and train
 Estimate paid-run cost after a probe:
 
 ```bash
-scripts/estimate_deepseek_cost.py \
-  models/distillation/deepseek-run1-dataset_manifest.json \
+training/scripts/estimate_deepseek_cost.py \
+  backend/models/distillation/deepseek-run1-dataset_manifest.json \
   --prompt-price-per-million <dashboard-prompt-price> \
   --completion-price-per-million <dashboard-completion-price> \
   --target-labels 100000
@@ -343,9 +343,9 @@ scripts/estimate_deepseek_cost.py \
 Package a completed run:
 
 ```bash
-scripts/package_distillation_artifacts.sh \
-  models/distillation/deepseek-run1 \
-  models/distillation/deepseek-run1-artifacts.tar.gz
+training/scripts/package_distillation_artifacts.sh \
+  backend/models/distillation/deepseek-run1 \
+  backend/models/distillation/deepseek-run1-artifacts.tar.gz
 ```
 
 The artifact archive includes the run summary, readiness report, and, when present, the trace audit.
@@ -353,10 +353,10 @@ The artifact archive includes the run summary, readiness report, and, when prese
 Package a trace and training scripts for a Windows 5090 machine:
 
 ```bash
-scripts/package_training_handoff.sh \
-  data/distillation/deepseek-run1.jsonl \
-  models/distillation/deepseek-run1 \
-  models/distillation/deepseek-run1-training-handoff.tar.gz
+training/scripts/package_training_handoff.sh \
+  training/data/distillation/deepseek-run1.jsonl \
+  backend/models/distillation/deepseek-run1 \
+  backend/models/distillation/deepseek-run1-training-handoff.tar.gz
 ```
 
 The handoff archive includes the trace, training/evaluation scripts, run summary, quality report, readiness report, and trace audit when available. Treat a DeepSeek handoff as production-ready only when `<output-prefix>-readiness.json` reports `"mode": "production"` and `"ready": true`.
@@ -370,9 +370,9 @@ Paper framing, related-work mapping, and publishable experiment tables live in `
 Train only a Java-loadable linear student manually:
 
 ```bash
-python3 scripts/distill_dataset.py \
-  data/distillation/deepseek-200g.jsonl \
-  --output-dir models/distillation/deepseek-200g-linear \
+python3 training/scripts/distill_dataset.py \
+  training/data/distillation/deepseek-200g.jsonl \
+  --output-dir backend/models/distillation/deepseek-200g-linear \
   --include-sources deepseek \
   --model-type linear \
   --epochs 30
@@ -381,21 +381,21 @@ python3 scripts/distill_dataset.py \
 Evaluate the Java local ranker in real backend battles:
 
 ```bash
-scripts/evaluate_local_ranker.sh \
-  models/distillation/deepseek-200g-mlp/candidate_ranker_mlp.json \
+training/scripts/evaluate_local_ranker.sh \
+  backend/models/distillation/deepseek-200g-mlp/candidate_ranker_mlp.json \
   3 \
   500
 
-scripts/evaluate_distilled_ranker.sh \
-  models/distillation/deepseek-200g-mlp/candidate_ranker_mlp.json \
+training/scripts/evaluate_distilled_ranker.sh \
+  backend/models/distillation/deepseek-200g-mlp/candidate_ranker_mlp.json \
   50 \
   3 \
   500
 
 MONOPOLY_EVAL_OPPONENT_STRATEGY=hard \
 MONOPOLY_EVAL_RANKER_SEAT=1 \
-scripts/evaluate_distilled_ranker.sh \
-  models/distillation/deepseek-200g-mlp/candidate_ranker_mlp.json \
+training/scripts/evaluate_distilled_ranker.sh \
+  backend/models/distillation/deepseek-200g-mlp/candidate_ranker_mlp.json \
   50 \
   3 \
   500
@@ -409,9 +409,9 @@ MONOPOLY_MATRIX_SNAPSHOTS=500 \
 MONOPOLY_MATRIX_PLAYERS=2,3,4,5 \
 MONOPOLY_MATRIX_OPPONENTS=easy,normal,hard \
 MONOPOLY_MATRIX_SEATS=1 \
-scripts/evaluate_gameplay_matrix.sh \
-  models/distillation/deepseek-200g-mlp/candidate_ranker_mlp.json \
-  models/distillation/deepseek-200g-gameplay-matrix
+training/scripts/evaluate_gameplay_matrix.sh \
+  backend/models/distillation/deepseek-200g-mlp/candidate_ranker_mlp.json \
+  backend/models/distillation/deepseek-200g-gameplay-matrix
 ```
 
 This writes one JSON file per condition plus `summary.json` and `summary.md`, grouped by opponent and player count.
@@ -444,25 +444,25 @@ mvn -q compile exec:java \
   -Dmonopoly.simulation.batchSize=24 \
   -Dmonopoly.simulation.batchWaitMs=50 \
   -Dmonopoly.simulation.runtimeSeconds=20 \
-  -Dmonopoly.simulation.tracePath=data/distillation/local-heuristic-baseline.jsonl
+  -Dmonopoly.simulation.tracePath=training/data/distillation/local-heuristic-baseline.jsonl
 
 MONOPOLY_MIN_TRAIN_ROWS=1000 \
 MONOPOLY_TRAIN_SOURCES=local_heuristic \
 MONOPOLY_TRAIN_EPOCHS=12 \
 MONOPOLY_EVAL_GAMES=10 \
 MONOPOLY_EVAL_SNAPSHOTS=180 \
-scripts/train_distilled_rankers.sh \
-  data/distillation/local-heuristic-baseline.jsonl \
-  models/distillation/local-heuristic-baseline
+training/scripts/train_distilled_rankers.sh \
+  training/data/distillation/local-heuristic-baseline.jsonl \
+  backend/models/distillation/local-heuristic-baseline
 ```
 
 For ablations:
 
 ```bash
 MONOPOLY_TRAIN_BALANCE_BY_KIND=false \
-scripts/train_distilled_rankers.sh \
-  data/distillation/local-heuristic-baseline.jsonl \
-  models/distillation/local-heuristic-baseline-unbalanced
+training/scripts/train_distilled_rankers.sh \
+  training/data/distillation/local-heuristic-baseline.jsonl \
+  backend/models/distillation/local-heuristic-baseline-unbalanced
 ```
 
 ## Evaluation Plan

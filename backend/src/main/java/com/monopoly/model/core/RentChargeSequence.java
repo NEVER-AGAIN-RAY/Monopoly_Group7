@@ -13,7 +13,7 @@ public final class RentChargeSequence {
     private final String colorKey;
     private final int amountDuePerTenant;
     private final List<String> tenantIdsOrdered;
-    /** 当前正在/刚结束响应的承租人在列表中的下标。 */
+    /** Index of the tenant currently responding, or the tenant whose response just resolved. */
     private int currentIndex;
 
     public RentChargeSequence(
@@ -65,7 +65,7 @@ public final class RentChargeSequence {
         return currentIndex;
     }
 
-    /** 当前轮次应付的承租人（与栈顶收租条目一致）。 */
+    /** Tenant due for the current step; this should match the top rent entry. */
     public String getCurrentTenantId() {
         if (currentIndex < 0 || currentIndex >= tenantIdsOrdered.size()) {
             return null;
@@ -73,7 +73,7 @@ public final class RentChargeSequence {
         return tenantIdsOrdered.get(currentIndex);
     }
 
-    /** 本轮结算完成后调用：移向下一名；若已无则返回 false。 */
+    /** Advance after the current tenant settles; returns false when no tenants remain. */
     public boolean advanceToNextTenant() {
         currentIndex++;
         return currentIndex < tenantIdsOrdered.size();

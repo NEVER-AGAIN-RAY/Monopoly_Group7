@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * Monopoly Deal 桌面客户端入口（JavaFX + FXML）。
+ * JavaFX/FXML entry point for the Monopoly Deal desktop client.
  */
 public class MonopolyFxApp extends Application {
 

@@ -1,6 +1,7 @@
 package com.monopoly.model;
 
 import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.card.PropertyWildCard;
 import com.monopoly.model.settlement.PropertySetCalculator;
 
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 胜利规则：合计完整套数 {@code >= 3}（可跨颜色），与 {@code docs/REQ_TRACE.md} 一致。
+ * Regression checks for the win rule: a player wins once the board contains
+ * three or more complete property sets. The sets may come from different colors
+ * or from repeated sets in the same color.
  */
 class PropertySetCalculatorWinConditionTest {
 
@@ -62,5 +65,46 @@ class PropertySetCalculatorWinConditionTest {
         int total = PropertySetCalculator.countCompletePropertySets(zone);
         assertEquals(3, total);
         assertTrue(total >= 3);
+    }
+
+    @Test
+    void assignedWildCountsOnlyTowardItsDeclaredColor() {
+        List<PropertyCard> zone = new ArrayList<>();
+        zone.add(new PropertyCard("red-1", "red-1", "RED"));
+        zone.add(new PropertyCard("red-2", "red-2", "RED"));
+        zone.add(new PropertyCard("yellow-1", "yellow-1", "YELLOW"));
+        PropertyWildCard wild = new PropertyWildCard(
+                "wild-red-yellow",
+                "wild",
+                PropertyWildCard.WildPropertyKind.DUAL_COLOR,
+                List.of("RED", "YELLOW"));
+        wild.setAssignedColorKey("RED");
+        zone.add(wild);
+
+        assertEquals(3, PropertySetCalculator.effectiveCountForColor(zone, "RED"));
+        assertEquals(1, PropertySetCalculator.effectiveCountForColor(zone, "YELLOW"));
+        assertTrue(PropertySetCalculator.hasCompleteSetForColor(zone, "RED"));
+        assertFalse(PropertySetCalculator.hasCompleteSetForColor(zone, "YELLOW"));
+    }
+
+    @Test
+    void unassignedWildDoesNotCreateAccidentalSet() {
+        List<PropertyCard> zone = new ArrayList<>();
+        zone.add(new PropertyCard("brown-1", "brown-1", "BROWN"));
+        zone.add(new PropertyWildCard("wild-any", "wild"));
+
+        assertEquals(1, PropertySetCalculator.effectiveCountForColor(zone, "BROWN"));
+        assertFalse(PropertySetCalculator.hasCompleteSetForColor(zone, "BROWN"));
+        assertEquals(0, PropertySetCalculator.countCompletePropertySets(zone));
+    }
+
+    @Test
+    void colorKeysAreTrimmedAndCaseInsensitive() {
+        List<PropertyCard> zone = List.of(
+                new PropertyCard("utility-1", "utility-1", "utility"),
+                new PropertyCard("utility-2", "utility-2", "UTILITY"));
+
+        assertEquals(2, PropertySetCalculator.effectiveCountForColor(zone, " utility "));
+        assertTrue(PropertySetCalculator.hasCompleteSetForColor(zone, " utility "));
     }
 }

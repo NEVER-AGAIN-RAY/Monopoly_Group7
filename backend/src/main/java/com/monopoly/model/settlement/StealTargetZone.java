@@ -7,7 +7,7 @@ public enum StealTargetZone {
     PROPERTY,
     BANK;
 
-    /** 与 ActionParamContext.getTargetZone 字符串互转，默认财产区。 */
+    /** Convert the request string into a zone; unknown or blank values fall back to PROPERTY. */
     public static StealTargetZone fromParam(String raw) {
         if (raw == null || raw.isBlank()) {
             return PROPERTY;

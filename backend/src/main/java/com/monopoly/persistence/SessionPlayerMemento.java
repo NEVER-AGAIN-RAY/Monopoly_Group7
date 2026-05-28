@@ -16,7 +16,7 @@ public final class SessionPlayerMemento {
     private String playerId;
     private String displayName;
     private PlayerKind playerKind;
-    /** 仅 AI 时有意义：EASY / NORMAL / HARD */
+    /** EASY / NORMAL / HARD; meaningful for AI players only. */
     private String aiDifficulty;
 
     private List<PersistedCard> handCards = new ArrayList<>();

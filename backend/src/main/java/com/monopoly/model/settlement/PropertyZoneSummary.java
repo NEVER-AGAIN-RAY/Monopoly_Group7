@@ -17,7 +17,7 @@ import java.util.Map;
  */
 public final class PropertyZoneSummary {
 
-    /** 万能房产牌尚未分配颜色时使用的占位键（与任意真实颜色组区分）。 */
+    /** Placeholder for unassigned wilds, kept distinct from every real color group. */
     public static final String WILD_UNASSIGNED_COLOR_KEY = "WILD_UNASSIGNED";
 
     private PropertyZoneSummary() {

@@ -29,7 +29,7 @@ public final class PropertySetCalculator {
             "UTILITY"
     );
 
-    /** Monopoly Deal 标准轨道：颜色键（大写）-> 凑齐 1 套所需张数 */
+    /** Standard Monopoly Deal set sizes: uppercase color key -> cards needed for one set. */
     public static final Map<String, Integer> REQUIRED_BY_COLOR = requiredByColor();
 
     private PropertySetCalculator() {

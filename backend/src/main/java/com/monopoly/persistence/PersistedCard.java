@@ -24,13 +24,13 @@ public final class PersistedCard {
     private String colorGroup;
     private String buildingLevel;
     private String effectCode;
-    /** RENT_DUAL 卡面色组，如 LIGHT_BLUE|BROWN */
+    /** Printed RENT_DUAL colors encoded as LIGHT_BLUE|BROWN. */
     private String rentPalette;
     private Boolean rentDualChargesEachOtherPlayer;
     private Boolean wildcardRentCard;
     /** WildPropertyKind.name */
     private String wildKind;
-    /** 双色万能印色 A|B */
+    /** Printed dual-wild colors encoded as A|B. */
     private String wildPrintedPair;
     private String assignedColorKey;
 

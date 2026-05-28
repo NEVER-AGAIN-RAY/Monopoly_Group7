@@ -9,8 +9,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 基于 JDK HttpClient 的最小 WebSocket 客户端，回调在 HttpClient 工作线程上触发；
- * UI 层需自行切到 JavaFX 线程。
+ * Small WebSocket wrapper built on JDK HttpClient. Listener callbacks arrive on
+ * HttpClient worker threads, so UI callers must hop back to the JavaFX thread.
  */
 public final class FxWebSocketClient {
 
@@ -35,7 +35,8 @@ public final class FxWebSocketClient {
     }
 
     /**
-     * 异步连接；已连接时会先静默关闭旧连接再重连。
+     * Connect asynchronously. If a socket is already open, it is closed quietly
+     * before the new connection is attempted.
      */
     public void connect(String url, Listener listener) {
         closeQuietly();

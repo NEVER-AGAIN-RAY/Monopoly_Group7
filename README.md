@@ -49,6 +49,7 @@ Monopoly Deal: Java WebSocket server plus a **JavaFX + FXML** desktop client (`m
 - Run backend tests: `mvn -q test`
 - Start WebSocket server: `mvn -q exec:java`
 - Start desktop client (after server is up): `mvn javafx:run`
+- Build web client: `npm run build --prefix frontend`
 - Default endpoint: `ws://localhost:8025/ws`
 - DeepSeek mode reads the key from `DEEPSEEK_API_KEY`, `MONOPOLY_DEEPSEEK_API_KEY`, `-Dmonopoly.deepseek.apiKey=...`, or a local `.env` copied from `.env.example`.
 - Custom mixed games are free-for-all by default, for example `human,human,llm,llm` or `hard,hard,llm,llm`; only set `-Dmonopoly.deepseek.teamAware=true` for explicit team evaluation.
@@ -57,6 +58,14 @@ Monopoly Deal: Java WebSocket server plus a **JavaFX + FXML** desktop client (`m
   - Send: `{"type":"PING","payload":{}}`
   - Send: `{"type":"START_SESSION","payload":{"sessionId":"demo","playerCount":2,"gameMode":"PVP","randomizeFirstPlayer":false}}`
   - Expect: `STATE_UPDATE`
+
+### 目录约定
+
+- `backend/src/`: Java backend, simulation tools, JavaFX desktop client.
+- `backend/models/`: runtime local ranker checkpoints used by the backend.
+- `frontend/`: Vite/Vue web client.
+- `training/scripts/`: Python and shell training/evaluation utilities.
+- `training/data/`: local generated traces, datasets, reports, and old large experiment artifacts; ignored by Git.
 
 ### JVM 参数
 

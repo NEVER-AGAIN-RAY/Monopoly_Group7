@@ -62,17 +62,51 @@ The research angle is therefore not "make an LLM play Monopoly Deal directly." T
 | Decision-kind ablation | same trace filtered by kind set | MLP | gameplay matrix | All-kind model beats play-card-only on board rank or win rate. |
 | Teacher comparison | local heuristic vs DeepSeek labels | MLP | same split and gameplay matrix | DeepSeek teacher improves at least one robust gameplay metric or gives interpretable differences. |
 | Seed robustness | same production trace | MLP | 3+ training seeds via `run_seed_replicates.sh` | Report mean/std for imitation and board-rank metrics; avoid claiming robustness from a single seed. |
+| Paired gameplay robustness | fixed seed blocks across fixed-seat, random-first, and 4-player scenarios | runtime strategy or distilled student | same-seed paired focus-seat rank outcome; natural win, then board rank | Decisive paired outcome/rate/margin gates pass overall and by required scenario; board score is diagnostic only. |
 
 ## Current Local Evidence
 
+### Paper Evidence Ledger
+
+Use this section as the first stop when assembling experiment tables. It separates robust claims from diagnostic results that are useful for limitations and ablations.
+
+| Evidence | Artifact | Setup | Result | Paper Use |
+|---|---|---|---|---|
+| Lookahead champion robustness | `training/data/models/evaluation/lookahead-rent600-robustness-summary.json` | 1520 paired seeds vs `hard`, including 2-player fixed first, 2-player random first, and 4-player free-for-all groups | rank-only paired outcome 357/134/1029; decisive paired treatment rate 0.727 with 95% CI 0.686-0.765; paired margin +223; natural win rate 0.588 vs hard 0.450; average score delta +440.24 | Strongest current gameplay claim: local search evaluator beats hard under same-seed paired evaluation. Score is diagnostic only because late set-steal effects create heavy-tailed final scores. |
+| Lookahead gate refresh | `training/data/models/evaluation/lookahead-rent600-robustness-gate-refresh.json` | `training/scripts/check_ai_robustness_gate.py` over the robustness summary | passed all rank-only paired checks, including overall min pairs, decisive paired lead, decisive paired rate, decisive CI lower bound, and required scenario groups | Reproducible claim gate for "stronger than hard" wording. |
+| Lookahead runner smoke | `training/data/models/evaluation/paired-hard-vs-lookahead-champion-smoke-5x260-seat2-seed2026360601.json` | 5 paired seeds, `hard,hard` vs `hard,lookahead`, focus seat 2 | treatment/control = 3/2; average score delta +799.0 | Runtime smoke only; do not use as standalone strength proof. |
+| Student v3 imitation | `backend/models/distillation/lookahead-student-fixed100-rent600-mlp-v3-tactics/metrics.json` | 5418 lookahead-labeled `PLAY_CARD` decisions from 200 two-player sessions; 165 features with runtime-visible tactics | validation top-1 0.699; MRR 0.818; first-candidate baseline 0.264; random expected 0.226 | Shows the student can imitate the lookahead teacher better after tactics features, but imitation alone is not gameplay strength. |
+| Student v3 play-only smoke | `training/data/models/evaluation/paired-hard-vs-lookahead-student-v3-tactics-playonly-20x260-seat2-seed2026360301.json` | 20 paired seeds, local ranker controls only `PLAY_CARD`, auxiliary decisions use hard fallback | treatment/control/tie = 11/7/2; average score delta +564.2 | Positive but small-sample student checkpoint; needs replication. |
+| Student v3 play-only replication | `training/data/models/evaluation/paired-hard-vs-lookahead-student-v3-tactics-playonly-30x260-seat2-seed2026360401.json` | 30 paired seeds, same deployment as above | treatment/control = 13/17; average score delta +116.9 | Important negative/ambiguous result: student is not robust enough for stronger-than-hard claim. |
+| Student v3 hybrid margin 0.10 | `training/data/models/evaluation/paired-hard-vs-lookahead-student-v3-tactics-playonly-hybrid010-20x260-seat2-seed2026360501.json` | 20 paired seeds, `monopoly.localRanker.hybridMargin=0.10` | paired treatment/control/tie = 8/11/1, but natural wins 11/9 and average score delta +294.95 | Diagnostic anomaly: paired outcomes and natural-win/score metrics disagree; useful for evaluation-alignment discussion. |
+| Counterfactual replay repair smoke | `training/data/models/evaluation/counterfactual-current-smoke-20rows-report.json` | 20 restored lookahead memento decisions, all candidates replayed with deterministic hard rollout after resetting the simulation clock | candidateErrors 0, incompleteCandidates 0, informative 12/20; sourceBetterThanHard 2, hardBetterThanSource 2, average source-minus-hard reward 0.0 | Data-quality audit: old restored sessions can trip wall-clock timeout unless replay resets the simulation clock; counterfactual labels are clean after repair but sparse on this sample. |
+| Counterfactual full replay audit | `training/data/models/evaluation/counterfactual-current-full257-report.json` | 257 restored lookahead memento decisions, deterministic hard rollout, simulation clock reset | candidateErrors 0, incompleteCandidates 0, informative 185/257; sourceBetterThanHard 17, sourceSameAsHard 220, hardBetterThanSource 20; average source-minus-hard reward +0.0053 | Confirms the replay repair scales to the full old memento trace and that this counterfactual source is clean but sparse. |
+| Student v3 + counterfactual w8 | `backend/models/distillation/lookahead-student-v3-cf-nodeposit-w8-mlp/metrics.json` and `training/data/models/evaluation/lookahead-student-v3-cf-nodeposit-w8-130pairs-summary.json` | 5418 lookahead `PLAY_CARD` rows plus 26 unique-best counterfactual rows that beat hard; counterfactual sample weight 8; local ranker controls only `PLAY_CARD` | validation top-1 0.705; 130 paired seeds treatment/control/tie = 74/49/7; natural wins 66/55; paired treatment rate 0.569 with 95% CI 0.483-0.651; median score delta +30; 10% trimmed score delta +231.62 | Best distilled-student checkpoint so far, but still a candidate rather than a final stronger-than-hard claim because the natural-win CI and median score edge are narrow. |
+| Student v3 + counterfactual w8 listwise ablation | `backend/models/distillation/lookahead-student-v3-cf-nodeposit-w8-listwise-mlp/metrics.json` and `training/data/models/evaluation/lookahead-student-v3-cf-nodeposit-w8-listwise-80pairs-summary.json` | Same rows as w8, but `--loss-type listwise` trains per-decision softmax over legal candidates | validation top-1 0.709; 80 paired seeds treatment/control/tie = 41/36/3; natural wins 44/40; paired treatment rate 0.5125; median score delta +10 | Useful objective ablation, but it misses the paired treatment-rate gate and does not clearly replace the BCE w8 checkpoint. |
+| Student v3 + soft-score listwise ablation | `backend/models/distillation/lookahead-student-v3-cf-nodeposit-w8-softscore-listwise-mlp/metrics.json` | Same rows as w8 listwise, but blends one-hot choice with soft labels from lookahead `candidateScores` | validation top-1 0.704; MRR 0.815 | Neutral/negative ablation: naive score distillation did not improve offline accuracy, so it was not promoted to gameplay screening. |
+| Student v3 + counterfactual w16 ablation | `backend/models/distillation/lookahead-student-v3-cf-nodeposit-w16-mlp/metrics.json` and `training/data/models/evaluation/paired-hard-vs-lookahead-student-v3-cf-nodeposit-w16-30x260-seat2-seed2026361001.json` | Same data as w8, but counterfactual sample weight 16 | validation top-1 0.701; 30 paired seeds treatment/control/tie = 12/17/1; natural wins 7/9; average score delta -377.67 | Negative ablation: overweighting the tiny counterfactual set degrades gameplay, so w8 remains the best student checkpoint. |
+| Student v3 + counterfactual no-pass-go w8 ablation | `backend/models/distillation/lookahead-student-v3-cf-nopassgo-w8-mlp/metrics.json` and `training/data/models/evaluation/paired-hard-vs-lookahead-student-v3-cf-nopassgo-w8-30x260-seat2-seed2026361101.json` | 5418 lookahead rows plus 39 counterfactual rows; excludes the original Pass Go source instead of only no-deposit best rows | validation top-1 0.692; same 30 seeds as the w8 recheck: no-pass-go 19/10/1 with natural wins 13/10 and median score delta +102.5; nodeposit w8 baseline on the same seeds 18/12 with natural wins 15/10 and median score delta +60.5 | Useful ablation: more counterfactual rows are not clearly better. Keep the conservative 26-row no-deposit w8 checkpoint as the best student. |
+| Fresh lookahead data blend failure | `backend/models/distillation/lookahead-student-v3-cf-nodeposit-w8-fresh60-mlp/metrics.json`, `training/data/models/evaluation/paired-hard-vs-lookahead-student-v3-cf-nodeposit-w8-fresh60-30x260-seat2-seed2026361501.json`, and `backend/models/distillation/lookahead-student-v3-cf-nodeposit-w8-fresh60-prefixcheck-mlp/metrics.json` | Added 1646 fresh current-code lookahead outcome rows from a 60-pair block whose teacher beat hard 37/21/2 | random session validation top-1 0.781, but gameplay 13/13/4 with natural wins 11/14 and trimmed score delta -132.25; session-prefix holdout validation top-1 0.513 | Important negative result: random session validation can overestimate when collection blocks are mixed. Future offline gates should include block/prefix holdout plus paired gameplay. |
+| Student v4 DAgger lookahead relabel | `backend/models/distillation/lookahead-student-v4-dagger795-w4-mlp/metrics.json`, `training/data/models/evaluation/lookahead-student-v4-dagger795-w4-120pairs-summary.json`, `training/data/models/evaluation/lookahead-student-v4-dagger795-w4-randomfirst-80pairs-summary.json`, `training/data/models/evaluation/lookahead-student-v4-dagger795-w4-multiscenario-summary.json`, and `training/data/models/evaluation/lookahead-student-v4-dagger795-w4-multiscenario-paired-gate.json` | Collected 795 decisions from the v3 student on live hard-vs-student games, stored full mementos, then restored each state and relabeled the original legal envelope with lookahead; DAgger rows weighted 4 | validation top-1 0.700; fixed/seat sanity remains strong, but random-first 80 paired seeds are 34/39/7 with paired treatment rate 0.425 and paired margin -5; multiscenario paired gate fails on random-first even though score delta is positive | Strong distilled student candidate, but not a final stronger-than-hard claim. This is the clearest evaluation-alignment example: natural wins and average score can look acceptable while same-seed paired outcome fails. |
+| Student v5 random-first DAgger failure | `backend/models/distillation/lookahead-student-v5-dagger1394-randomfirst-w4-mlp/metrics.json` and `training/data/models/evaluation/lookahead-student-v5-dagger1394-randomfirst-w4-randomfirst-40pairs-summary.json` | Added 599 random-first student-state DAgger rows relabeled by lookahead; trained with random-first rows weighted 4 | validation top-1 0.699, but gameplay random-first 40 pairs = 17/22/1, median score delta -30.5, trimmed score delta -32.22 | Negative result: one small random-first DAgger block did not repair distribution shift. Do not promote v5. |
+| Student v6 listwise random-first repair | `backend/models/distillation/lookahead-student-v6-dagger1394-randomfirst-w4-listwise-mlp/metrics.json`, `training/data/models/evaluation/lookahead-student-v6-dagger1394-randomfirst-w4-listwise-randomfirst-80pairs-summary.json`, and `training/data/models/evaluation/lookahead-student-v6-dagger1394-randomfirst-w4-listwise-multiscenario-paired-gate.json` | Same data as v5, but trained with listwise cross-entropy over each legal candidate set | validation top-1 0.714; random-first 80 rank-only paired seeds = 10/9/61; multiscenario 160 rank-only paired seeds = 33/19/108, but decisive paired CI lower bound is 0.4987 and 4-player sanity has 21 snapshot-limit runs | Current best distilled student candidate. It supports the listwise objective direction, but after removing score tie-breaks it is not robust enough for final stronger-than-hard evidence. |
+
+Current claim boundary:
+
+- Safe: `SearchLookaheadAiPlayStrategy` is the current local champion and has robust paired-seed evidence against `hard`.
+- Promising but not final: the best distilled MLP student is now `lookahead-student-v6-dagger1394-randomfirst-w4-listwise-mlp`; it improves the random-first paired aggregate, but still fails the strict paired CI lower-bound gate.
+- Useful limitation: offline imitation accuracy improved with tactics and counterfactual labels, but final strength still needs larger paired-seed gates, self-play/RL, or search distillation with stronger validation.
+
+### Older Pipeline Baseline
+
 The current best local artifact is a proof-of-pipeline baseline, not a paper-grade model:
 
-- Trace: `data/distillation/local-enhanced-20260524.jsonl`
+- Trace: `training/data/distillation/local-enhanced-20260524.jsonl`
 - Rows: 6372
 - Sessions: 134
 - Teacher: `local_heuristic`
 - Decision coverage: `PLAY_CARD=4490`, `PAYMENT=1340`, `JUST_SAY_NO=378`, `OVERFLOW_DISCARD=164`
-- Multi-seed summary: `models/distillation/local-enhanced-20260524-multiseed-seed_summary.md`
+- Multi-seed summary: `backend/models/distillation/local-enhanced-20260524-multiseed-seed_summary.md`
 - Three-seed validation top-1 mean/std: 0.814 / 0.005
 - Three-seed validation MRR mean/std: 0.894 / 0.004
 - Three-seed hard-opponent ranker win rate mean/std: 0.167 / 0.000
@@ -80,7 +114,7 @@ The current best local artifact is a proof-of-pipeline baseline, not a paper-gra
 
 The pilot gameplay matrix for the representative seed73 MLP is:
 
-- Matrix: `models/distillation/local-enhanced-20260524-multiseed-gameplay-matrix-smoke/summary.md`
+- Matrix: `backend/models/distillation/local-enhanced-20260524-multiseed-gameplay-matrix-smoke/summary.md`
 - Conditions: 2/3/4 players x easy/normal/hard, 2 games per cell
 - Games requested/evaluated: 18
 - Natural completions: 14
@@ -92,7 +126,7 @@ Interpretation: the symbolic legal-action pipeline, Mac training, Java MLP runti
 
 ## Dataset Gates For Claims
 
-Use `scripts/check_training_readiness.py --mode production` before making any production-data claim.
+Use `training/scripts/check_training_readiness.py --mode production` before making any production-data claim.
 
 Minimum gates:
 

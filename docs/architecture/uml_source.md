@@ -8,13 +8,63 @@
 
 ### 1. 核心目录树（Tree）
 
-以下为仓库**核心**结构：`src`（Java 后端 + JavaFX/FXML 桌面客户端）、`docs`（文档）。
+以下为仓库**核心**结构：`backend`（Java 后端、JavaFX/FXML 桌面客户端、运行时模型）、`frontend`（Web/Vite 前端）、`training`（Python 训练脚本与本地训练数据）、`docs`（文档）。
 
 ```text
 Monopoly_Group7/
 ├── pom.xml                          # Maven：Java 17、JUnit、Gson、Jakarta WebSocket / Tyrus 等依赖
 ├── README.md
 ├── rules.md                         # Monopoly Deal 纸牌规则意译与附录（实现真源对照）
+├── backend/
+│   ├── models/                       # 运行时本地 ranker 模型 checkpoint
+│   └── src/
+│       ├── main/java/com/monopoly/
+│       │   ├── ServerBootstrap.java
+│       │   ├── fx/
+│       │   │   ├── MonopolyFxApp.java
+│       │   │   ├── MainController.java
+│       │   │   ├── FxWebSocketClient.java
+│       │   │   ├── WsJson.java
+│       │   │   ├── presentation/CardDisplayData.java
+│       │   │   └── ui/CardView.java, PlayerBoardPanel.java, TargetPickerDialog.java
+│       │   ├── presentation/HandCardJson.java
+│       │   ├── controller/
+│       │   ├── dto/
+│       │   ├── model/
+│       │   │   ├── card/
+│       │   │   ├── core/
+│       │   │   ├── effects/
+│       │   │   ├── player/
+│       │   │   └── settlement/
+│       │   ├── network/
+│       │   │   ├── GameServer.java
+│       │   │   ├── connection/
+│       │   │   ├── endpoint/
+│       │   │   └── protocol/
+│       │   ├── pattern/
+│       │   │   ├── factory/
+│       │   │   ├── observer/
+│       │   │   ├── singleton/
+│       │   │   └── strategy/
+│       │   ├── simulation/
+│       │   ├── tools/
+│       │   └── persistence/
+│       ├── main/resources/com/monopoly/fx/MainView.fxml
+│       ├── main/resources/com/monopoly/fx/styles.css
+│       └── test/java/com/monopoly/
+│           ├── controller/
+│           ├── model/
+│           ├── network/
+│           ├── pattern/
+│           ├── performance/
+│           └── persistence/
+├── frontend/
+│   ├── package.json
+│   ├── index.html
+│   └── src/
+│       ├── App.vue
+│       ├── main.js
+│       └── styles.css
 ├── docs/
 │   ├── ENGINEERING.md               # 工程变更记录与协作文档（团队维护）
 │   ├── architecture/
@@ -28,58 +78,19 @@ Monopoly_Group7/
 │   ├── ai-training-log.md
 │   └── requirements/
 │       └── requirements.md
-├── scripts/
-│   ├── distill_dataset.py
-│   ├── run_distillation_smoke.sh
-│   └── collect_deepseek_distillation.sh
-└── src/
-    ├── main/java/com/monopoly/
-    │   ├── ServerBootstrap.java
-    │   ├── fx/
-    │   │   ├── MonopolyFxApp.java
-    │   │   ├── MainController.java
-    │   │   ├── FxWebSocketClient.java
-    │   │   ├── WsJson.java
-    │   │   ├── presentation/CardDisplayData.java
-    │   │   └── ui/CardView.java, PlayerBoardPanel.java, TargetPickerDialog.java
-    │   ├── presentation/HandCardJson.java
-    │   ├── controller/
-    │   ├── dto/
-    │   ├── model/
-    │   │   ├── card/
-    │   │   ├── core/
-    │   │   ├── effects/
-    │   │   ├── player/
-    │   │   └── settlement/
-    │   ├── network/
-    │   │   ├── GameServer.java
-    │   │   ├── connection/
-    │   │   ├── endpoint/
-    │   │   └── protocol/
-    │   ├── pattern/
-    │   │   ├── factory/
-    │   │   ├── observer/
-    │   │   ├── singleton/
-    │   │   └── strategy/
-    │   ├── simulation/
-    │   └── tools/
-    │   └── persistence/
-    ├── main/resources/com/monopoly/fx/MainView.fxml
-    ├── main/resources/com/monopoly/fx/styles.css
-    └── test/java/com/monopoly/
-        ├── controller/
-        ├── model/
-        ├── network/
-        ├── pattern/
-        ├── performance/
-        └── persistence/
+└── training/
+    ├── scripts/
+    │   ├── distill_dataset.py
+    │   ├── run_distillation_smoke.sh
+    │   └── collect_deepseek_distillation.sh
+    └── data/                         # 本地训练数据/trace/report；Git 忽略
 ```
 
-> **说明**：根目录下的 `target/` 为 Maven 编译输出，版本控制中通常忽略；不在上表中列为「源码核心」。
+> **说明**：根目录下的 `target/`、`frontend/dist/`、`frontend/node_modules/` 为构建输出或依赖目录，版本控制中通常忽略；`training/data/` 保存本地训练数据与历史实验产物，也默认不提交。
 
 ---
 
-### 2. Java 后端：`src/main/java/com/monopoly`
+### 2. Java 后端：`backend/src/main/java/com/monopoly`
 
 后端采用 **分层 + 领域分包**：网络与协议在 `network`，领域规则在 `model`，对外 API 组装在 `controller`（Facade），跨层载荷在 `dto`，存档在 `persistence`，可复用设计模式在 `pattern`。
 
@@ -215,7 +226,7 @@ Monopoly_Group7/
 | `SimulationWorker` | 每个 worker 持有独立 `GameController` 和牌堆，用真实规则推进一局 AI_VS_AI；AI 策略替换为 `BrokeredAiPlayStrategy`。 |
 | `tools/SimulationBatchRunner` | 命令行离线采集入口：可配置局数、并发数、微批大小、trace 路径与 teacher 类型。 |
 
-#### 2.9 测试代码：`src/test/java/com/monopoly`
+#### 2.9 测试代码：`backend/src/test/java/com/monopoly`
 
 | 目录 | 侧重点 |
 |------|--------|
@@ -229,7 +240,7 @@ Monopoly_Group7/
 
 ---
 
-### 3. JavaFX 桌面客户端：`src/main/java/com/monopoly/fx` + `MainView.fxml`
+### 3. JavaFX 桌面客户端：`backend/src/main/java/com/monopoly/fx` + `MainView.fxml`
 
 桌面端与后端通过 **WebSocket + JSON**（见 [`docs/interface/websocket-protocol.md`](../interface/websocket-protocol.md)）通信；界面用 **FXML** 声明，逻辑在 Java Controller。
 

@@ -150,7 +150,6 @@ public class GameServer implements GameUpdateObserver {
             sessionRegistry.bindSession(from, sessionId);
             SessionRuntime runtime = getOrCreateSession(sessionId);
             runtime.controller.startNewSession(startReq);
-            broadcastRoomList();
             return;
         }
         GameController controller = resolveController(from, payload);

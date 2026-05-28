@@ -31,7 +31,7 @@ public class PropertyCard extends Card implements Payable {
         }
     }
 
-    /** 是否为万能房产牌（可计入任意颜色套数，由 PropertySetCalculator 分配）。 */
+    /** Whether this is a wild property whose color is resolved by PropertySetCalculator. */
     public boolean isWildProperty() {
         return false;
     }

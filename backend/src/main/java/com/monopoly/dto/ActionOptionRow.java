@@ -11,7 +11,7 @@ public final class ActionOptionRow {
     private String targetCardId;
     private String actorCardId;
     private String targetZone;
-    /** 为 true 时客户端打出应省略 targetPlayerId（由服务器按会话顺序对全员依次结算）。 */
+    /** When true, the client should omit targetPlayerId and let the server walk opponents in turn order. */
     private boolean allOtherPlayers;
 
     public ActionOptionRow() {

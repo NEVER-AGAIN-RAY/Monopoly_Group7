@@ -5,10 +5,10 @@ package com.monopoly.model.core;
  */
 public final class GameConstants {
 
-    /** 标准可游戏牌堆张数（108 张盒装清单中扣除 2 张规则卡）。 */
+    /** Playable deck size after removing the two rule cards from the 108-card retail list. */
     public static final int STANDARD_DECK_SIZE = 106;
 
-    /** 单局默认最长时长（毫秒），对应需求「单局不超过 1 小时」。 */
+    /** Default one-hour session limit in milliseconds. */
     public static final long DEFAULT_SESSION_LIMIT_MS = 3_600_000L;
 
     /**

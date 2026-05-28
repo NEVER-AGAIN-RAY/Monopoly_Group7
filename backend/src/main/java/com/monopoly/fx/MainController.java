@@ -47,7 +47,8 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * 对局主控制器：可视化手牌、玩家桌面、向导式出牌与回合提示。
+ * Main match controller for the desktop client: hand cards, player boards,
+ * guided play choices, and turn guidance.
  */
 public class MainController {
 
@@ -59,11 +60,11 @@ public class MainController {
     private JsonObject lastStatePayload;
     private CardDisplayData selectedCard;
     private int pendingRentPaymentM;
-    /** 连接成功后自动执行认证并开局。 */
+    /** Whether a successful connection should immediately authenticate and start the session. */
     private boolean autoStartAfterConnect;
-    /** 连接超时定时器。 */
+    /** Timeout guard for quick-start connection attempts. */
     private PauseTransition connectionTimeout;
-    /** 等待 ACTION_OPTIONS_RESULT / PLAY_OPTIONS_RESULT 时在 FX 线程上消费 payload。 */
+    /** FX-thread callback waiting for ACTION_OPTIONS_RESULT or PLAY_OPTIONS_RESULT. */
     private Consumer<JsonObject> pendingOptionsResultHandler;
 
     @FXML
@@ -488,12 +489,12 @@ public class MainController {
     @FXML
     private void onQuickAuthAndStart() {
         if (ws.isConnected()) {
-            // 已连接，直接认证并开局
+            // Already connected, so authenticate and start immediately.
             onAuth();
             onStartSession();
             switchToGameView();
         } else {
-            // 先连接，连接成功后自动认证并开局
+            // Connect first; onOpen will finish auth and session start.
             autoStartAfterConnect = true;
             updateTurnGuide();
             onConnect();
@@ -675,7 +676,8 @@ public class MainController {
     }
 
     /**
-     * 先发 PLAY_OPTIONS，在弹窗中选行后再 PLAY（与向导按钮、高级「按所选动作发送」共用）。
+     * Ask the server for PLAY_OPTIONS first, let the user choose one row, then
+     * send PLAY. Both wizard buttons and the advanced play form use this path.
      */
     private void requestPlayOptionsThenPlay(String cardId, String actionType) {
         String me = playerIdField.getText().trim();
@@ -765,7 +767,7 @@ public class MainController {
         requestPlayOptionsThenPlay(cardId, action);
     }
 
-    /** 调试：不经过 PLAY_OPTIONS，直接用下方文本框构造 PLAY。 */
+    /** Debug path: build PLAY directly from the form without asking PLAY_OPTIONS first. */
     @FXML
     private void onPlayDirect() {
         String action = playActionCombo.getSelectionModel().getSelectedItem();
@@ -1282,7 +1284,7 @@ public class MainController {
         }
     }
 
-    /** 切换到游戏进行中的视图：隐藏快速开始卡片，显示游戏区域。 */
+    /** Switch into the in-game layout and hide the quick-start card. */
     private void switchToGameView() {
         quickStartCard.setVisible(false);
         quickStartCard.setManaged(false);
@@ -1300,7 +1302,7 @@ public class MainController {
         actionBar.setManaged(true);
     }
 
-    /** 切换回开始前视图：显示快速开始卡片，隐藏游戏区域。 */
+    /** Return to the pre-game layout and hide the board/hand area. */
     private void switchToPreGameView() {
         quickStartCard.setVisible(true);
         quickStartCard.setManaged(true);

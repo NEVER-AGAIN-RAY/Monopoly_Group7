@@ -10,9 +10,9 @@ public class StartSessionRequest {
     private String sessionId;
     /** 2–5 */
     private int playerCount;
-    /** HVM 人机 / PVP 人人 / LLM 真人对 DeepSeek / AI_VS_AI DeepSeek 自战 / CUSTOM 自定义席位 */
+    /** HVM/PVP/LLM/AI_VS_AI/CUSTOM. */
     private String gameMode;
-    /** EASY / NORMAL / HARD，仅 HVM 使用 */
+    /** EASY / NORMAL / HARD; used by HVM sessions. */
     private String aiDifficulty;
     /** CUSTOM: comma-separated seats, e.g. human,human,llm,lookahead. */
     private String customLineup;

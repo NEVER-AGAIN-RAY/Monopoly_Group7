@@ -10,7 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Gson 工具：信封编码与 JSON 美化。 */
+/** Gson helper for envelope encoding and readable JSON output. */
 final class WsJson {
 
     private static final Gson COMPACT = new Gson();
@@ -35,7 +35,7 @@ final class WsJson {
         }
     }
 
-    /** 仅美化信封中的 payload 字段（STATE_UPDATE / MY_HAND 等）。 */
+    /** Pretty-print only the payload field inside an envelope such as STATE_UPDATE or MY_HAND. */
     static String payloadPretty(String rawJson) {
         try {
             JsonObject o = JsonParser.parseString(rawJson).getAsJsonObject();
@@ -97,7 +97,7 @@ final class WsJson {
         return s != null && !s.trim().isEmpty();
     }
 
-    /** PLAY 载荷：放弃免租；可选 paymentCardIds 指定首笔租金支付用牌。 */
+    /** PLAY payload for passing on Just Say No, optionally with explicit paymentCardIds. */
     static Map<String, Object> playResponsePass(String actingPlayerId, List<String> paymentCardIds) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("actionType", "RESPONSE_PASS");

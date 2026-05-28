@@ -4,10 +4,10 @@ package com.monopoly.model.card;
  * Building level on a property (NONE/HOUSE/HOTEL).
  */
 public enum BuildingLevel {
-    /** 仅基础房产 */
+    /** Plain property, with no house or hotel attached. */
     BASE,
-    /** 带房子 */
+    /** Property carrying a house. */
     HOUSE,
-    /** 带酒店 */
+    /** Property carrying a hotel. */
     HOTEL
 }

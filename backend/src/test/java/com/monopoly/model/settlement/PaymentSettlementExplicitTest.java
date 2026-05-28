@@ -54,6 +54,36 @@ class PaymentSettlementExplicitTest {
     }
 
     @Test
+    void settleWithExplicit_rejectsDuplicateCardIdsWithoutMovingCards() {
+        HumanPlayer debtor = new HumanPlayer("d", "D");
+        HumanPlayer creditor = new HumanPlayer("c", "C");
+        MoneyCard m5 = new MoneyCard("m5", "5", 5);
+        debtor.addToBank(m5);
+
+        PaymentSettlement.Result r = PaymentSettlement.settleWithExplicitCards(
+                debtor, creditor, 5, List.of("m5", "m5"), GameEngineSingleton.getInstance());
+
+        assertFalse(r.isSuccess());
+        assertEquals(1, debtor.getBankCardCount());
+        assertEquals(0, creditor.getBankCardCount());
+    }
+
+    @Test
+    void settleWithExplicit_rejectsHandCardsAsPaymentSource() {
+        HumanPlayer debtor = new HumanPlayer("d", "D");
+        HumanPlayer creditor = new HumanPlayer("c", "C");
+        MoneyCard handMoney = new MoneyCard("hand-money", "5", 5);
+        debtor.receiveCardToHand(handMoney);
+
+        PaymentSettlement.Result r = PaymentSettlement.settleWithExplicitCards(
+                debtor, creditor, 5, List.of("hand-money"), GameEngineSingleton.getInstance());
+
+        assertFalse(r.isSuccess());
+        assertEquals(1, debtor.getHandCardCount());
+        assertEquals(0, creditor.getBankCardCount());
+    }
+
+    @Test
     void validateExplicitChoice_throwsWhenTooSmall() {
         HumanPlayer debtor = new HumanPlayer("d", "D");
         debtor.addToBank(new MoneyCard("m1", "1", 1));
@@ -124,6 +154,34 @@ class PaymentSettlementExplicitTest {
         debtor.addToBank(new MoneyCard("m10", "10", 10));
 
         assertEquals(10, PaymentSettlement.estimateAutomaticAmountPaid(debtor, 5));
+    }
+
+    @Test
+    void automaticPayment_prefersSmallerOverpaymentBeforeFewerCards() {
+        HumanPlayer debtor = new HumanPlayer("d", "D");
+        debtor.addToBank(new MoneyCard("m2", "2", 2));
+        debtor.addToBank(new MoneyCard("m3", "3", 3));
+        debtor.addToBank(new MoneyCard("m10", "10", 10));
+
+        PaymentSettlement.PaymentChoice choice = PaymentSettlement.chooseAutomaticPayment(debtor, 5);
+
+        assertEquals(5, choice.amountPaid());
+        assertEquals(List.of("m2", "m3"),
+                choice.cards().stream().map(card -> card.getId()).toList());
+    }
+
+    @Test
+    void automaticPayment_usesPropertyOnlyWhenBankCannotCoverDue() {
+        HumanPlayer debtor = new HumanPlayer("d", "D");
+        debtor.addToBank(new MoneyCard("m1", "1", 1));
+        PropertyCard property = new PropertyCard("p1", "property", "DARK_BLUE");
+        debtor.addToPropertyZone(property);
+
+        PaymentSettlement.PaymentChoice choice = PaymentSettlement.chooseAutomaticPayment(debtor, 3);
+
+        assertEquals(3, choice.amountPaid());
+        assertEquals(List.of("m1", "p1"),
+                choice.cards().stream().map(card -> card.getId()).toList());
     }
 
     @Test

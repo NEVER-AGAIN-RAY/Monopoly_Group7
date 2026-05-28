@@ -9,7 +9,7 @@ import com.monopoly.model.settlement.RentCalculator;
  */
 public class RentEffect implements ActionEffect {
 
-    /** 校验并计算应付租金；供效果栈入栈前使用（不扣款）。 */
+    /** Validate the rent request and compute the amount due without moving payment cards. */
     public static DueResult computeDue(ActionEffectContext ctx) {
         Player landlord = ctx.getActor();
         Player tenant = ctx.getTarget();

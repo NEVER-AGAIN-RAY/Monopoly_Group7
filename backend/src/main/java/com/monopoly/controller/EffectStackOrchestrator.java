@@ -400,7 +400,9 @@ final class EffectStackOrchestrator {
                             rentSeq.getLandlordId(),
                             nextId,
                             rentSeq.getColorKey(),
-                            rentSeq.getAmountDuePerTenant()));
+                            rentSeq.getAmountDuePerTenant(),
+                            rentSeq.getSourceActionName(),
+                            rentSeq.getSourceEffectCode()));
                     enterRentResponseWindow(nextTenant);
                     controller.pushSnapshot(controller.getCurrentSessionId(), phaseHint,
                             "Effect stack resolved: " + pay.getMessage() + " — 下一名承租人。");

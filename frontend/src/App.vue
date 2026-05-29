@@ -98,9 +98,17 @@ const I18N = {
     responseCounter: '对方打出免租，你可以用 Just Say No 反制',
     responsePayment: '需要支付 {amount}M',
     responseTargeted: '对方行动正在指向你',
+    responseActionUnknown: '当前响应的行动',
+    responseActionPrefix: '正在响应',
+    responseOriginalPrefix: '原行动',
+    responseFromTo: '{actor} → {target}',
+    responseAmountTag: '{amount}M',
+    responseColorTag: '{color}',
     responsePaymentBody: '已选 {selected}M。可以打出 Just Say No，也可以支付。',
     responseCounterBody: '对方已经打出 Just Say No，你可以继续用 Just Say No 反制，也可以放弃。',
     responseDefaultBody: '可以打出 Just Say No 取消这张行动，也可以放弃响应。',
+    returnGame: '返回对局',
+    activeGameHint: '正在进行：{session}',
     noJsnPay: '你手里没有 Just Say No，请选择支付。',
     noJsnAccept: '你手里没有 Just Say No，自动接受。',
     autoPay: '自动支付',
@@ -253,9 +261,17 @@ const I18N = {
     responseCounter: 'Opponent played Just Say No. You may counter with Just Say No.',
     responsePayment: 'Pay {amount}M',
     responseTargeted: 'An action is targeting you',
+    responseActionUnknown: 'Current action',
+    responseActionPrefix: 'Responding to',
+    responseOriginalPrefix: 'Original action',
+    responseFromTo: '{actor} → {target}',
+    responseAmountTag: '{amount}M',
+    responseColorTag: '{color}',
     responsePaymentBody: 'Selected {selected}M. You may play Just Say No or pay.',
     responseCounterBody: 'Opponent canceled with Just Say No. Counter or pass.',
     responseDefaultBody: 'Play Just Say No to cancel this action, or pass.',
+    returnGame: 'Return to Game',
+    activeGameHint: 'In progress: {session}',
     noJsnPay: 'No Just Say No in hand. Choose payment.',
     noJsnAccept: 'No Just Say No in hand. Accepting automatically.',
     autoPay: 'Auto Pay',
@@ -527,6 +543,52 @@ const responseRoleText = computed(() => {
   if (awaitingPayment.value) return t('responsePayment', { amount: paymentDue.value })
   return t('responseTargeted')
 })
+const pendingResponseContext = computed(() => state.value?.pendingResponseContext || null)
+const responseActionTitle = computed(() => {
+  const ctx = pendingResponseContext.value
+  if (!ctx) return ''
+  return responseContextTitle(ctx, '')
+})
+const responseActionMeta = computed(() => {
+  const ctx = pendingResponseContext.value
+  if (!ctx) return []
+  const tags = []
+  const actorName = responsePlayerName(ctx.actorName, ctx.actorPlayerId)
+  const targetName = responsePlayerName(ctx.targetName, ctx.targetPlayerId)
+  if (actorName || targetName) {
+    tags.push(t('responseFromTo', {
+      actor: actorName || t('playerFallback'),
+      target: targetName || t('playerFallback')
+    }))
+  }
+  const amount = Number(ctx.amountDueM || 0)
+  if (amount > 0) tags.push(t('responseAmountTag', { amount }))
+  if (ctx.colorKey) tags.push(t('responseColorTag', { color: responseColorName(ctx.colorKey) }))
+  return tags
+})
+const responseOriginalTitle = computed(() => {
+  const ctx = pendingResponseContext.value
+  if (!ctx || state.value?.pendingResponseRole !== 'LANDLORD_COUNTER') return ''
+  return responseContextTitle(ctx, 'original')
+})
+const responseOriginalMeta = computed(() => {
+  const ctx = pendingResponseContext.value
+  if (!ctx || state.value?.pendingResponseRole !== 'LANDLORD_COUNTER') return []
+  const tags = []
+  const actorName = responsePlayerName(ctx.originalActorName, ctx.originalActorPlayerId)
+  const targetName = responsePlayerName(ctx.originalTargetName, ctx.originalTargetPlayerId)
+  if (actorName || targetName) {
+    tags.push(t('responseFromTo', {
+      actor: actorName || t('playerFallback'),
+      target: targetName || t('playerFallback')
+    }))
+  }
+  const amount = Number(ctx.originalAmountDueM || 0)
+  if (amount > 0) tags.push(t('responseAmountTag', { amount }))
+  if (ctx.originalColorKey) tags.push(t('responseColorTag', { color: responseColorName(ctx.originalColorKey) }))
+  return tags
+})
+const hasActiveGame = computed(() => Boolean(state.value?.sessionId && !state.value?.gameOver))
 const activeRoomSeats = computed(() => roomSeats.value
   .map((seat, index) => ({ ...seat, index }))
   .filter((seat) => seat.role !== 'empty'))
@@ -1239,6 +1301,57 @@ function displayNameForPlayer(id) {
   return p?.displayName || id || t('playerFallback')
 }
 
+function responsePlayerName(name, id) {
+  if (name) return name
+  if (!id) return ''
+  return displayNameForPlayer(id)
+}
+
+function responseContextTitle(ctx, prefix = '') {
+  if (!ctx) return ''
+  const nameKey = prefix ? `${prefix}ActionCardName` : 'actionCardName'
+  const codeKey = prefix ? `${prefix}ActionEffectCode` : 'actionEffectCode'
+  return ctx[nameKey] || actionEffectLabel(ctx[codeKey]) || ctx[codeKey] || t('responseActionUnknown')
+}
+
+function actionEffectLabel(code) {
+  const normalized = String(code || '').toUpperCase()
+  const zh = {
+    RENT: '收租',
+    RENT_DUAL: '双色收租',
+    DOUBLE_RENT: '租金加倍',
+    STEAL_PROPERTY: '暗中夺产',
+    FORCED_DEAL: '强制交易',
+    DEBT_COLLECTOR: '讨债',
+    RENT_WAIVER: 'Just Say No',
+    PASS_GO: '经过起点',
+    HOUSE: '房屋',
+    HOTEL: '旅馆',
+    BIRTHDAY: '生日礼金',
+    DEAL_BREAKER: '交易破坏者'
+  }
+  const en = {
+    RENT: 'Rent',
+    RENT_DUAL: 'Dual-Color Rent',
+    DOUBLE_RENT: 'Double Rent',
+    STEAL_PROPERTY: 'Sly Deal',
+    FORCED_DEAL: 'Forced Deal',
+    DEBT_COLLECTOR: 'Debt Collector',
+    RENT_WAIVER: 'Just Say No',
+    PASS_GO: 'Pass Go',
+    HOUSE: 'House',
+    HOTEL: 'Hotel',
+    BIRTHDAY: 'Birthday',
+    DEAL_BREAKER: 'Deal Breaker'
+  }
+  return (isEnglish() ? en : zh)[normalized] || ''
+}
+
+function responseColorName(key) {
+  const normalized = String(key || '').toUpperCase()
+  return actionEffectLabel(normalized) || colorName(normalized)
+}
+
 function handleOptions(payload) {
   if (!pendingPlay.value) return
   if (!payload.ok) {
@@ -1878,6 +1991,10 @@ onBeforeUnmount(() => {
             <p>{{ connected ? '后端已连接，可以开房或加入现有房间。' : t('brandIntro') }}</p>
           </div>
           <div class="server-card">
+            <div v-if="hasActiveGame" class="active-game-return">
+              <span>{{ t('activeGameHint', { session: state?.sessionId || sessionId }) }}</span>
+              <button class="primary compact" @click="screen = 'game'; roomScreen = 'game'">{{ t('returnGame') }}</button>
+            </div>
             <label>
               {{ t('backend') }}
               <input v-model="wsUrl" />
@@ -2313,6 +2430,20 @@ onBeforeUnmount(() => {
 
           <div v-if="awaitingResponse" class="rent-panel">
             <h2>{{ responseRoleText }}<span v-if="hasResponseCountdown" class="response-countdown">{{ responseSecondsLeft }}s</span></h2>
+            <div v-if="pendingResponseContext" class="response-action-card">
+              <span>{{ t('responseActionPrefix') }}</span>
+              <strong>{{ responseActionTitle }}</strong>
+              <div v-if="responseActionMeta.length" class="response-action-meta">
+                <em v-for="item in responseActionMeta" :key="item">{{ item }}</em>
+              </div>
+              <template v-if="responseOriginalTitle">
+                <span>{{ t('responseOriginalPrefix') }}</span>
+                <strong>{{ responseOriginalTitle }}</strong>
+                <div v-if="responseOriginalMeta.length" class="response-action-meta">
+                  <em v-for="item in responseOriginalMeta" :key="item">{{ item }}</em>
+                </div>
+              </template>
+            </div>
             <p>{{ responseBodyText }}</p>
             <div v-if="justSayNoCards.length" class="response-cards">
               <button v-for="card in justSayNoCards" :key="card.id" class="nope-card" @click="playJustSayNo(card)" :disabled="actionBusy">

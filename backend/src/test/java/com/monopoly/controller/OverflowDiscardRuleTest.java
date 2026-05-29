@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class OverflowDiscardRuleTest {
 
@@ -87,6 +88,33 @@ class OverflowDiscardRuleTest {
         controller.handleEndTurnCommand();
 
         assertTrue(!currentId.equals(controller.getCurrentPlayer().getPlayerId()));
+    }
+
+    @Test
+    void fourthPlayReportsActionLimitInsteadOfDrawPhaseHint() {
+        GameController controller = new GameController(new RecordingSubject());
+        StartSessionRequest req = new StartSessionRequest();
+        req.setSessionId("three-action-limit-message");
+        req.setPlayerCount(2);
+        req.setGameMode("PVP");
+        req.setRandomizeFirstPlayer(false);
+        controller.startNewSession(req);
+        controller.handleDrawCommand(2);
+
+        Player current = controller.getCurrentPlayer();
+        current.receiveCardToHand(new MoneyCard("deposit-1", "1M", 1));
+        current.receiveCardToHand(new MoneyCard("deposit-2", "1M", 1));
+        current.receiveCardToHand(new MoneyCard("deposit-3", "1M", 1));
+        current.receiveCardToHand(new MoneyCard("deposit-4", "1M", 1));
+
+        play(controller, "DEPOSIT", "deposit-1");
+        play(controller, "DEPOSIT", "deposit-2");
+        play(controller, "DEPOSIT", "deposit-3");
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> play(controller, "DEPOSIT", "deposit-4"));
+        assertEquals("每回合最多可出 3 张牌，已达到上限。", ex.getMessage());
     }
 
     private static void play(GameController controller, String actionType, String cardId) {

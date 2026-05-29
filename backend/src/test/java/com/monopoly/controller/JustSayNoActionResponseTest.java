@@ -1,7 +1,9 @@
 package com.monopoly.controller;
 
+import com.google.gson.JsonObject;
 import com.monopoly.dto.PlayActionRequest;
 import com.monopoly.dto.StartSessionRequest;
+import com.monopoly.dto.GameStateSnapshot;
 import com.monopoly.model.card.ActionCard;
 import com.monopoly.model.card.MoneyCard;
 import com.monopoly.model.card.PropertyCard;
@@ -9,6 +11,11 @@ import com.monopoly.model.effects.EffectStackEntry;
 import com.monopoly.model.effects.StackResponseState;
 import com.monopoly.model.player.Player;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
+import com.monopoly.pattern.observer.GameUpdateObserver;
+import com.monopoly.pattern.observer.GameUpdateSubject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -284,8 +291,68 @@ class JustSayNoActionResponseTest {
         assertTrue(remainingMs <= 21_000L);
     }
 
+    @Test
+    void responseSnapshotNamesThePendingActionCard() {
+        RecordingSubject subject = new RecordingSubject();
+        GameController controller = newPvpControllerInPlayPhase(subject);
+        Player actor = controller.getSessionPlayersView().get(0);
+        Player target = controller.getSessionPlayersView().get(1);
+        ActionCard debt = new ActionCard("debt-action", "Debt Collector", "DEBT_COLLECTOR");
+        MoneyCard targetMoney = new MoneyCard("target-5m", "5M", 5);
+        actor.receiveCardToHand(debt);
+        target.addToBank(targetMoney);
+
+        PlayActionRequest req = new PlayActionRequest();
+        req.setActionType("ACTION");
+        req.setCardId(debt.getId());
+        req.setTargetPlayerId(target.getPlayerId());
+        controller.handlePlayActionRequest(req);
+
+        GameStateSnapshot awaiting = subject.latest("RENT_AWAITING_RESPONSE");
+        assertEquals("WAITING_FOR_RESPONSE", awaiting.getTurnPhase());
+        assertEquals(5, awaiting.getPendingPaymentAmountM());
+        JsonObject context = awaiting.getPendingResponseContext();
+        assertEquals("Debt Collector", context.get("actionCardName").getAsString());
+        assertEquals("DEBT_COLLECTOR", context.get("actionEffectCode").getAsString());
+        assertEquals(actor.getPlayerId(), context.get("actorPlayerId").getAsString());
+        assertEquals(target.getPlayerId(), context.get("targetPlayerId").getAsString());
+        assertEquals(5, context.get("amountDueM").getAsInt());
+    }
+
+    @Test
+    void counterSnapshotKeepsOriginalActionContext() {
+        RecordingSubject subject = new RecordingSubject();
+        GameController controller = newPvpControllerInPlayPhase(subject);
+        Player actor = controller.getSessionPlayersView().get(0);
+        Player target = controller.getSessionPlayersView().get(1);
+        PropertyCard targetProperty = new PropertyCard("target-brown", "Target Brown", "BROWN");
+        ActionCard steal = new ActionCard("steal-action", "Sly Deal", "STEAL_PROPERTY");
+        ActionCard targetNo = new ActionCard("target-no", "Just Say No", "RENT_WAIVER");
+        target.addToPropertyZone(targetProperty);
+        actor.receiveCardToHand(steal);
+        target.receiveCardToHand(targetNo);
+
+        playStealProperty(controller, actor, target, steal, targetProperty);
+        playJustSayNo(controller, target, targetNo);
+
+        GameStateSnapshot awaiting = subject.latest("JSN_AWAITING_COUNTER");
+        JsonObject context = awaiting.getPendingResponseContext();
+        assertEquals("Just Say No", context.get("actionCardName").getAsString());
+        assertEquals("RENT_WAIVER", context.get("actionEffectCode").getAsString());
+        assertEquals(target.getPlayerId(), context.get("actorPlayerId").getAsString());
+        assertEquals(actor.getPlayerId(), context.get("targetPlayerId").getAsString());
+        assertEquals("Sly Deal", context.get("originalActionCardName").getAsString());
+        assertEquals("STEAL_PROPERTY", context.get("originalActionEffectCode").getAsString());
+        assertEquals(actor.getPlayerId(), context.get("originalActorPlayerId").getAsString());
+        assertEquals(target.getPlayerId(), context.get("originalTargetPlayerId").getAsString());
+    }
+
     private static GameController newPvpControllerInPlayPhase() {
-        GameController controller = new GameController(new DefaultGameUpdateSubject());
+        return newPvpControllerInPlayPhase(new DefaultGameUpdateSubject());
+    }
+
+    private static GameController newPvpControllerInPlayPhase(GameUpdateSubject subject) {
+        GameController controller = new GameController(subject);
         StartSessionRequest req = new StartSessionRequest();
         req.setSessionId("jsn-action-test");
         req.setPlayerCount(2);
@@ -350,5 +417,32 @@ class JustSayNoActionResponseTest {
         StackResponseState state = controller.getGameContext().getResponseState();
         assertEquals(player.getPlayerId(), state.getAwaitingPlayerId());
         assertEquals(role, state.getRole());
+    }
+
+    private static final class RecordingSubject implements GameUpdateSubject {
+        private final List<GameStateSnapshot> snapshots = new ArrayList<>();
+
+        @Override
+        public void registerObserver(GameUpdateObserver observer) {
+        }
+
+        @Override
+        public void unregisterObserver(GameUpdateObserver observer) {
+        }
+
+        @Override
+        public void notifyStateChanged(GameStateSnapshot snapshot) {
+            snapshots.add(snapshot);
+        }
+
+        GameStateSnapshot latest(String phase) {
+            for (int i = snapshots.size() - 1; i >= 0; i--) {
+                GameStateSnapshot snapshot = snapshots.get(i);
+                if (phase.equals(snapshot.getPhase())) {
+                    return snapshot;
+                }
+            }
+            throw new AssertionError("No snapshot for phase " + phase);
+        }
     }
 }

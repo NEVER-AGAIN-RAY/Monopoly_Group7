@@ -50,14 +50,52 @@ public final class EffectStackEntry {
 
     public static EffectStackEntry pendingRent(
             String landlordId, String tenantId, String colorKey, int amountDue) {
+        return pendingRent(landlordId, tenantId, colorKey, amountDue, null, null);
+    }
+
+    public static EffectStackEntry pendingRent(
+            String landlordId,
+            String tenantId,
+            String colorKey,
+            int amountDue,
+            String actionCardName,
+            String actionEffectCode) {
         String id = UUID.randomUUID().toString();
-        return new EffectStackEntry(id, Kind.RENT, landlordId, tenantId, colorKey, amountDue, null, null, null);
+        return new EffectStackEntry(
+                id,
+                Kind.RENT,
+                landlordId,
+                tenantId,
+                colorKey,
+                amountDue,
+                null,
+                actionCardName,
+                actionEffectCode);
     }
 
     public static EffectStackEntry pendingDoubleRent(
             String landlordId, String tenantId, String colorKey, int amountDue) {
+        return pendingDoubleRent(landlordId, tenantId, colorKey, amountDue, null, null);
+    }
+
+    public static EffectStackEntry pendingDoubleRent(
+            String landlordId,
+            String tenantId,
+            String colorKey,
+            int amountDue,
+            String actionCardName,
+            String actionEffectCode) {
         String id = UUID.randomUUID().toString();
-        return new EffectStackEntry(id, Kind.DOUBLE_RENT, landlordId, tenantId, colorKey, amountDue, null, null, null);
+        return new EffectStackEntry(
+                id,
+                Kind.DOUBLE_RENT,
+                landlordId,
+                tenantId,
+                colorKey,
+                amountDue,
+                null,
+                actionCardName,
+                actionEffectCode);
     }
 
     public static EffectStackEntry waiver(String actorPlayerId, String targetEntryId) {

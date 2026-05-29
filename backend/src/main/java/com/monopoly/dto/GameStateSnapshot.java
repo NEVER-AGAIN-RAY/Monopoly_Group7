@@ -41,6 +41,8 @@ public class GameStateSnapshot {
     private String pendingResponseRole;
     private long responseDeadlineEpochMs;
     private String pendingResponseHint;
+    /** Structured public details about the action/rent currently awaiting Just Say No. */
+    private JsonObject pendingResponseContext;
     private int effectStackDepth;
     /** First payment amount in M during the tenant response window; null outside that phase. */
     private Integer pendingPaymentAmountM;
@@ -213,6 +215,14 @@ public class GameStateSnapshot {
 
     public void setPendingResponseHint(String pendingResponseHint) {
         this.pendingResponseHint = pendingResponseHint;
+    }
+
+    public JsonObject getPendingResponseContext() {
+        return pendingResponseContext;
+    }
+
+    public void setPendingResponseContext(JsonObject pendingResponseContext) {
+        this.pendingResponseContext = pendingResponseContext;
     }
 
     public int getEffectStackDepth() {

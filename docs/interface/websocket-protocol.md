@@ -196,7 +196,17 @@ Each element of `STATE_UPDATE.payload.players` may include:
 | `propertyColorProgress` | Array of `{ colorKey, effectiveCount, need, completeSets }` |
 | `bankTotalValueM` | Sum of bank card payment values |
 
-Top-level `STATE_UPDATE.payload` may include `pendingPaymentAmountM` when `turnPhase` is `WAITING_FOR_RESPONSE` and the pending role is `TENANT` (amount for the first payable rent/debt/gift entry on the effect stack).
+Top-level `STATE_UPDATE.payload` may include response-window fields when
+`turnPhase` is `WAITING_FOR_RESPONSE`:
+
+| Field | Meaning |
+| ----- | ------- |
+| `pendingResponsePlayerId` | Player currently allowed to play/pass Just Say No |
+| `pendingResponseRole` | `TENANT` for the targeted player, or `LANDLORD_COUNTER` for the actor countering a Just Say No |
+| `responseDeadlineEpochMs` | Absolute response deadline in epoch milliseconds; `0` when there is no timer |
+| `pendingResponseHint` | Short human-readable response prompt |
+| `pendingPaymentAmountM` | First payable rent/debt/gift amount for a `TENANT` response, when applicable |
+| `pendingResponseContext` | Public details for display: `kind`, `actorPlayerId`, `actorName`, `targetPlayerId`, `targetName`, `actionCardName`, `actionEffectCode`, optional `colorKey`, optional `amountDueM`; landlord counter windows may also include `original*` fields for the action/rent being countered |
 
 ### PLAY: RESPONSE_PASS and rent payment
 

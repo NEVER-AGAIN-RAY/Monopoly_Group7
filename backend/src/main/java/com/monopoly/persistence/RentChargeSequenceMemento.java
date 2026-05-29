@@ -15,6 +15,8 @@ public final class RentChargeSequenceMemento {
     private int amountDuePerTenant;
     private List<String> tenantIdsOrdered = new ArrayList<>();
     private int currentIndex;
+    private String sourceActionName;
+    private String sourceEffectCode;
 
     public static RentChargeSequenceMemento from(RentChargeSequence seq) {
         if (seq == null) {
@@ -26,6 +28,8 @@ public final class RentChargeSequenceMemento {
         m.amountDuePerTenant = seq.getAmountDuePerTenant();
         m.tenantIdsOrdered = new ArrayList<>(seq.getTenantIdsOrderedView());
         m.currentIndex = seq.getCurrentIndex();
+        m.sourceActionName = seq.getSourceActionName();
+        m.sourceEffectCode = seq.getSourceEffectCode();
         return m;
     }
 
@@ -35,7 +39,9 @@ public final class RentChargeSequenceMemento {
                 colorKey,
                 amountDuePerTenant,
                 tenantIdsOrdered,
-                currentIndex);
+                currentIndex,
+                sourceActionName,
+                sourceEffectCode);
     }
 
     public String getLandlordId() {
@@ -76,5 +82,21 @@ public final class RentChargeSequenceMemento {
 
     public void setCurrentIndex(int currentIndex) {
         this.currentIndex = currentIndex;
+    }
+
+    public String getSourceActionName() {
+        return sourceActionName;
+    }
+
+    public void setSourceActionName(String sourceActionName) {
+        this.sourceActionName = sourceActionName;
+    }
+
+    public String getSourceEffectCode() {
+        return sourceEffectCode;
+    }
+
+    public void setSourceEffectCode(String sourceEffectCode) {
+        this.sourceEffectCode = sourceEffectCode;
     }
 }

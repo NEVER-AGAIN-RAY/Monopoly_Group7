@@ -27,6 +27,7 @@ import javafx.scene.Node;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
 import javafx.stage.Window;
@@ -178,7 +179,7 @@ public class MainController {
     private Button directPlayButton;
 
     @FXML
-    private VBox quickStartCard;
+    private StackPane quickStartCard;
     @FXML
     private VBox aiDifficultyBox;
     @FXML

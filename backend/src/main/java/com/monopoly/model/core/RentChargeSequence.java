@@ -13,6 +13,8 @@ public final class RentChargeSequence {
     private final String colorKey;
     private final int amountDuePerTenant;
     private final List<String> tenantIdsOrdered;
+    private final String sourceActionName;
+    private final String sourceEffectCode;
     /** Index of the tenant currently responding, or the tenant whose response just resolved. */
     private int currentIndex;
 
@@ -21,7 +23,17 @@ public final class RentChargeSequence {
             String colorKey,
             int amountDuePerTenant,
             List<String> tenantIdsOrdered) {
-        this(landlordId, colorKey, amountDuePerTenant, tenantIdsOrdered, 0);
+        this(landlordId, colorKey, amountDuePerTenant, tenantIdsOrdered, 0, null, null);
+    }
+
+    public RentChargeSequence(
+            String landlordId,
+            String colorKey,
+            int amountDuePerTenant,
+            List<String> tenantIdsOrdered,
+            String sourceActionName,
+            String sourceEffectCode) {
+        this(landlordId, colorKey, amountDuePerTenant, tenantIdsOrdered, 0, sourceActionName, sourceEffectCode);
     }
 
     /**
@@ -33,12 +45,25 @@ public final class RentChargeSequence {
             int amountDuePerTenant,
             List<String> tenantIdsOrdered,
             int initialTenantIndex) {
+        this(landlordId, colorKey, amountDuePerTenant, tenantIdsOrdered, initialTenantIndex, null, null);
+    }
+
+    public RentChargeSequence(
+            String landlordId,
+            String colorKey,
+            int amountDuePerTenant,
+            List<String> tenantIdsOrdered,
+            int initialTenantIndex,
+            String sourceActionName,
+            String sourceEffectCode) {
         this.landlordId = landlordId;
         this.colorKey = colorKey;
         this.amountDuePerTenant = amountDuePerTenant;
         this.tenantIdsOrdered = tenantIdsOrdered == null
                 ? new ArrayList<>()
                 : new ArrayList<>(tenantIdsOrdered);
+        this.sourceActionName = sourceActionName;
+        this.sourceEffectCode = sourceEffectCode;
         this.currentIndex = Math.max(0, initialTenantIndex);
         if (this.currentIndex > this.tenantIdsOrdered.size()) {
             this.currentIndex = this.tenantIdsOrdered.size();
@@ -59,6 +84,14 @@ public final class RentChargeSequence {
 
     public List<String> getTenantIdsOrderedView() {
         return Collections.unmodifiableList(tenantIdsOrdered);
+    }
+
+    public String getSourceActionName() {
+        return sourceActionName;
+    }
+
+    public String getSourceEffectCode() {
+        return sourceEffectCode;
     }
 
     public int getCurrentIndex() {

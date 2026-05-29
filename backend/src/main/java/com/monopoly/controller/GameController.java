@@ -3,6 +3,7 @@ package com.monopoly.controller;
 import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.core.AiGameBridge;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.monopoly.dto.PropertyColorProgress;
 import com.monopoly.model.card.Card;
 import com.monopoly.model.card.PropertyCard;
@@ -1137,6 +1138,7 @@ public class GameController implements AiGameBridge {
                 snap.setResponseDeadlineEpochMs(st.getDeadlineEpochMs());
                 snap.setPendingResponseHint(
                         EffectStackOrchestrator.buildPendingResponseHint(st));
+                snap.setPendingResponseContext(buildPendingResponseContext(st));
                 if (st.getRole() == StackResponseState.Role.TENANT) {
                     EffectStackEntry top = gameContext.peekTopEffect();
                     if (top != null && top.isRentLike()) {
@@ -1156,6 +1158,7 @@ public class GameController implements AiGameBridge {
             snap.setPendingResponseRole(null);
             snap.setResponseDeadlineEpochMs(0L);
             snap.setPendingResponseHint(null);
+            snap.setPendingResponseContext(null);
             snap.setEffectStackDepth(0);
         }
         snap.setPendingPaymentAmountM(pendingPaymentAmt);
@@ -1216,6 +1219,117 @@ public class GameController implements AiGameBridge {
                 playedActionType,
                 sessionPlayers);
         gameUpdateSubject.notifyStateChanged(snap);
+    }
+
+    private JsonObject buildPendingResponseContext(StackResponseState st) {
+        if (st == null) {
+            return null;
+        }
+        EffectStackEntry entry = responseEntryForContext(st);
+        JsonObject o = new JsonObject();
+        o.addProperty("role", st.getRole().name());
+        if (entry != null) {
+            o.addProperty("kind", entry.getKind().name());
+            addIfPresent(o, "actorPlayerId", entry.getActorPlayerId());
+            addIfPresent(o, "actorName", displayNameFor(entry.getActorPlayerId()));
+            String actionEffectCode = inferredActionEffectCode(entry);
+            String targetPlayerId = entry.getTenantPlayerId();
+            if (entry.getKind() == EffectStackEntry.Kind.WAIVER) {
+                EffectStackEntry targetEntry = findEffectEntryById(entry.getWaiverTargetEntryId());
+                if (targetEntry != null) {
+                    targetPlayerId = targetEntry.getActorPlayerId();
+                }
+                addIfPresent(o, "actionCardName", "Just Say No");
+                addIfPresent(o, "actionEffectCode", "RENT_WAIVER");
+            }
+            addIfPresent(o, "targetPlayerId", targetPlayerId);
+            addIfPresent(o, "targetName", displayNameFor(targetPlayerId));
+            addIfPresent(o, "colorKey", entry.getColorKey());
+            if (entry.getKind() != EffectStackEntry.Kind.WAIVER) {
+                addIfPresent(o, "actionCardName", entry.getActionCardName());
+                addIfPresent(o, "actionEffectCode", actionEffectCode);
+            }
+            if (entry.getAmountDue() > 0) {
+                o.addProperty("amountDueM", entry.getAmountDue());
+            }
+        }
+        if (st.getRole() == StackResponseState.Role.LANDLORD_COUNTER) {
+            EffectStackEntry bottom = bottomActionOrRentEntry();
+            if (bottom != null && bottom != entry) {
+                addIfPresent(o, "originalActorPlayerId", bottom.getActorPlayerId());
+                addIfPresent(o, "originalActorName", displayNameFor(bottom.getActorPlayerId()));
+                addIfPresent(o, "originalTargetPlayerId", bottom.getTenantPlayerId());
+                addIfPresent(o, "originalTargetName", displayNameFor(bottom.getTenantPlayerId()));
+                addIfPresent(o, "originalActionCardName", bottom.getActionCardName());
+                addIfPresent(o, "originalActionEffectCode", inferredActionEffectCode(bottom));
+                addIfPresent(o, "originalColorKey", bottom.getColorKey());
+                if (bottom.getAmountDue() > 0) {
+                    o.addProperty("originalAmountDueM", bottom.getAmountDue());
+                }
+            }
+        }
+        return o.size() == 1 && o.has("role") ? null : o;
+    }
+
+    private EffectStackEntry responseEntryForContext(StackResponseState st) {
+        if (st.getRole() == StackResponseState.Role.LANDLORD_COUNTER) {
+            return gameContext.peekTopEffect();
+        }
+        EffectStackEntry top = gameContext.peekTopEffect();
+        if (top != null && (top.isRentLike() || top.isActionLike())) {
+            return top;
+        }
+        return bottomActionOrRentEntry();
+    }
+
+    private EffectStackEntry bottomActionOrRentEntry() {
+        for (EffectStackEntry entry : gameContext.getEffectStackView()) {
+            if (entry != null && (entry.isRentLike() || entry.isActionLike())) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    private EffectStackEntry findEffectEntryById(String entryId) {
+        if (entryId == null || entryId.isBlank()) {
+            return null;
+        }
+        for (EffectStackEntry entry : gameContext.getEffectStackView()) {
+            if (entry != null && entryId.equals(entry.getId())) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    private static String inferredActionEffectCode(EffectStackEntry entry) {
+        if (entry == null) {
+            return null;
+        }
+        String explicit = entry.getActionEffectCode();
+        if (explicit != null && !explicit.isBlank()) {
+            return explicit;
+        }
+        if (!entry.isRentLike()) {
+            return null;
+        }
+        String colorKey = entry.getColorKey();
+        if ("DEBT_COLLECTOR".equals(colorKey) || "BIRTHDAY".equals(colorKey)) {
+            return colorKey;
+        }
+        return "RENT";
+    }
+
+    private String displayNameFor(String playerId) {
+        Player p = resolvePlayer(playerId);
+        return p != null ? p.getDisplayName() : null;
+    }
+
+    private static void addIfPresent(JsonObject o, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            o.addProperty(key, value);
+        }
     }
 
     // --- private helpers ---

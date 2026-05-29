@@ -117,6 +117,7 @@ final class TurnFlowService {
             throw new IllegalStateException("正在等待免租响应，不能出牌。");
         }
         ensureNoPendingOverflowDiscard(player, "出牌");
+        ensureTurnActionAvailable();
         if (currentTurnPhase != TurnPhase.PLAY) {
             throw new IllegalStateException("当前不是出牌阶段，请先完成摸牌。");
         }
@@ -128,9 +129,6 @@ final class TurnFlowService {
         }
         String normalizedActionType = actionType.trim().toUpperCase();
 
-        if (currentTurnActionCount >= MAX_ACTIONS_PER_TURN) {
-            throw new IllegalStateException("每回合最多可出 3 张牌，已达到上限。");
-        }
         currentTurnActionCount++;
 
         if ("DEPOSIT".equals(normalizedActionType)) {
@@ -211,11 +209,9 @@ final class TurnFlowService {
                     "DISCARD");
             return;
         }
+        ensureTurnActionAvailable();
         if (currentTurnPhase != TurnPhase.PLAY) {
             throw new IllegalStateException("当前不是出牌阶段，不能弃牌。");
-        }
-        if (currentTurnActionCount >= MAX_ACTIONS_PER_TURN) {
-            throw new IllegalStateException("每回合最多可出 3 张牌，已达到上限。");
         }
         currentTurnActionCount++;
         if (!player.discardFromHand(card)) {
@@ -430,15 +426,16 @@ final class TurnFlowService {
         }
         controller.ensureSessionActive();
         ensureTurnContext(actor);
+        if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
+            throw new IllegalStateException("正在等待免租响应，不能打出行动牌。");
+        }
+        ensureNoPendingOverflowDiscard(actor, "打出行动牌");
+        ensureTurnActionAvailable();
         if (currentTurnPhase != TurnPhase.PLAY) {
             throw new IllegalStateException("当前不是出牌阶段，请先完成摸牌。");
         }
-        ensureNoPendingOverflowDiscard(actor, "打出行动牌");
         if (!actor.getHandCardsView().contains(card)) {
             throw new IllegalStateException("该卡牌不在当前玩家手牌中，不能打出。");
-        }
-        if (currentTurnActionCount >= MAX_ACTIONS_PER_TURN) {
-            throw new IllegalStateException("每回合最多可出 3 张牌，已达到上限。");
         }
 
         GameContext gameContext = controller.getGameContext();
@@ -462,7 +459,9 @@ final class TurnFlowService {
                     actor.getPlayerId(),
                     ctx.getTarget().getPlayerId(),
                     ctx.getTargetColorKey(),
-                    amountDue);
+                    amountDue,
+                    card.getName(),
+                    card.getEffectCode());
             gameContext.pushEffect(rentEntry);
             effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
@@ -515,7 +514,9 @@ final class TurnFlowService {
                         actor.getPlayerId(),
                         ctx.getTargetColorKey(),
                         amountDue,
-                        tenantIds));
+                        tenantIds,
+                        card.getName(),
+                        card.getEffectCode()));
                 Player firstTenant = controller.resolvePlayer(tenantIds.get(0));
                 if (firstTenant == null) {
                     gameContext.clearRentChargeSequence();
@@ -525,7 +526,9 @@ final class TurnFlowService {
                         actor.getPlayerId(),
                         firstTenant.getPlayerId(),
                         ctx.getTargetColorKey(),
-                        amountDue));
+                        amountDue,
+                        card.getName(),
+                        card.getEffectCode()));
                 effectStack.enterRentResponseWindow(firstTenant, actor, card);
                 ActionEffectResult result = ActionEffectResult.success(
                         "双色全员收租已入栈，将依次向每位其他玩家收租；当前等待 "
@@ -545,7 +548,9 @@ final class TurnFlowService {
                     actor.getPlayerId(),
                     ctx.getTarget().getPlayerId(),
                     ctx.getTargetColorKey(),
-                    amountDue);
+                    amountDue,
+                    card.getName(),
+                    card.getEffectCode());
             gameContext.pushEffect(rentEntry);
             effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
@@ -566,7 +571,9 @@ final class TurnFlowService {
                     actor.getPlayerId(),
                     "BIRTHDAY",
                     2,
-                    tenantIds));
+                    tenantIds,
+                    card.getName(),
+                    card.getEffectCode()));
             Player firstTenant = controller.resolvePlayer(tenantIds.get(0));
             if (firstTenant == null) {
                 gameContext.clearRentChargeSequence();
@@ -576,7 +583,9 @@ final class TurnFlowService {
                     actor.getPlayerId(),
                     firstTenant.getPlayerId(),
                     "BIRTHDAY",
-                    2));
+                    2,
+                    card.getName(),
+                    card.getEffectCode()));
             effectStack.enterRentResponseWindow(firstTenant, actor, card);
             ActionEffectResult result = ActionEffectResult.success(
                     "生日礼金已入栈，将依次向每位其他玩家收 2M；当前等待 "
@@ -596,7 +605,9 @@ final class TurnFlowService {
                     actor.getPlayerId(),
                     ctx.getTarget().getPlayerId(),
                     "DEBT_COLLECTOR",
-                    5);
+                    5,
+                    card.getName(),
+                    card.getEffectCode());
             gameContext.pushEffect(debtEntry);
             effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
@@ -700,6 +711,12 @@ final class TurnFlowService {
         }
         throw new IllegalStateException(
                 "手牌超过 7 张，必须先弃牌至最多 7 张，不能" + attemptedAction + "。");
+    }
+
+    private void ensureTurnActionAvailable() {
+        if (currentTurnActionCount >= MAX_ACTIONS_PER_TURN) {
+            throw new IllegalStateException("每回合最多可出 3 张牌，已达到上限。");
+        }
     }
 
     Card resolveCardInHand(Player actor, String cardId, Integer handIndex) {

@@ -6,6 +6,7 @@
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Spinner?>
 <?import javafx.scene.control.Tab?>
@@ -92,6 +93,25 @@
                                         <Label text="弃牌堆" styleClass="deck-label"/>
                                     </VBox>
                                 </HBox>
+
+                                <VBox fx:id="responseBox" spacing="8.0" visible="false" managed="false"
+                                      styleClass="response-panel">
+                                    <HBox spacing="10.0" alignment="CENTER_LEFT">
+                                        <Label fx:id="responseTitleLabel" wrapText="true"
+                                               styleClass="response-title" HBox.hgrow="ALWAYS"/>
+                                        <Label fx:id="responseCountdownLabel" styleClass="response-countdown"/>
+                                    </HBox>
+                                    <Label fx:id="responseContextLabel" wrapText="true"
+                                           styleClass="response-context"/>
+                                    <HBox spacing="10.0" alignment="CENTER">
+                                        <Button fx:id="responseJsnButton" mnemonicParsing="false"
+                                                onAction="#onPlayJustSayNo" text="打出 Just Say No"
+                                                styleClass="btn-jsn"/>
+                                        <Button fx:id="responsePassButton" mnemonicParsing="false"
+                                                onAction="#onResponsePass" text="放弃响应"
+                                                styleClass="btn-quiet"/>
+                                    </HBox>
+                                </VBox>
 
                                 <VBox fx:id="rentPaymentBox" spacing="8.0" visible="false" managed="false"
                                       styleClass="rent-payment-panel">
@@ -194,6 +214,46 @@
                         text="如何多人联机？点此查看说明" styleClass="btn-guide-link"/>
                 <Label fx:id="errorLabel" wrapText="true" visible="false" managed="false"
                        styleClass="setup-error"/>
+
+                <TitledPane fx:id="lobbyPane" text="房间大厅" collapsible="true" expanded="false"
+                            styleClass="lobby-pane">
+                    <VBox spacing="10.0" styleClass="lobby-content">
+                        <HBox spacing="8.0" alignment="CENTER_LEFT">
+                            <Label fx:id="nicknameLabel" text="昵称" styleClass="setup-label"/>
+                            <TextField fx:id="nicknameField" prefWidth="150.0"/>
+                            <Button fx:id="createRoomButton" mnemonicParsing="false" onAction="#onCreateRoom"
+                                    text="创建房间" styleClass="btn-start-room"/>
+                            <Button fx:id="joinRoomButton" mnemonicParsing="false" onAction="#onJoinRoom"
+                                    text="加入房间" styleClass="btn-secondary"/>
+                            <Button fx:id="refreshRoomsButton" mnemonicParsing="false" onAction="#onRefreshRooms"
+                                    text="刷新房间" styleClass="btn-secondary"/>
+                        </HBox>
+
+                        <GridPane hgap="10.0" vgap="10.0">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="42.0"/>
+                                <ColumnConstraints percentWidth="58.0"/>
+                            </columnConstraints>
+                            <VBox spacing="6.0" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                                <Label fx:id="roomListLabel" text="房间列表" styleClass="lobby-section-title"/>
+                                <ListView fx:id="roomListView" prefHeight="122.0" styleClass="room-list-view"/>
+                            </VBox>
+                            <VBox spacing="6.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                                <HBox spacing="8.0" alignment="CENTER_LEFT">
+                                    <Label fx:id="waitingRoomLabel" text="等待厅" styleClass="lobby-section-title"/>
+                                    <Label fx:id="roomStatusLabel" text="未进入房间" styleClass="connection-status"/>
+                                    <Region HBox.hgrow="ALWAYS"/>
+                                    <Button fx:id="startRoomButton" mnemonicParsing="false" onAction="#onStartRoom"
+                                            text="开始房间" styleClass="btn-start-room"/>
+                                    <Button fx:id="leaveRoomButton" mnemonicParsing="false" onAction="#onLeaveRoom"
+                                            text="离开" styleClass="btn-quiet"/>
+                                </HBox>
+                                <FlowPane fx:id="roomMembersPane" hgap="6.0" vgap="6.0"/>
+                                <GridPane fx:id="roomSeatsGrid" hgap="8.0" vgap="8.0"/>
+                            </VBox>
+                        </GridPane>
+                    </VBox>
+                </TitledPane>
 
                 <TitledPane fx:id="advancedPane" text="高级设置（服务器地址、玩家ID 等）"
                             collapsible="true" expanded="false" styleClass="advanced-pane">

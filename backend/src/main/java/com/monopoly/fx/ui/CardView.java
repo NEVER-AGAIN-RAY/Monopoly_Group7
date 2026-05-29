@@ -2,16 +2,21 @@ package com.monopoly.fx.ui;
 
 import com.monopoly.fx.I18n;
 import com.monopoly.fx.presentation.CardDisplayData;
+import com.monopoly.fx.presentation.CardImageResolver;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+
+import java.net.URL;
 
 /**
  * Visual control for one hand card; styling lives in styles.css.
@@ -26,6 +31,18 @@ public class CardView extends ToggleButton {
         setWrapText(true);
         setMaxWidth(Region.USE_PREF_SIZE);
         setText(null);
+
+        URL imageUrl = CardImageResolver.imageUrl(data);
+        if (imageUrl != null) {
+            ImageView face = new ImageView(new Image(imageUrl.toExternalForm(), 134, 196, true, true, true));
+            face.getStyleClass().add("card-face-image");
+            face.setFitWidth(134);
+            face.setFitHeight(196);
+            face.setPreserveRatio(false);
+            setGraphic(new StackPane(face));
+            setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+            return;
+        }
 
         Region colorBar = new Region();
         colorBar.getStyleClass().add("color-bar");

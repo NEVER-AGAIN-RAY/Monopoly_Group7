@@ -1,7 +1,12 @@
 package com.monopoly.fx.presentation;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.monopoly.fx.I18n;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Client display model for one MY_HAND card. It still tolerates older payloads
@@ -19,6 +24,11 @@ public final class CardDisplayData {
     private final String rentDetailEn;
     private final String colorGroup;
     private final String effectCode;
+    private final String wildKind;
+    private final String assignedColorKey;
+    private final List<String> printedColors;
+    private final List<String> rentPalette;
+    private final String buildingLevel;
     private final Integer valueM;
     private final Integer setNeed;
 
@@ -33,6 +43,11 @@ public final class CardDisplayData {
             String rentDetailEn,
             String colorGroup,
             String effectCode,
+            String wildKind,
+            String assignedColorKey,
+            List<String> printedColors,
+            List<String> rentPalette,
+            String buildingLevel,
             Integer valueM,
             Integer setNeed) {
         this.id = id;
@@ -45,6 +60,11 @@ public final class CardDisplayData {
         this.rentDetailEn = rentDetailEn;
         this.colorGroup = colorGroup;
         this.effectCode = effectCode;
+        this.wildKind = wildKind;
+        this.assignedColorKey = assignedColorKey;
+        this.printedColors = printedColors == null ? List.of() : List.copyOf(printedColors);
+        this.rentPalette = rentPalette == null ? List.of() : List.copyOf(rentPalette);
+        this.buildingLevel = buildingLevel;
         this.valueM = valueM;
         this.setNeed = setNeed;
     }
@@ -101,6 +121,26 @@ public final class CardDisplayData {
         return effectCode;
     }
 
+    public String getWildKind() {
+        return wildKind;
+    }
+
+    public String getAssignedColorKey() {
+        return assignedColorKey;
+    }
+
+    public List<String> getPrintedColors() {
+        return printedColors;
+    }
+
+    public List<String> getRentPalette() {
+        return rentPalette;
+    }
+
+    public String getBuildingLevel() {
+        return buildingLevel;
+    }
+
     public Integer getValueM() {
         return valueM;
     }
@@ -136,6 +176,11 @@ public final class CardDisplayData {
         String rentDetailEn = str(c, "rentDetailEn", "");
         String colorGroup = str(c, "colorGroup", "");
         String effectCode = str(c, "effectCode", "");
+        String wildKind = str(c, "wildKind", "");
+        String assignedColorKey = str(c, "assignedColorKey", "");
+        List<String> printedColors = stringArray(c, "printedColors");
+        List<String> rentPalette = stringArray(c, "rentPalette");
+        String buildingLevel = str(c, "buildingLevel", "");
         Integer valueM = null;
         if (c.has("valueM") && !c.get("valueM").isJsonNull()) {
             try {
@@ -152,7 +197,24 @@ public final class CardDisplayData {
                 setNeed = null;
             }
         }
-        return new CardDisplayData(id, kind, titleZh, titleEn, hintZh, hintEn, rentDetailZh, rentDetailEn, colorGroup, effectCode, valueM, setNeed);
+        return new CardDisplayData(
+                id,
+                kind,
+                titleZh,
+                titleEn,
+                hintZh,
+                hintEn,
+                rentDetailZh,
+                rentDetailEn,
+                colorGroup,
+                effectCode,
+                wildKind,
+                assignedColorKey,
+                printedColors,
+                rentPalette,
+                buildingLevel,
+                valueM,
+                setNeed);
     }
 
     private static String inferKind(String id, String name) {
@@ -191,5 +253,27 @@ public final class CardDisplayData {
         } catch (RuntimeException e) {
             return def == null ? "" : def;
         }
+    }
+
+    private static List<String> stringArray(JsonObject o, String key) {
+        if (o == null || !o.has(key) || !o.get(key).isJsonArray()) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        JsonArray arr = o.getAsJsonArray(key);
+        for (JsonElement el : arr) {
+            if (el == null || el.isJsonNull()) {
+                continue;
+            }
+            try {
+                String value = el.getAsString();
+                if (value != null && !value.isBlank()) {
+                    out.add(value);
+                }
+            } catch (RuntimeException ignored) {
+                // ignore malformed entries
+            }
+        }
+        return out;
     }
 }

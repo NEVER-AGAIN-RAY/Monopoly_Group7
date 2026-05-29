@@ -4,14 +4,20 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.monopoly.fx.I18n;
+import com.monopoly.fx.presentation.CardDisplayData;
+import com.monopoly.fx.presentation.CardImageResolver;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
+import java.net.URL;
 import java.util.Locale;
 
 /**
@@ -125,10 +131,7 @@ public final class PlayerBoardPanel extends VBox {
                 continue;
             }
             JsonObject c = el.getAsJsonObject();
-            Label lab = new Label(shortZoneLabel(c));
-            lab.setWrapText(true);
-            lab.getStyleClass().addAll("zone-mini-card", miniStyle(c));
-            flow.getChildren().add(lab);
+            flow.getChildren().add(zoneCardNode(c));
         }
         if (flow.getChildren().isEmpty()) {
             Label empty = new Label(I18n.get("board.empty"));
@@ -136,6 +139,24 @@ public final class PlayerBoardPanel extends VBox {
             flow.getChildren().add(empty);
         }
         return flow;
+    }
+
+    private static javafx.scene.Node zoneCardNode(JsonObject c) {
+        CardDisplayData data = CardDisplayData.fromHandCardJson(c);
+        URL imageUrl = CardImageResolver.imageUrl(data);
+        if (imageUrl != null) {
+            ImageView image = new ImageView(new Image(imageUrl.toExternalForm(), 54, 78, true, true, true));
+            image.setFitWidth(54);
+            image.setFitHeight(78);
+            image.setPreserveRatio(false);
+            StackPane wrapper = new StackPane(image);
+            wrapper.getStyleClass().add("zone-image-card");
+            return wrapper;
+        }
+        Label lab = new Label(shortZoneLabel(c));
+        lab.setWrapText(true);
+        lab.getStyleClass().addAll("zone-mini-card", miniStyle(c));
+        return lab;
     }
 
     private static String miniStyle(JsonObject c) {

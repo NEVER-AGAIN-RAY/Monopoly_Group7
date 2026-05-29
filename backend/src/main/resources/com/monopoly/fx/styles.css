@@ -94,14 +94,14 @@
 
 .felt-table {
     -fx-background-color:
-        radial-gradient(center 50% 45%, radius 78%, #2f8a5f, #155236 68%, #0d3023 100%);
-    -fx-background-radius: 34;
-    -fx-border-color: #7b4b23, rgba(255, 255, 255, 0.18);
-    -fx-border-width: 14, 1;
-    -fx-border-radius: 38, 27;
+        radial-gradient(center 50% 48%, radius 82%, #2f8a5f, #1d6a48 58%, #0d3023 100%);
+    -fx-background-radius: 42;
+    -fx-border-color: #7b4b23, rgba(255, 255, 255, 0.14);
+    -fx-border-width: 16, 1;
+    -fx-border-radius: 44, 29;
     -fx-padding: 18 20 20 20;
-    -fx-effect: innershadow(gaussian, rgba(0, 0, 0, 0.52), 28, 0.2, 0, 0),
-                dropshadow(gaussian, rgba(0, 0, 0, 0.42), 18, 0.28, 0, 6);
+    -fx-effect: innershadow(gaussian, rgba(0, 0, 0, 0.50), 42, 0.2, 0, 0),
+                dropshadow(gaussian, rgba(0, 0, 0, 0.46), 24, 0.28, 0, 7);
 }
 
 .section-title {
@@ -225,6 +225,35 @@
     -fx-padding: 14 16 14 16;
 }
 
+.response-panel {
+    -fx-max-width: 780px;
+    -fx-background-color: rgba(14, 20, 24, 0.94);
+    -fx-background-radius: 16;
+    -fx-border-color: #ffd166;
+    -fx-border-width: 2;
+    -fx-border-radius: 16;
+    -fx-padding: 14 16 14 16;
+}
+
+.response-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #fff8d8;
+}
+
+.response-context {
+    -fx-text-fill: #d8dee6;
+    -fx-font-weight: bold;
+}
+
+.response-countdown {
+    -fx-background-color: #ffd166;
+    -fx-background-radius: 999;
+    -fx-text-fill: #3b2600;
+    -fx-font-weight: 900;
+    -fx-padding: 5 10 5 10;
+}
+
 .rent-title {
     -fx-font-weight: 900;
     -fx-text-fill: #ffe082;
@@ -268,6 +297,78 @@
     -fx-border-radius: 22, 15;
     -fx-padding: 28 34 30 34;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 28, 0.28, 0, 10);
+}
+
+.lobby-pane {
+    -fx-max-width: 700px;
+}
+
+.lobby-content {
+    -fx-background-color: #f6edcf;
+    -fx-padding: 12 14 14 14;
+}
+
+.lobby-section-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #245338;
+}
+
+.room-list-view {
+    -fx-background-color: rgba(255, 255, 255, 0.48);
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(63, 48, 27, 0.16);
+    -fx-border-radius: 8;
+}
+
+.room-list-view .list-cell {
+    -fx-padding: 7 9 7 9;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #263238;
+    -fx-background-color: transparent;
+}
+
+.room-list-view .list-cell:selected {
+    -fx-background-color: #245338;
+    -fx-text-fill: #fff8d8;
+}
+
+.member-chip {
+    -fx-background-color: #245338;
+    -fx-background-radius: 999;
+    -fx-text-fill: #fff8d8;
+    -fx-font-size: 11px;
+    -fx-font-weight: 900;
+    -fx-padding: 5 9 5 9;
+}
+
+.seat-card {
+    -fx-min-width: 148px;
+    -fx-pref-width: 160px;
+    -fx-background-color: rgba(255, 255, 255, 0.60);
+    -fx-background-radius: 10;
+    -fx-border-color: rgba(63, 48, 27, 0.15);
+    -fx-border-radius: 10;
+    -fx-padding: 8;
+}
+
+.seat-human { -fx-border-color: #2e7d32; }
+.seat-hard,
+.seat-strong { -fx-border-color: #1565c0; }
+.seat-llm,
+.seat-student { -fx-border-color: #6a1b9a; }
+
+.seat-title {
+    -fx-text-fill: #4b3d25;
+    -fx-font-size: 11px;
+    -fx-font-weight: 900;
+}
+
+.seat-help {
+    -fx-text-fill: #546e7a;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
 }
 
 .quick-start-title {
@@ -334,6 +435,11 @@
     -fx-font-size: 20px;
     -fx-padding: 13 54 13 54;
     -fx-effect: dropshadow(gaussian, rgba(183, 28, 28, 0.34), 9, 0.24, 0, 3);
+}
+
+.btn-start-room {
+    -fx-background-color: linear-gradient(to bottom, #d32f2f, #a91919);
+    -fx-text-fill: white;
 }
 
 .btn-start-game:hover {
@@ -405,6 +511,11 @@
     -fx-text-fill: white;
 }
 
+.btn-jsn {
+    -fx-background-color: #c62828;
+    -fx-text-fill: white;
+}
+
 .info-page,
 .debug-page {
     -fx-background-color: #111820;
@@ -439,6 +550,10 @@
     -fx-border-width: 1.4;
     -fx-padding: 0;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.35), 12, 0.22, 0, 5);
+}
+
+.card-face-image {
+    -fx-background-radius: 12;
 }
 
 .card:hover {
@@ -619,6 +734,17 @@
     -fx-font-weight: bold;
     -fx-text-fill: #1f2933;
     -fx-wrap-text: true;
+}
+
+.zone-image-card {
+    -fx-min-width: 54px;
+    -fx-pref-width: 54px;
+    -fx-min-height: 78px;
+    -fx-pref-height: 78px;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-border-color: rgba(0, 0, 0, 0.28);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.22), 7, 0.18, 0, 3);
 }
 
 .mini-money { -fx-background-color: #ffe082; }

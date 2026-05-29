@@ -15,6 +15,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TextArea;
@@ -24,12 +25,15 @@ import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Toggle;
 import javafx.scene.Node;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
 import javafx.stage.Window;
 
 import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
+import javafx.animation.KeyFrame;
 import javafx.util.Duration;
 
 import java.io.IOException;
@@ -62,10 +66,16 @@ public class MainController {
     private int pendingRentPaymentM;
     /** Whether a successful connection should immediately authenticate and start the session. */
     private boolean autoStartAfterConnect;
+    /** Pending lobby action to continue after a connection is established. */
+    private Runnable postConnectAction;
     /** Timeout guard for quick-start connection attempts. */
     private PauseTransition connectionTimeout;
     /** FX-thread callback waiting for ACTION_OPTIONS_RESULT or PLAY_OPTIONS_RESULT. */
     private Consumer<JsonObject> pendingOptionsResultHandler;
+    private JsonObject currentLobbyRoom;
+    private final Map<String, JsonObject> roomRowsByLabel = new LinkedHashMap<>();
+    private JsonArray latestHandCards = new JsonArray();
+    private Timeline responseCountdownTimer;
 
     @FXML
     private TextField wsUrlField;
@@ -110,6 +120,34 @@ public class MainController {
     private Label summaryLabel;
     @FXML
     private Label errorLabel;
+    @FXML
+    private TitledPane lobbyPane;
+    @FXML
+    private Label nicknameLabel;
+    @FXML
+    private TextField nicknameField;
+    @FXML
+    private Button createRoomButton;
+    @FXML
+    private Button joinRoomButton;
+    @FXML
+    private Button refreshRoomsButton;
+    @FXML
+    private Label roomListLabel;
+    @FXML
+    private ListView<String> roomListView;
+    @FXML
+    private Label waitingRoomLabel;
+    @FXML
+    private Label roomStatusLabel;
+    @FXML
+    private Button startRoomButton;
+    @FXML
+    private Button leaveRoomButton;
+    @FXML
+    private FlowPane roomMembersPane;
+    @FXML
+    private GridPane roomSeatsGrid;
     @FXML
     private Label appTitleLabel;
     @FXML
@@ -162,6 +200,18 @@ public class MainController {
     private Label actionGuideTitle;
     @FXML
     private Label actionGuideStep1;
+    @FXML
+    private VBox responseBox;
+    @FXML
+    private Label responseTitleLabel;
+    @FXML
+    private Label responseCountdownLabel;
+    @FXML
+    private Label responseContextLabel;
+    @FXML
+    private Button responseJsnButton;
+    @FXML
+    private Button responsePassButton;
     @FXML
     private VBox rentPaymentBox;
     @FXML
@@ -242,6 +292,7 @@ public class MainController {
     private void initialize() {
         wsUrlField.setText("ws://localhost:8025/ws");
         sessionIdField.setText("demo-pvp");
+        nicknameField.setText("玩家");
         playerCountSpinner.setValueFactory(new javafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory(2, 5, 2));
         gameModeCombo.getItems().setAll("HVM", "PVP", "LLM", "CUSTOM");
         gameModeCombo.getSelectionModel().selectFirst();
@@ -299,10 +350,17 @@ public class MainController {
 
         syncModeUi();
         gameModeCombo.valueProperty().addListener((obs, prev, mode) -> syncModeUi());
+        roomListView.getSelectionModel().selectedItemProperty().addListener((obs, prev, label) -> {
+            JsonObject row = roomRowsByLabel.get(label);
+            if (row != null) {
+                sessionIdField.setText(jsonString(row, "sessionId", sessionIdField.getText()));
+            }
+        });
 
         randomizeFirstCheck.setSelected(false);
         summaryLabel.setText("");
         hideError();
+        updateLobbyControls();
         syncWizardButtons();
         refreshButtons();
         applyI18n();
@@ -399,6 +457,15 @@ public class MainController {
         customLineupLabel.setText(I18n.get("label.customLineup"));
         languageLabel.setText(I18n.get("label.language"));
         startGameButton.setText(I18n.get("btn.startGame"));
+        lobbyPane.setText(I18n.get("lobby.title"));
+        nicknameLabel.setText(I18n.get("label.nickname"));
+        createRoomButton.setText(I18n.get("btn.createRoom"));
+        joinRoomButton.setText(I18n.get("btn.joinRoom"));
+        refreshRoomsButton.setText(I18n.get("btn.refreshRooms"));
+        roomListLabel.setText(I18n.get("lobby.roomList"));
+        waitingRoomLabel.setText(I18n.get("lobby.waitingRoom"));
+        startRoomButton.setText(I18n.get("btn.startRoom"));
+        leaveRoomButton.setText(I18n.get("btn.leaveRoom"));
         advancedPane.setText(I18n.get("advanced.title"));
         serverLabel.setText(I18n.get("label.server"));
         connectButton.setText(I18n.get("btn.connect"));
@@ -418,6 +485,8 @@ public class MainController {
         rentPaymentGreedyButton.setText(I18n.get("btn.autoSelect"));
         rentPaymentSubmitButton.setText(I18n.get("btn.confirmPay"));
         rentPaymentClearButton.setText(I18n.get("btn.clearSelection"));
+        responseJsnButton.setText(I18n.get("btn.playJsn"));
+        responsePassButton.setText(I18n.get("btn.passResponse"));
         myHandLabel.setText(I18n.get("label.myHand"));
         selectedCardLabel.setText(I18n.get("label.selectCardHint"));
         clearLogButton.setText(I18n.get("btn.clearLog"));
@@ -519,6 +588,13 @@ public class MainController {
                         onStartSession();
                         switchToGameView();
                     }
+                    if (postConnectAction != null) {
+                        Runnable action = postConnectAction;
+                        postConnectAction = null;
+                        action.run();
+                    } else {
+                        onRefreshRooms();
+                    }
                     updateTurnGuide();
                 });
             }
@@ -533,6 +609,7 @@ public class MainController {
                 Platform.runLater(() -> {
                     cancelConnectionTimeout();
                     autoStartAfterConnect = false;
+                    postConnectAction = null;
                     statusLabel.setText(I18n.get("status.connectFailed", error.getMessage()));
                     appendTraffic("« " + I18n.get("log.error") + "» " + error);
                     refreshButtons();
@@ -550,16 +627,19 @@ public class MainController {
                     playerBoardContainer.getChildren().clear();
                     pendingOptionsResultHandler = null;
                     autoStartAfterConnect = false;
+                    postConnectAction = null;
                     switchToPreGameView();
                     refreshButtons();
+                    updateLobbyControls();
                     updateTurnGuide();
                 });
             }
         });
         connectionTimeout = new PauseTransition(Duration.seconds(8));
         connectionTimeout.setOnFinished(e -> {
-            if (!ws.isConnected() && autoStartAfterConnect) {
+            if (!ws.isConnected() && (autoStartAfterConnect || postConnectAction != null)) {
                 autoStartAfterConnect = false;
+                postConnectAction = null;
                 statusLabel.setText(I18n.get("status.timeout"));
                 showError(I18n.get("error.connectHint", wsUrlField.getText().trim()));
                 refreshButtons();
@@ -583,8 +663,13 @@ public class MainController {
         lastStatePayload = null;
         playerBoardContainer.getChildren().clear();
         pendingOptionsResultHandler = null;
+        postConnectAction = null;
+        currentLobbyRoom = null;
+        roomRowsByLabel.clear();
+        roomListView.getItems().clear();
         switchToPreGameView();
         refreshButtons();
+        updateLobbyControls();
         updateTurnGuide();
     }
 
@@ -614,6 +699,49 @@ public class MainController {
             }
         }
         sendEnvelope("START_SESSION", p);
+    }
+
+    @FXML
+    private void onRefreshRooms() {
+        runWhenConnected(() -> sendEnvelope("ROOM_LIST", scopedPayload()));
+    }
+
+    @FXML
+    private void onCreateRoom() {
+        runWhenConnected(() -> {
+            Map<String, Object> p = scopedPayload();
+            p.put("nickname", nickname());
+            sendEnvelope("CREATE_ROOM", p);
+        });
+    }
+
+    @FXML
+    private void onJoinRoom() {
+        String selected = roomListView.getSelectionModel().getSelectedItem();
+        JsonObject row = roomRowsByLabel.get(selected);
+        if (row != null) {
+            sessionIdField.setText(jsonString(row, "sessionId", sessionIdField.getText().trim()));
+        }
+        runWhenConnected(() -> {
+            Map<String, Object> p = scopedPayload();
+            p.put("nickname", nickname());
+            sendEnvelope("JOIN_ROOM", p);
+        });
+    }
+
+    @FXML
+    private void onStartRoom() {
+        Map<String, Object> p = scopedPayload();
+        p.put("randomizeFirstPlayer", randomizeFirstCheck.isSelected());
+        sendEnvelope("START_ROOM", p);
+    }
+
+    @FXML
+    private void onLeaveRoom() {
+        sendEnvelope("LEAVE_ROOM", scopedPayload());
+        currentLobbyRoom = null;
+        rebuildRoomState(null);
+        updateLobbyControls();
     }
 
     @FXML
@@ -751,6 +879,31 @@ public class MainController {
                 null);
     }
 
+    private void runWhenConnected(Runnable action) {
+        if (ws.isConnected()) {
+            action.run();
+            return;
+        }
+        postConnectAction = action;
+        onConnect();
+    }
+
+    private Map<String, Object> scopedPayload() {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("sessionId", sessionIdField.getText().trim());
+        return p;
+    }
+
+    private String nickname() {
+        String value = nicknameField.getText() == null ? "" : nicknameField.getText().trim();
+        if (!value.isBlank()) {
+            return value;
+        }
+        String fallback = I18n.isChinese() ? "玩家" : "Player";
+        nicknameField.setText(fallback);
+        return fallback;
+    }
+
     @FXML
     private void onPlay() {
         String action = playActionCombo.getSelectionModel().getSelectedItem();
@@ -799,6 +952,7 @@ public class MainController {
     }
 
     void shutdown() {
+        stopResponseCountdown();
         ws.closeQuietly();
     }
 
@@ -809,6 +963,9 @@ public class MainController {
             case "STATE_UPDATE" -> applyStateUpdate(raw);
             case "MY_HAND" -> applyMyHand(raw);
             case "AUTH_RESULT" -> applyAuthResult(raw);
+            case "ROOM_LIST_RESULT" -> applyRoomListResult(raw);
+            case "ROOM_STATE" -> applyRoomState(raw);
+            case "ROOM_ERROR" -> applyRoomError(raw);
             case "ACTION_OPTIONS_RESULT", "PLAY_OPTIONS_RESULT" -> applyPendingOptionsResult(raw);
             case "ERROR" -> applyInboundError(raw);
             default -> {
@@ -864,6 +1021,72 @@ public class MainController {
         }
     }
 
+    private void applyRoomListResult(String raw) {
+        try {
+            JsonObject root = JsonParser.parseString(raw).getAsJsonObject();
+            JsonObject p = root.getAsJsonObject("payload");
+            roomRowsByLabel.clear();
+            roomListView.getItems().clear();
+            if (p == null || !p.has("rooms") || !p.get("rooms").isJsonArray()) {
+                return;
+            }
+            for (JsonElement el : p.getAsJsonArray("rooms")) {
+                if (!el.isJsonObject()) {
+                    continue;
+                }
+                JsonObject room = el.getAsJsonObject();
+                String label = roomListLabel(room);
+                roomRowsByLabel.put(label, room);
+                roomListView.getItems().add(label);
+            }
+            if (!roomListView.getItems().isEmpty() && roomListView.getSelectionModel().isEmpty()) {
+                roomListView.getSelectionModel().selectFirst();
+            }
+            updateLobbyControls();
+        } catch (RuntimeException ex) {
+            showError(I18n.get("msg.stateParseError", ex.getMessage()));
+        }
+    }
+
+    private void applyRoomState(String raw) {
+        try {
+            JsonObject root = JsonParser.parseString(raw).getAsJsonObject();
+            JsonObject p = root.getAsJsonObject("payload");
+            currentLobbyRoom = p;
+            String sid = jsonString(p, "sessionId", "");
+            if (!sid.isBlank()) {
+                sessionIdField.setText(sid);
+            }
+            rebuildRoomState(p);
+            boolean started = p != null && p.has("started") && p.get("started").getAsBoolean();
+            if (started) {
+                JsonObject mySeat = findMyLobbySeat(p);
+                if (mySeat != null) {
+                    String playerId = jsonString(mySeat, "playerId", "");
+                    if (!playerId.isBlank()) {
+                        playerIdField.setText(playerId);
+                    }
+                }
+                switchToGameView();
+            } else if (lobbyPane != null) {
+                lobbyPane.setExpanded(true);
+            }
+            updateLobbyControls();
+        } catch (RuntimeException ex) {
+            showError(I18n.get("msg.stateParseError", ex.getMessage()));
+        }
+    }
+
+    private void applyRoomError(String raw) {
+        try {
+            JsonObject root = JsonParser.parseString(raw).getAsJsonObject();
+            JsonObject p = root.getAsJsonObject("payload");
+            showError(jsonString(p, "error", I18n.get("lobby.roomError")));
+        } catch (RuntimeException ignored) {
+            showError(I18n.get("lobby.roomError"));
+        }
+    }
+
     private void applyStateUpdate(String raw) {
         try {
             JsonObject root = JsonParser.parseString(raw).getAsJsonObject();
@@ -904,10 +1127,336 @@ public class MainController {
             }
 
             rebuildPlayerBoard(p);
+            updateResponsePanel(p);
             updateRentPaymentPanel(p);
             updateTurnGuide();
         } catch (RuntimeException ex) {
             summaryLabel.setText(I18n.get("msg.stateParseError", ex.getMessage()));
+        }
+    }
+
+    private void updateResponsePanel(JsonObject p) {
+        if (responseBox == null) {
+            return;
+        }
+        String local = playerIdField.getText().trim();
+        boolean show = "WAITING_FOR_RESPONSE".equals(jsonString(p, "turnPhase", ""))
+                && local.equals(jsonString(p, "pendingResponsePlayerId", ""));
+        responseBox.setVisible(show);
+        responseBox.setManaged(show);
+        if (!show) {
+            stopResponseCountdown();
+            return;
+        }
+        int due = jsonInt(p, "pendingPaymentAmountM", 0);
+        String role = jsonString(p, "pendingResponseRole", "");
+        if ("LANDLORD_COUNTER".equals(role)) {
+            responseTitleLabel.setText(I18n.get("response.counterTitle"));
+        } else if (due > 0) {
+            responseTitleLabel.setText(I18n.get("response.paymentTitle", due));
+        } else {
+            responseTitleLabel.setText(I18n.get("response.targetedTitle"));
+        }
+        responseContextLabel.setText(responseContextText(
+                p.has("pendingResponseContext") && p.get("pendingResponseContext").isJsonObject()
+                        ? p.getAsJsonObject("pendingResponseContext")
+                        : null,
+                due));
+        responseJsnButton.setDisable(findJustSayNoCard() == null);
+        responsePassButton.setText(due > 0 ? I18n.get("btn.autoPay") : I18n.get("btn.passResponse"));
+        startResponseCountdown(jsonLong(p, "responseDeadlineEpochMs", 0L));
+    }
+
+    private String responseContextText(JsonObject ctx, int due) {
+        if (ctx == null) {
+            return due > 0 ? I18n.get("response.paymentBody") : I18n.get("response.defaultBody");
+        }
+        String action = responseActionTitle(ctx, "");
+        String actor = responsePlayerName(jsonString(ctx, "actorName", ""), jsonString(ctx, "actorPlayerId", ""));
+        String target = responsePlayerName(jsonString(ctx, "targetName", ""), jsonString(ctx, "targetPlayerId", ""));
+        String color = jsonString(ctx, "colorKey", "");
+        StringBuilder out = new StringBuilder();
+        out.append(I18n.get("response.actionLine", action));
+        if (!actor.isBlank() || !target.isBlank()) {
+            out.append("\n").append(I18n.get("response.fromTo",
+                    actor.isBlank() ? I18n.get("player.fallback") : actor,
+                    target.isBlank() ? I18n.get("player.fallback") : target));
+        }
+        if (!color.isBlank()) {
+            out.append(" · ").append(colorName(color));
+        }
+        int amount = jsonInt(ctx, "amountDueM", due);
+        if (amount > 0) {
+            out.append(" · ").append(amount).append("M");
+        }
+        String original = responseActionTitle(ctx, "original");
+        if (!original.isBlank()) {
+            out.append("\n").append(I18n.get("response.originalLine", original));
+        }
+        return out.toString();
+    }
+
+    private String responseActionTitle(JsonObject ctx, String prefix) {
+        String nameKey = prefix == null || prefix.isBlank() ? "actionCardName" : prefix + "ActionCardName";
+        String codeKey = prefix == null || prefix.isBlank() ? "actionEffectCode" : prefix + "ActionEffectCode";
+        String name = jsonString(ctx, nameKey, "");
+        if (!name.isBlank()) {
+            return name;
+        }
+        String code = jsonString(ctx, codeKey, "");
+        return actionEffectLabel(code);
+    }
+
+    private String responsePlayerName(String name, String playerId) {
+        if (name != null && !name.isBlank()) {
+            return name;
+        }
+        if (playerId == null || playerId.isBlank()) {
+            return "";
+        }
+        JsonObject player = findPlayerInState(lastStatePayload, playerId);
+        return player == null ? playerId : jsonString(player, "displayName", playerId);
+    }
+
+    private JsonObject findJustSayNoCard() {
+        if (latestHandCards == null) {
+            return null;
+        }
+        for (JsonElement el : latestHandCards) {
+            if (!el.isJsonObject()) {
+                continue;
+            }
+            JsonObject card = el.getAsJsonObject();
+            if ("RENT_WAIVER".equalsIgnoreCase(jsonString(card, "effectCode", ""))) {
+                return card;
+            }
+        }
+        return null;
+    }
+
+    private void startResponseCountdown(long deadlineMs) {
+        stopResponseCountdown();
+        if (deadlineMs <= 0L) {
+            responseCountdownLabel.setText("");
+            return;
+        }
+        responseCountdownTimer = new Timeline(new KeyFrame(Duration.millis(250), e -> {
+            long leftMs = Math.max(0L, deadlineMs - System.currentTimeMillis());
+            responseCountdownLabel.setText(I18n.get("response.countdown", (leftMs + 999L) / 1000L));
+        }));
+        responseCountdownTimer.setCycleCount(Timeline.INDEFINITE);
+        responseCountdownTimer.play();
+    }
+
+    private void stopResponseCountdown() {
+        if (responseCountdownTimer != null) {
+            responseCountdownTimer.stop();
+            responseCountdownTimer = null;
+        }
+        if (responseCountdownLabel != null) {
+            responseCountdownLabel.setText("");
+        }
+    }
+
+    private String roomListLabel(JsonObject room) {
+        String session = jsonString(room, "sessionId", I18n.get("lobby.unnamedRoom"));
+        int seats = jsonInt(room, "seatCount", 0);
+        int humans = jsonInt(room, "humanSeats", 0);
+        int connected = jsonInt(room, "connectedPlayers", 0);
+        boolean started = room != null && room.has("started") && room.get("started").getAsBoolean();
+        String host = jsonString(room, "hostNickname", "");
+        String state = started ? I18n.get("lobby.started") : I18n.get("lobby.waiting");
+        String suffix = host.isBlank() ? "" : " · " + I18n.get("lobby.host", host);
+        return I18n.get("lobby.roomRow", session, connected, humans, seats, state) + suffix;
+    }
+
+    private void rebuildRoomState(JsonObject room) {
+        roomMembersPane.getChildren().clear();
+        roomSeatsGrid.getChildren().clear();
+        if (room == null) {
+            roomStatusLabel.setText(I18n.get("lobby.noRoom"));
+            return;
+        }
+        String session = jsonString(room, "sessionId", "");
+        JsonArray members = room.has("members") && room.get("members").isJsonArray()
+                ? room.getAsJsonArray("members")
+                : new JsonArray();
+        JsonArray seats = room.has("seats") && room.get("seats").isJsonArray()
+                ? room.getAsJsonArray("seats")
+                : new JsonArray();
+        roomStatusLabel.setText(I18n.get("lobby.roomStatus", session, members.size(), activeSeatCount(seats)));
+        for (JsonElement el : members) {
+            if (!el.isJsonObject()) {
+                continue;
+            }
+            JsonObject member = el.getAsJsonObject();
+            String text = jsonString(member, "nickname", "");
+            if (member.has("host") && member.get("host").getAsBoolean()) {
+                text += " · " + I18n.get("lobby.hostShort");
+            }
+            Label chip = new Label(text);
+            chip.getStyleClass().add("member-chip");
+            roomMembersPane.getChildren().add(chip);
+        }
+        List<String> memberNames = memberNames(room);
+        for (int i = 0; i < seats.size(); i++) {
+            if (!seats.get(i).isJsonObject()) {
+                continue;
+            }
+            JsonObject seat = seats.get(i).getAsJsonObject();
+            roomSeatsGrid.add(seatCard(room, seat, memberNames), i % 3, i / 3);
+        }
+    }
+
+    private VBox seatCard(JsonObject room, JsonObject seat, List<String> memberNames) {
+        int index = jsonInt(seat, "index", 0);
+        String role = jsonString(seat, "role", "empty");
+        String nickname = jsonString(seat, "nickname", "");
+        VBox box = new VBox(6);
+        box.getStyleClass().addAll("seat-card", "seat-" + role);
+        Label title = new Label(I18n.get("lobby.seatTitle", index + 1));
+        title.getStyleClass().add("seat-title");
+        ComboBox<String> roleBox = new ComboBox<>();
+        roleBox.getItems().setAll("empty", "human", "hard", "strong", "llm", "student");
+        roleBox.getSelectionModel().select(role);
+        roleBox.setDisable(!isLobbyHost(room));
+        roleBox.valueProperty().addListener((obs, oldRole, newRole) -> {
+            if (newRole == null || newRole.equals(oldRole)) {
+                return;
+            }
+            sendRoomSeat(index, newRole, "human".equals(newRole) ? defaultSeatNickname(seat, memberNames) : "");
+        });
+        ComboBox<String> memberBox = new ComboBox<>();
+        memberBox.getItems().setAll(memberNames);
+        if (!nickname.isBlank()) {
+            memberBox.getSelectionModel().select(nickname);
+        }
+        memberBox.setDisable(!isLobbyHost(room) || !"human".equals(role));
+        memberBox.valueProperty().addListener((obs, oldName, newName) -> {
+            if (newName == null || newName.equals(oldName)) {
+                return;
+            }
+            sendRoomSeat(index, "human", newName);
+        });
+        Label help = new Label(seatSummary(role, nickname));
+        help.getStyleClass().add("seat-help");
+        help.setWrapText(true);
+        box.getChildren().addAll(title, roleBox);
+        if ("human".equals(role)) {
+            box.getChildren().add(memberBox);
+        }
+        box.getChildren().add(help);
+        return box;
+    }
+
+    private void sendRoomSeat(int index, String role, String nickname) {
+        Map<String, Object> p = scopedPayload();
+        p.put("seatIndex", index);
+        p.put("role", role);
+        if (nickname != null && !nickname.isBlank()) {
+            p.put("nickname", nickname);
+        }
+        sendEnvelope("ROOM_SET_SEAT", p);
+    }
+
+    private boolean isLobbyHost(JsonObject room) {
+        if (room == null || !room.has("members") || !room.get("members").isJsonArray()) {
+            return false;
+        }
+        String me = nickname();
+        for (JsonElement el : room.getAsJsonArray("members")) {
+            if (!el.isJsonObject()) {
+                continue;
+            }
+            JsonObject member = el.getAsJsonObject();
+            if (me.equals(jsonString(member, "nickname", ""))
+                    && member.has("host") && member.get("host").getAsBoolean()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<String> memberNames(JsonObject room) {
+        List<String> names = new ArrayList<>();
+        if (room == null || !room.has("members") || !room.get("members").isJsonArray()) {
+            return names;
+        }
+        for (JsonElement el : room.getAsJsonArray("members")) {
+            if (!el.isJsonObject()) {
+                continue;
+            }
+            String name = jsonString(el.getAsJsonObject(), "nickname", "");
+            if (!name.isBlank()) {
+                names.add(name);
+            }
+        }
+        return names;
+    }
+
+    private String defaultSeatNickname(JsonObject seat, List<String> memberNames) {
+        String current = jsonString(seat, "nickname", "");
+        if (!current.isBlank()) {
+            return current;
+        }
+        return memberNames.isEmpty() ? nickname() : memberNames.get(0);
+    }
+
+    private int activeSeatCount(JsonArray seats) {
+        int count = 0;
+        for (JsonElement el : seats) {
+            if (el.isJsonObject() && !"empty".equals(jsonString(el.getAsJsonObject(), "role", "empty"))) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private String seatSummary(String role, String nickname) {
+        return switch (role) {
+            case "human" -> nickname == null || nickname.isBlank()
+                    ? I18n.get("lobby.humanSeatEmpty")
+                    : I18n.get("lobby.humanSeat", nickname);
+            case "hard" -> I18n.get("lobby.hardSeat");
+            case "strong" -> I18n.get("lobby.strongSeat");
+            case "llm" -> I18n.get("lobby.llmSeat");
+            case "student" -> I18n.get("lobby.studentSeat");
+            default -> I18n.get("lobby.emptySeat");
+        };
+    }
+
+    private JsonObject findMyLobbySeat(JsonObject room) {
+        if (room == null || !room.has("seats") || !room.get("seats").isJsonArray()) {
+            return null;
+        }
+        String me = nickname();
+        for (JsonElement el : room.getAsJsonArray("seats")) {
+            if (!el.isJsonObject()) {
+                continue;
+            }
+            JsonObject seat = el.getAsJsonObject();
+            if ("human".equals(jsonString(seat, "role", ""))
+                    && me.equals(jsonString(seat, "nickname", ""))) {
+                return seat;
+            }
+        }
+        return null;
+    }
+
+    private void updateLobbyControls() {
+        if (createRoomButton == null) {
+            return;
+        }
+        boolean inRoom = currentLobbyRoom != null;
+        boolean host = isLobbyHost(currentLobbyRoom);
+        createRoomButton.setDisable(inRoom);
+        joinRoomButton.setDisable(inRoom);
+        startRoomButton.setDisable(!host || currentLobbyRoom == null
+                || activeSeatCount(currentLobbyRoom.has("seats") && currentLobbyRoom.get("seats").isJsonArray()
+                ? currentLobbyRoom.getAsJsonArray("seats") : new JsonArray()) < 2);
+        leaveRoomButton.setDisable(!inRoom);
+        if (!inRoom) {
+            roomStatusLabel.setText(I18n.get("lobby.noRoom"));
         }
     }
 
@@ -1085,6 +1634,25 @@ public class MainController {
         refreshRentPaymentSumLabel();
     }
 
+    @FXML
+    private void onResponsePass() {
+        sendEnvelope("PLAY", WsJson.playResponsePass(playerIdField.getText().trim(), null));
+    }
+
+    @FXML
+    private void onPlayJustSayNo() {
+        JsonObject card = findJustSayNoCard();
+        if (card == null) {
+            showError(I18n.get("error.noJsn"));
+            return;
+        }
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("actionType", "ACTION");
+        p.put("actingPlayerId", playerIdField.getText().trim());
+        p.put("cardId", jsonString(card, "id", ""));
+        sendEnvelope("PLAY", p);
+    }
+
     private void rebuildPlayerBoard(JsonObject payload) {
         playerBoardContainer.getChildren().clear();
         if (!payload.has("players") || !payload.get("players").isJsonArray()) {
@@ -1176,10 +1744,12 @@ public class MainController {
             syncWizardButtons();
 
             if (!payload.has("cards") || !payload.get("cards").isJsonArray()) {
+                latestHandCards = new JsonArray();
                 selectedCardLabel.setText(I18n.get("msg.noHand"));
                 return;
             }
             JsonArray cards = payload.getAsJsonArray("cards");
+            latestHandCards = cards;
             int visibleIndex = 0;
             int totalCards = cards.size();
             for (JsonElement el : cards) {
@@ -1204,6 +1774,9 @@ public class MainController {
             }
             handStrip.layout();
             handScroll.layout();
+            if (lastStatePayload != null) {
+                updateResponsePanel(lastStatePayload);
+            }
         } catch (RuntimeException ex) {
             selectedCardLabel.setText(I18n.get("msg.handParseError"));
         }
@@ -1258,6 +1831,59 @@ public class MainController {
         } catch (RuntimeException e) {
             return def;
         }
+    }
+
+    private static long jsonLong(JsonObject o, String key, long def) {
+        if (o == null || !o.has(key) || o.get(key).isJsonNull()) {
+            return def;
+        }
+        try {
+            return o.get(key).getAsLong();
+        } catch (RuntimeException e) {
+            return def;
+        }
+    }
+
+    private static String actionEffectLabel(String code) {
+        String normalized = code == null ? "" : code.trim().toUpperCase(Locale.ROOT);
+        if (I18n.isChinese()) {
+            return switch (normalized) {
+                case "RENT" -> "收租";
+                case "RENT_DUAL" -> "双色收租";
+                case "DOUBLE_RENT" -> "租金加倍";
+                case "STEAL_PROPERTY" -> "暗中夺产";
+                case "FORCED_DEAL" -> "强制交易";
+                case "DEBT_COLLECTOR" -> "讨债";
+                case "RENT_WAIVER" -> "Just Say No";
+                case "PASS_GO" -> "经过起点";
+                case "HOUSE" -> "房屋";
+                case "HOTEL" -> "旅馆";
+                case "BIRTHDAY" -> "生日礼金";
+                case "DEAL_BREAKER" -> "交易破坏者";
+                default -> normalized;
+            };
+        }
+        return switch (normalized) {
+            case "RENT" -> "Rent";
+            case "RENT_DUAL" -> "Dual-Color Rent";
+            case "DOUBLE_RENT" -> "Double Rent";
+            case "STEAL_PROPERTY" -> "Sly Deal";
+            case "FORCED_DEAL" -> "Forced Deal";
+            case "DEBT_COLLECTOR" -> "Debt Collector";
+            case "RENT_WAIVER" -> "Just Say No";
+            case "PASS_GO" -> "Pass Go";
+            case "HOUSE" -> "House";
+            case "HOTEL" -> "Hotel";
+            case "BIRTHDAY" -> "Birthday";
+            case "DEAL_BREAKER" -> "Deal Breaker";
+            default -> normalized;
+        };
+    }
+
+    private static String colorName(String colorKey) {
+        String key = colorKey == null ? "" : colorKey.trim().toUpperCase(Locale.ROOT);
+        String value = I18n.get("color." + key);
+        return value.startsWith("!color.") ? key : value;
     }
 
     private void showError(String msg) {

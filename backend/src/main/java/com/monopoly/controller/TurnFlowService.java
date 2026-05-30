@@ -105,6 +105,16 @@ final class TurnFlowService {
                 player.getDisplayName() + " drew " + drawn + " card(s).");
     }
 
+    void skipDrawAfterAiFailure(AIPlayer ai) {
+        if (ai == null || currentTurnPhase != TurnPhase.DRAW) {
+            return;
+        }
+        ensureTurnContext(ai);
+        currentTurnPhase = TurnPhase.PLAY;
+        controller.pushSnapshot(controller.getCurrentSessionId(), "AI_DECISION_FAILED",
+                ai.getDisplayName() + " AI draw decision failed; skipping to end turn.");
+    }
+
     // --- play ---
 
     void playCard(Player player, Card card, String actionType, ActionParamContext params) {

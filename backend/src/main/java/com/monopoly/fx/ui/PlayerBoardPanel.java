@@ -5,221 +5,354 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.monopoly.fx.I18n;
 import com.monopoly.fx.presentation.CardDisplayData;
-import com.monopoly.fx.presentation.CardImageResolver;
+import com.monopoly.fx.presentation.CardImageCache;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.image.Image;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 
-import java.net.URL;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
- * A compact table mat for one player's public zones.
+ * Compact public board for one player. It mirrors the web table: player summary,
+ * bank strip, and property stacks grouped by effective color.
  */
 public final class PlayerBoardPanel extends VBox {
 
-    private static String colorName(String key) {
-        return I18n.get("color." + key);
-    }
+    private static final double SMALL_CARD_W = 44;
+    private static final double SMALL_CARD_H = 74;
+    private static final double STACK_CARD_STEP_X = 10;
+    private static final double STACK_CARD_STEP_Y = 3;
+    private static final double STACK_CARD_AREA_H = 80;
+    private static final Map<String, Integer> SET_NEEDS = Map.ofEntries(
+            Map.entry("BROWN", 2),
+            Map.entry("LIGHT_BLUE", 3),
+            Map.entry("PINK", 3),
+            Map.entry("ORANGE", 3),
+            Map.entry("RED", 3),
+            Map.entry("YELLOW", 3),
+            Map.entry("GREEN", 3),
+            Map.entry("DARK_BLUE", 2),
+            Map.entry("RAILROAD", 4),
+            Map.entry("UTILITY", 2)
+    );
 
-    public PlayerBoardPanel(JsonObject playerObj, boolean activeTurn) {
-        getStyleClass().add("player-panel");
-        if (activeTurn) {
-            getStyleClass().add("player-panel-active");
+    public PlayerBoardPanel(JsonObject player, boolean activeTurn) {
+        getStyleClass().add("player-board");
+        boolean localLayout = player != null && "LOCAL".equals(jsonStr(player, "_layout", ""));
+        if (localLayout) {
+            getStyleClass().add("local-board");
         }
-        setSpacing(8);
-        setPadding(new Insets(10, 12, 12, 12));
+        if (activeTurn) {
+            getStyleClass().add("active");
+        }
+        setSpacing(localLayout ? 6 : 8);
+        setPadding(localLayout ? new Insets(8, 10, 8, 10) : new Insets(10, 12, 12, 12));
 
-        String pid = jsonStr(playerObj, "playerId", "--");
-        String pname = jsonStr(playerObj, "displayName", pid);
+        String playerId = jsonStr(player, "playerId", "--");
+        String displayName = jsonStr(player, "displayName", playerId);
+        int hand = jsonInt(player, "handCount", 0);
+        int bankValue = jsonInt(player, "bankTotalValueM", 0);
+        int sets = jsonInt(player, "completePropertySets", 0);
 
-        Label avatar = new Label(initials(pname, pid));
+        Label avatar = new Label(initials(displayName, playerId));
         avatar.getStyleClass().add("player-avatar");
-
-        Label title = new Label(pname);
-        title.getStyleClass().add("player-title");
-        Label id = new Label(pid);
+        Label name = new Label(displayName);
+        name.getStyleClass().add("player-name");
+        Label id = new Label(playerId);
         id.getStyleClass().add("player-id");
-        VBox names = new VBox(1, title, id);
-        HBox.setHgrow(names, Priority.ALWAYS);
-
-        int hand = jsonInt(playerObj, "handCount", 0);
-        int bank = jsonInt(playerObj, "bankCount", 0);
-        int prop = jsonInt(playerObj, "propertyCount", 0);
-        int sets = jsonInt(playerObj, "completePropertySets", 0);
-        int act = jsonInt(playerObj, "actionZoneCount", 0);
-        int bankVal = jsonInt(playerObj, "bankTotalValueM", 0);
-
-        Label setsBadge = new Label(sets + "/3 SETS");
-        setsBadge.getStyleClass().addAll("chip", sets >= 3 ? "color-GREEN" : "color-RAILROAD");
-
-        HBox header = new HBox(9, avatar, names, setsBadge);
+        Label stats = new Label(I18n.get("board.compactStats", hand, bankValue, propertyCount(player), sets));
+        stats.getStyleClass().add("board-stats");
+        VBox titleBox = localLayout ? new VBox(1, name, stats) : new VBox(1, name, id);
+        HBox.setHgrow(titleBox, Priority.ALWAYS);
+        Label setBadge = new Label(sets + "/3");
+        setBadge.getStyleClass().addAll("sets-badge", sets >= 3 ? "complete" : "incomplete");
+        HBox header = new HBox(9, avatar, titleBox, setBadge);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        Label stats = new Label(I18n.get("board.stats", hand, bank, bankVal, prop, act, sets));
-        stats.getStyleClass().add("player-stats");
+        HBox bank = new HBox(localLayout ? -6 : 7);
+        bank.getStyleClass().add("mini-card-row");
+        bank.setAlignment(Pos.BOTTOM_LEFT);
+        addCards(bank, player.getAsJsonArray("bankCards"), "bank-card");
 
-        FlowPane progressChips = progressChips(playerObj);
-        FlowPane bankFlow = zoneCardFlow(playerObj.getAsJsonArray("bankCards"));
-        FlowPane propFlow = zoneCardFlow(playerObj.getAsJsonArray("propertyZoneCards"));
-
-        getChildren().addAll(header, stats);
-        if (!progressChips.getChildren().isEmpty()) {
-            getChildren().addAll(sectionTitle(I18n.get("board.setProgress")), progressChips);
+        HBox propertyStacks = new HBox(localLayout ? 14 : 11);
+        propertyStacks.getStyleClass().add("property-stacks");
+        for (PropertyStack stack : propertyStacks(player.getAsJsonArray("propertyZoneCards"))) {
+            propertyStacks.getChildren().add(propertyStackNode(stack));
         }
-        getChildren().addAll(
-                sectionTitle(I18n.get("board.bankCards")), bankFlow,
-                sectionTitle(I18n.get("board.propertyCards")), propFlow
-        );
+        if (propertyStacks.getChildren().isEmpty()) {
+            propertyStacks.getChildren().add(emptyLabel(I18n.get("propertyEmpty")));
+        }
+        Region zones = localLayout ? new VBox(8) : new HBox(8);
+        zones.getStyleClass().add("revealed-zones");
+        if (localLayout) {
+            zones.getStyleClass().add("local-zones");
+        }
+        VBox bankZone = zone(I18n.get("bank") + " " + bankValue + "M",
+                bank.getChildren().isEmpty() ? emptyLabel(I18n.get("bankEmptyShort")) : horizontalScroll(bank, localLayout ? 94 : 78));
+        VBox propertyZone = zone(I18n.get("property") + " " + propertyCount(player),
+                horizontalScroll(propertyStacks, localLayout ? 122 : 112));
+        if (localLayout) {
+            VBox.setVgrow(propertyZone, Priority.ALWAYS);
+        } else {
+            HBox.setHgrow(bankZone, Priority.ALWAYS);
+            HBox.setHgrow(propertyZone, Priority.ALWAYS);
+        }
+        bankZone.setMinWidth(0);
+        propertyZone.setMinWidth(0);
+        if (zones instanceof VBox vbox) {
+            vbox.getChildren().addAll(bankZone, propertyZone);
+        } else if (zones instanceof HBox hbox) {
+            hbox.getChildren().addAll(bankZone, propertyZone);
+        }
+
+        if (localLayout) {
+            getChildren().addAll(header, zones);
+        } else {
+            getChildren().addAll(header, stats, zones);
+        }
     }
 
-    private static Label sectionTitle(String text) {
+    public static StackPane smallCardNode(CardDisplayData data, String extraClass) {
+        StackPane wrapper = new StackPane();
+        wrapper.getStyleClass().add("small-card");
+        if (extraClass != null && !extraClass.isBlank()) {
+            wrapper.getStyleClass().add(extraClass);
+        }
+        javafx.scene.image.Image cardImage = CardImageCache.image(data, SMALL_CARD_W * 2, SMALL_CARD_H * 2);
+        if (cardImage != null) {
+            ImageView image = new ImageView(cardImage);
+            image.setFitWidth(SMALL_CARD_W);
+            image.setFitHeight(SMALL_CARD_H);
+            image.setPreserveRatio(false);
+            image.setSmooth(true);
+            wrapper.getChildren().add(image);
+            Rectangle clip = new Rectangle(SMALL_CARD_W, SMALL_CARD_H);
+            clip.setArcWidth(7);
+            clip.setArcHeight(7);
+            wrapper.setClip(clip);
+            return wrapper;
+        }
+        Label fallback = new Label(shortTitle(data));
+        fallback.setWrapText(true);
+        fallback.getStyleClass().add("small-card-label");
+        wrapper.getChildren().add(fallback);
+        return wrapper;
+    }
+
+    private static void addCards(Pane flow, JsonArray cards, String extraClass) {
+        if (cards == null) {
+            return;
+        }
+        for (JsonElement el : cards) {
+            if (!el.isJsonObject()) {
+                continue;
+            }
+            CardDisplayData data = CardDisplayData.fromHandCardJson(el.getAsJsonObject());
+            flow.getChildren().add(smallCardNode(data, extraClass));
+        }
+    }
+
+    private static VBox propertyStackNode(PropertyStack stack) {
+        VBox box = new VBox(3);
+        box.getStyleClass().add("property-stack");
+        if (stack.complete()) {
+            box.getStyleClass().add("complete");
+        }
+        box.setAlignment(Pos.BOTTOM_LEFT);
+        Label title = new Label(stack.label() + " " + stack.cards().size() + "/" + stack.need());
+        title.getStyleClass().addAll("property-stack-title", "color-" + stack.color());
+        title.setMaxWidth(Region.USE_PREF_SIZE);
+
+        Pane cards = new Pane();
+        cards.getStyleClass().add("stack-cards");
+        double width = stackWidth(stack.cards().size());
+        cards.setMinSize(width, STACK_CARD_AREA_H);
+        cards.setPrefSize(width, STACK_CARD_AREA_H);
+        cards.setMaxSize(width, STACK_CARD_AREA_H);
+        for (int i = 0; i < stack.cards().size(); i++) {
+            StackPane card = smallCardNode(stack.cards().get(i), "property-card");
+            card.setLayoutX(i * STACK_CARD_STEP_X);
+            card.setLayoutY(Math.max(0, STACK_CARD_AREA_H - SMALL_CARD_H - (i * STACK_CARD_STEP_Y)));
+            cards.getChildren().add(card);
+        }
+        box.getChildren().addAll(title, cards);
+        return box;
+    }
+
+    private static double stackWidth(int cardCount) {
+        return SMALL_CARD_W + Math.max(0, cardCount - 1) * STACK_CARD_STEP_X + 8;
+    }
+
+    private static List<PropertyStack> propertyStacks(JsonArray cards) {
+        Map<String, List<CardDisplayData>> groups = new LinkedHashMap<>();
+        if (cards != null) {
+            for (JsonElement el : cards) {
+                if (!el.isJsonObject()) {
+                    continue;
+                }
+                CardDisplayData data = CardDisplayData.fromHandCardJson(el.getAsJsonObject());
+                String color = effectiveColor(data);
+                groups.computeIfAbsent(color, ignored -> new ArrayList<>()).add(data);
+            }
+        }
+        List<PropertyStack> stacks = new ArrayList<>();
+        for (Map.Entry<String, List<CardDisplayData>> entry : groups.entrySet()) {
+            String color = entry.getKey();
+            int need = SET_NEEDS.getOrDefault(color, entry.getValue().isEmpty() ? 3 : fallbackNeed(entry.getValue().get(0)));
+            stacks.add(new PropertyStack(color, colorName(color), need, entry.getValue()));
+        }
+        stacks.sort((a, b) -> colorOrder(a.color()) - colorOrder(b.color()));
+        return stacks;
+    }
+
+    private static String effectiveColor(CardDisplayData data) {
+        if ("PROPERTY".equals(data.getKind())) {
+            return safe(data.getColorGroup(), "WILD");
+        }
+        if ("WILD".equals(data.getKind())) {
+            if (data.getAssignedColorKey() != null && !data.getAssignedColorKey().isBlank()) {
+                return safe(data.getAssignedColorKey(), "WILD");
+            }
+            if (data.getColorGroup() != null && !data.getColorGroup().isBlank()) {
+                return safe(data.getColorGroup(), "WILD");
+            }
+            if (!data.getPrintedColors().isEmpty()) {
+                return safe(data.getPrintedColors().get(0), "WILD");
+            }
+        }
+        return "WILD";
+    }
+
+    private static int fallbackNeed(CardDisplayData data) {
+        return data.getSetNeed() == null || data.getSetNeed() <= 0 ? 3 : data.getSetNeed();
+    }
+
+    private static int colorOrder(String color) {
+        return switch (safe(color, "")) {
+            case "BROWN" -> 0;
+            case "LIGHT_BLUE" -> 1;
+            case "PINK" -> 2;
+            case "ORANGE" -> 3;
+            case "RED" -> 4;
+            case "YELLOW" -> 5;
+            case "GREEN" -> 6;
+            case "DARK_BLUE" -> 7;
+            case "RAILROAD" -> 8;
+            case "UTILITY" -> 9;
+            default -> 10;
+        };
+    }
+
+    private static Label section(String text) {
         Label label = new Label(text);
-        label.getStyleClass().add("zone-section-title");
+        label.getStyleClass().add("board-section-title");
         return label;
     }
 
-    private static FlowPane progressChips(JsonObject playerObj) {
-        FlowPane flow = new FlowPane();
-        flow.setHgap(6);
-        flow.setVgap(6);
-        if (!playerObj.has("propertyColorProgress") || !playerObj.get("propertyColorProgress").isJsonArray()) {
-            return flow;
-        }
-        for (JsonElement el : playerObj.getAsJsonArray("propertyColorProgress")) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
-            JsonObject row = el.getAsJsonObject();
-            String ck = jsonStr(row, "colorKey", "");
-            int eff = jsonInt(row, "effectiveCount", 0);
-            int need = jsonInt(row, "need", 0);
-            int completeSets = jsonInt(row, "completeSets", 0);
-            if (ck.isEmpty()) {
-                continue;
-            }
-            String text = need > 0 ? colorName(ck) + " " + eff + "/" + need : colorName(ck) + " x" + eff;
-            if (completeSets > 0) {
-                text += " " + I18n.get("board.complete", completeSets);
-            }
-            Label chip = new Label(text);
-            chip.getStyleClass().addAll("chip", "color-" + ck);
-            flow.getChildren().add(chip);
-        }
-        return flow;
+    private static VBox zone(String title, Node body) {
+        VBox box = new VBox(6);
+        box.getStyleClass().add("revealed-zone");
+        Label label = section(title);
+        VBox.setVgrow(body, Priority.ALWAYS);
+        box.getChildren().addAll(label, body);
+        return box;
     }
 
-    private static FlowPane zoneCardFlow(JsonArray arr) {
-        FlowPane flow = new FlowPane();
-        flow.setHgap(6);
-        flow.setVgap(6);
-        if (arr == null || arr.isEmpty()) {
-            Label empty = new Label(I18n.get("board.empty"));
-            empty.getStyleClass().add("player-stats");
-            flow.getChildren().add(empty);
-            return flow;
-        }
-        for (JsonElement el : arr) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
-            JsonObject c = el.getAsJsonObject();
-            flow.getChildren().add(zoneCardNode(c));
-        }
-        if (flow.getChildren().isEmpty()) {
-            Label empty = new Label(I18n.get("board.empty"));
-            empty.getStyleClass().add("player-stats");
-            flow.getChildren().add(empty);
-        }
-        return flow;
+    private static ScrollPane horizontalScroll(Node body, double prefHeight) {
+        ScrollPane scroll = new ScrollPane(body);
+        scroll.getStyleClass().add("zone-scroll");
+        scroll.setFitToHeight(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scroll.setMinHeight(0);
+        scroll.setPrefHeight(prefHeight);
+        scroll.setMaxHeight(prefHeight);
+        return scroll;
     }
 
-    private static javafx.scene.Node zoneCardNode(JsonObject c) {
-        CardDisplayData data = CardDisplayData.fromHandCardJson(c);
-        URL imageUrl = CardImageResolver.imageUrl(data);
-        if (imageUrl != null) {
-            ImageView image = new ImageView(new Image(imageUrl.toExternalForm(), 54, 78, true, true, true));
-            image.setFitWidth(54);
-            image.setFitHeight(78);
-            image.setPreserveRatio(false);
-            StackPane wrapper = new StackPane(image);
-            wrapper.getStyleClass().add("zone-image-card");
-            return wrapper;
-        }
-        Label lab = new Label(shortZoneLabel(c));
-        lab.setWrapText(true);
-        lab.getStyleClass().addAll("zone-mini-card", miniStyle(c));
-        return lab;
+    private static Label emptyLabel(String text) {
+        Label label = new Label(text);
+        label.setWrapText(true);
+        label.getStyleClass().add("board-empty");
+        return label;
     }
 
-    private static String miniStyle(JsonObject c) {
-        String kind = jsonStr(c, "kind", "").toUpperCase(Locale.ROOT);
-        return switch (kind) {
-            case "MONEY" -> "mini-money";
-            case "ACTION" -> "mini-action";
-            case "PROPERTY" -> "mini-property";
-            case "WILD" -> "mini-wild";
-            default -> "mini-property";
-        };
-    }
-
-    private static String shortZoneLabel(JsonObject c) {
-        String kind = jsonStr(c, "kind", "").toUpperCase(Locale.ROOT);
-        int vm = jsonInt(c, "valueM", 0);
-        String title = jsonStr(c, I18n.isChinese() ? "titleZh" : "titleEn", "");
-        if (title.isBlank()) {
-            title = jsonStr(c, "name", kind);
-        }
-        if (title.length() > 16) {
-            title = title.substring(0, 15) + "...";
-        }
-        String bl = jsonStr(c, "buildingLevel", "");
-        String extra = "";
-        if (!bl.isBlank() && !"BASE".equals(bl)) {
-            extra = " " + bl;
-        }
-        return switch (kind) {
-            case "MONEY", "ACTION" -> title + "\n" + vm + "M";
-            case "PROPERTY", "WILD" -> title + extra + "\n" + I18n.get("board.pledge") + " " + vm + "M";
-            default -> title + "\n" + vm + "M";
-        };
+    private static int propertyCount(JsonObject player) {
+        JsonArray cards = player == null ? null : player.getAsJsonArray("propertyZoneCards");
+        return cards == null ? 0 : cards.size();
     }
 
     private static String initials(String displayName, String playerId) {
-        String s = (displayName == null || displayName.isBlank()) ? playerId : displayName;
-        if (s == null || s.isBlank()) {
+        String source = displayName == null || displayName.isBlank() ? playerId : displayName;
+        if (source == null || source.isBlank()) {
             return "?";
         }
-        String trimmed = s.trim();
+        String trimmed = source.trim();
         return trimmed.substring(0, Math.min(2, trimmed.length())).toUpperCase(Locale.ROOT);
     }
 
-    private static String jsonStr(JsonObject o, String k, String def) {
-        if (o == null || !o.has(k) || o.get(k).isJsonNull()) {
-            return def;
+    private static String shortTitle(CardDisplayData data) {
+        String title = data == null ? "" : data.getTitle();
+        if (title.length() > 18) {
+            return title.substring(0, 17) + "...";
+        }
+        if (data != null && data.getValueM() != null) {
+            return title + "\n" + data.getValueM() + "M";
+        }
+        return title;
+    }
+
+    private static String colorName(String key) {
+        String value = I18n.get("color." + safe(key, ""));
+        return value.startsWith("!color.") ? key : value;
+    }
+
+    private static String safe(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        return value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static String jsonStr(JsonObject obj, String key, String fallback) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return fallback;
         }
         try {
-            return o.get(k).getAsString();
-        } catch (RuntimeException e) {
-            return def;
+            return obj.get(key).getAsString();
+        } catch (RuntimeException ex) {
+            return fallback;
         }
     }
 
-    private static int jsonInt(JsonObject o, String k, int def) {
-        if (o == null || !o.has(k) || o.get(k).isJsonNull()) {
-            return def;
+    private static int jsonInt(JsonObject obj, String key, int fallback) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return fallback;
         }
         try {
-            return o.get(k).getAsInt();
-        } catch (RuntimeException e) {
-            return def;
+            return obj.get(key).getAsInt();
+        } catch (RuntimeException ex) {
+            return fallback;
+        }
+    }
+
+    private record PropertyStack(String color, String label, int need, List<CardDisplayData> cards) {
+        boolean complete() {
+            return cards.size() >= need;
         }
     }
 }

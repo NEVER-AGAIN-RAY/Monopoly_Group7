@@ -69,7 +69,11 @@ final class AiTurnService {
             continueAiTurnOneDecision(ai);
         } catch (IllegalStateException ex) {
             if (!controller.isSessionEnded()) {
-                throw ex;
+                handleAiDecisionFailure(ai, ex);
+            }
+        } catch (RuntimeException ex) {
+            if (!controller.isSessionEnded()) {
+                handleAiDecisionFailure(ai, ex);
             }
         }
     }
@@ -121,6 +125,24 @@ final class AiTurnService {
             return;
         }
         controller.endTurn(ai);
+    }
+
+    private void handleAiDecisionFailure(AIPlayer ai, RuntimeException ex) {
+        String message = ex.getMessage() == null || ex.getMessage().isBlank()
+                ? ex.getClass().getSimpleName()
+                : ex.getMessage();
+        System.err.println("[AI_TURN] " + ai.getPlayerId() + " decision failed: " + message);
+        controller.recordError("AI_DECISION_FAILED", ai.getDisplayName() + " 决策失败，已跳过本次行动：" + message);
+        if (controller.isSessionEnded()
+                || controller.getCurrentPlayer() != ai
+                || turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
+            controller.pushSnapshot(controller.getCurrentSessionId(), "AI_DECISION_FAILED");
+            return;
+        }
+        if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.DRAW) {
+            turnFlow.skipDrawAfterAiFailure(ai);
+        }
+        finishAiTurn(ai);
     }
 
     private static long decisionDelayMs() {

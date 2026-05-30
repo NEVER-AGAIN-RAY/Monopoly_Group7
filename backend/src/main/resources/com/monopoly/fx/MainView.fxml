@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Accordion?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.ComboBox?>
@@ -9,12 +8,8 @@
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Spinner?>
-<?import javafx.scene.control.Tab?>
-<?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.control.TitledPane?>
-<?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.FlowPane?>
@@ -24,393 +19,297 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.web.WebView?>
 
-<TabPane fx:id="rootTabPane" styleClass="root-tabs" tabClosingPolicy="UNAVAILABLE"
-         xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-         fx:controller="com.monopoly.fx.MainController">
+<StackPane fx:id="root" styleClass="app-root"
+           xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="com.monopoly.fx.MainController">
 
-    <Tab fx:id="gameTab" text="对局">
-        <StackPane styleClass="game-screen">
-            <BorderPane styleClass="game-shell">
-                <top>
-                    <VBox spacing="6.0" styleClass="hud-wrap">
-                        <HBox fx:id="gameStatusBar" spacing="12.0" alignment="CENTER_LEFT"
-                              visible="false" managed="false" styleClass="game-hud">
-                            <VBox spacing="1.0">
-                                <Label text="MONOPOLY DEAL" styleClass="hud-title"/>
-                                <Label text="Live Table" styleClass="hud-subtitle"/>
-                            </VBox>
-                            <Label fx:id="summaryLabel" wrapText="true" HBox.hgrow="ALWAYS"
-                                   styleClass="hud-summary"/>
-                            <Button fx:id="disconnectButton" disable="true" mnemonicParsing="false"
-                                    onAction="#onDisconnect" text="断开" styleClass="btn-disconnect"/>
-                        </HBox>
-                        <Label fx:id="errorLabelInGame" wrapText="true" visible="false" managed="false"
-                               styleClass="table-error"/>
+    <BorderPane fx:id="gamePane" visible="false" managed="false" styleClass="game-screen">
+        <top>
+            <VBox spacing="8.0" styleClass="top-wrap">
+                <HBox spacing="12.0" alignment="CENTER_LEFT" styleClass="top-hud">
+                    <VBox spacing="1.0">
+                        <Label text="MONOPOLY DEAL" styleClass="hud-title"/>
+                        <Label fx:id="connectionLabel" text="offline" styleClass="hud-kicker"/>
                     </VBox>
-                </top>
-
-                <center>
-                    <VBox spacing="12.0" styleClass="table-layout">
-                        <StackPane styleClass="felt-table" VBox.vgrow="ALWAYS">
-                            <VBox spacing="12.0" alignment="TOP_CENTER">
-                                <Label fx:id="boardsTitle" text="玩家桌面" visible="false" managed="false"
-                                       styleClass="section-title"/>
-                                <ScrollPane fx:id="boardsScrollPane" fitToHeight="true" fitToWidth="false"
-                                            hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
-                                            visible="false" managed="false" styleClass="boards-scroll"
-                                            prefHeight="300.0" maxHeight="330.0">
-                                    <HBox fx:id="playerBoardContainer" spacing="14.0" styleClass="player-board-row">
-                                        <padding>
-                                            <Insets bottom="8.0" left="8.0" right="8.0" top="8.0"/>
-                                        </padding>
-                                    </HBox>
-                                </ScrollPane>
-
-                                <Region VBox.vgrow="ALWAYS"/>
-
-                                <HBox spacing="18.0" alignment="CENTER" styleClass="center-table-row">
-                                    <VBox alignment="CENTER" spacing="8.0" styleClass="deck-pile">
-                                        <StackPane styleClass="deck-card-back">
-                                            <Label text="DRAW" styleClass="deck-card-text"/>
-                                        </StackPane>
-                                        <Label text="抽牌堆" styleClass="deck-label"/>
-                                    </VBox>
-
-                                    <VBox fx:id="actionGuidePanel" spacing="6.0" alignment="CENTER"
-                                          styleClass="action-guide">
-                                        <Label fx:id="actionGuideTitle" styleClass="action-guide-title"
-                                               text="欢迎来到 Monopoly Deal"/>
-                                        <Label fx:id="actionGuideStep1" styleClass="action-guide-step"
-                                               text="选择模式，点击开始游戏。"/>
-                                    </VBox>
-
-                                    <VBox alignment="CENTER" spacing="8.0" styleClass="deck-pile">
-                                        <StackPane styleClass="discard-card-face">
-                                            <Label text="DISCARD" styleClass="discard-card-text"/>
-                                        </StackPane>
-                                        <Label text="弃牌堆" styleClass="deck-label"/>
-                                    </VBox>
-                                </HBox>
-
-                                <VBox fx:id="responseBox" spacing="8.0" visible="false" managed="false"
-                                      styleClass="response-panel">
-                                    <HBox spacing="10.0" alignment="CENTER_LEFT">
-                                        <Label fx:id="responseTitleLabel" wrapText="true"
-                                               styleClass="response-title" HBox.hgrow="ALWAYS"/>
-                                        <Label fx:id="responseCountdownLabel" styleClass="response-countdown"/>
-                                    </HBox>
-                                    <Label fx:id="responseContextLabel" wrapText="true"
-                                           styleClass="response-context"/>
-                                    <HBox spacing="10.0" alignment="CENTER">
-                                        <Button fx:id="responseJsnButton" mnemonicParsing="false"
-                                                onAction="#onPlayJustSayNo" text="打出 Just Say No"
-                                                styleClass="btn-jsn"/>
-                                        <Button fx:id="responsePassButton" mnemonicParsing="false"
-                                                onAction="#onResponsePass" text="放弃响应"
-                                                styleClass="btn-quiet"/>
-                                    </HBox>
-                                </VBox>
-
-                                <VBox fx:id="rentPaymentBox" spacing="8.0" visible="false" managed="false"
-                                      styleClass="rent-payment-panel">
-                                    <Label fx:id="rentPaymentHint" wrapText="true" styleClass="rent-title"/>
-                                    <Label fx:id="rentPaymentSumLabel" wrapText="true" styleClass="rent-sum"/>
-                                    <FlowPane fx:id="rentPaymentPickPane" hgap="8.0" vgap="8.0"/>
-                                    <HBox spacing="10.0" alignment="CENTER">
-                                        <Button fx:id="rentPaymentGreedyButton" mnemonicParsing="false"
-                                                onAction="#onRentPaymentGreedy" text="自动选牌"
-                                                styleClass="btn-auto"/>
-                                        <Button fx:id="rentPaymentSubmitButton" mnemonicParsing="false"
-                                                onAction="#onRentPaymentSubmit" text="确认支付"
-                                                styleClass="btn-confirm"/>
-                                        <Button fx:id="rentPaymentClearButton" mnemonicParsing="false"
-                                                onAction="#onRentPaymentClear" text="清空"
-                                                styleClass="btn-quiet"/>
-                                    </HBox>
-                                </VBox>
-                            </VBox>
-                        </StackPane>
-
-                        <VBox spacing="8.0" styleClass="hand-dock">
-                            <HBox fx:id="handHeader" alignment="CENTER_LEFT" spacing="10.0"
-                                  visible="false" managed="false">
-                                <Label fx:id="myHandLabel" text="我的手牌" styleClass="section-title"/>
-                                <Label fx:id="selectedCardLabel" text="点选一张牌后，用下方按钮出牌"
-                                       styleClass="selected-card-label"/>
-                            </HBox>
-                            <ScrollPane fx:id="handScroll" fitToWidth="true" hbarPolicy="AS_NEEDED"
-                                        vbarPolicy="NEVER" prefHeight="228.0"
-                                        visible="false" managed="false" styleClass="hand-scroll">
-                                <HBox fx:id="handStrip" spacing="12.0" alignment="BOTTOM_CENTER">
-                                    <padding>
-                                        <Insets bottom="18.0" left="18.0" right="18.0" top="14.0"/>
-                                    </padding>
-                                </HBox>
-                            </ScrollPane>
-                        </VBox>
+                    <VBox spacing="2.0" HBox.hgrow="ALWAYS">
+                        <Label fx:id="tableStatusLabel" text="牌桌就绪" styleClass="table-status"/>
+                        <Label fx:id="eventLineLabel" text="等待游戏状态..." wrapText="true" styleClass="event-line"/>
                     </VBox>
-                </center>
-
-                <bottom>
-                    <VBox fx:id="actionBar" spacing="10.0" visible="false" managed="false"
-                          styleClass="action-bar">
-                        <HBox spacing="10.0" alignment="CENTER">
-                            <Button fx:id="drawButton" mnemonicParsing="false" onAction="#onDraw"
-                                    text="摸 2 张牌" styleClass="btn-draw"/>
-                            <Button fx:id="endTurnButton" mnemonicParsing="false" onAction="#onEndTurn"
-                                    text="结束回合" styleClass="btn-end-turn"/>
-                            <Region HBox.hgrow="ALWAYS"/>
-                            <Label fx:id="playHintLabel" text="出牌（先点选手牌）" styleClass="action-hint"/>
-                            <Button fx:id="wizardDepositButton" mnemonicParsing="false"
-                                    onAction="#onWizardDeposit" text="存入银行" styleClass="btn-deposit"/>
-                            <Button fx:id="wizardDeployButton" mnemonicParsing="false"
-                                    onAction="#onWizardDeploy" text="部署房产" styleClass="btn-deploy"/>
-                            <Button fx:id="wizardActionButton" mnemonicParsing="false"
-                                    onAction="#onWizardAction" text="打出行动牌" styleClass="btn-action"/>
-                            <Button fx:id="wizardDiscardButton" mnemonicParsing="false"
-                                    onAction="#onWizardDiscard" text="弃牌" styleClass="btn-discard"/>
-                        </HBox>
-                    </VBox>
-                </bottom>
-            </BorderPane>
-
-            <StackPane fx:id="quickStartCard" styleClass="lobby-screen">
-                <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="lobby-scroll">
-                    <content>
-                <VBox spacing="16.0" alignment="TOP_CENTER" styleClass="lobby-shell" maxWidth="1120.0">
-                    <HBox spacing="18.0" alignment="CENTER_LEFT" styleClass="lobby-hero">
-                        <VBox spacing="4.0" HBox.hgrow="ALWAYS">
-                            <Label text="浏览器牌桌同步版" styleClass="brand-kicker"/>
-                            <Label fx:id="appTitleLabel" text="Monopoly Deal" styleClass="quick-start-title"/>
-                            <Label fx:id="appSubtitleLabel" text="选择模式，点击开始即可游玩"
-                                   styleClass="quick-start-subtitle"/>
-                        </VBox>
-                        <VBox spacing="8.0" styleClass="server-card">
-                            <HBox alignment="CENTER_LEFT" spacing="8.0">
-                                <Label fx:id="serverLabel" text="服务器" styleClass="setup-label" prefWidth="54.0"/>
-                                <TextField fx:id="wsUrlField" prefWidth="300.0" HBox.hgrow="ALWAYS"/>
-                            </HBox>
-                            <HBox alignment="CENTER_LEFT" spacing="8.0">
-                                <Label fx:id="languageLabel" text="语言" styleClass="setup-label" prefWidth="54.0"/>
-                                <ComboBox fx:id="languageCombo" prefWidth="118.0"/>
-                                <Button fx:id="connectButton" mnemonicParsing="false" onAction="#onConnect"
-                                        text="连接" styleClass="btn-secondary"/>
-                                <Button fx:id="refreshRoomsButton" mnemonicParsing="false" onAction="#onRefreshRooms"
-                                        text="刷新房间" styleClass="btn-secondary"/>
-                                <Label fx:id="statusLabel" text="未连接" styleClass="connection-status"/>
-                            </HBox>
-                        </VBox>
+                    <HBox spacing="8.0" alignment="CENTER" styleClass="stat-strip">
+                        <Label fx:id="roundLabel" text="第 1 轮" styleClass="hud-stat"/>
+                        <Label fx:id="phaseLabel" text="阶段 -" styleClass="hud-stat"/>
+                        <Label fx:id="actionCountLabel" text="已出 0/3" styleClass="hud-stat"/>
+                        <Label fx:id="drawPileLabel" text="抽牌 0" styleClass="hud-stat"/>
+                        <Label fx:id="discardPileLabel" text="弃牌 0" styleClass="hud-stat"/>
                     </HBox>
+                    <Button fx:id="backSetupButton" text="回设置" onAction="#onBackToSetup" mnemonicParsing="false"
+                            styleClass="btn-secondary"/>
+                    <Button fx:id="disconnectButton" text="断开" onAction="#onDisconnect" mnemonicParsing="false"
+                            styleClass="btn-disconnect"/>
+                </HBox>
+                <Label fx:id="gameErrorLabel" visible="false" managed="false" wrapText="true" styleClass="inline-error"/>
+            </VBox>
+        </top>
 
-                    <GridPane hgap="0.0" vgap="0.0" styleClass="start-info">
+        <center>
+            <VBox spacing="10.0" styleClass="table-layout">
+                <ScrollPane fx:id="opponentsScroll" fitToHeight="true" fitToWidth="true"
+                            hbarPolicy="AS_NEEDED" vbarPolicy="AS_NEEDED" prefHeight="224.0"
+                            styleClass="opponents-scroll">
+                    <HBox fx:id="opponentsBox" spacing="12.0" alignment="CENTER_LEFT" styleClass="opponents-row">
+                        <padding>
+                            <Insets bottom="8.0" left="6.0" right="6.0" top="6.0"/>
+                        </padding>
+                    </HBox>
+                </ScrollPane>
+
+                <VBox spacing="10.0" alignment="CENTER" VBox.vgrow="ALWAYS" styleClass="center-table">
+                    <VBox spacing="6.0" alignment="CENTER" VBox.vgrow="ALWAYS" styleClass="center-play-zone">
+                        <VBox fx:id="centerNoticeBox" spacing="4.0" alignment="CENTER"
+                              visible="false" managed="false" styleClass="center-notice">
+                            <Label fx:id="centerTitleLabel" text="牌桌就绪" styleClass="center-title"/>
+                            <Label fx:id="centerSubtitleLabel" text="开始游戏后，这里会显示当前回合和响应窗口。"
+                                   wrapText="true" styleClass="center-subtitle"/>
+                        </VBox>
+                        <FlowPane fx:id="playedCardsPane" hgap="8.0" vgap="8.0" alignment="CENTER"
+                                  styleClass="played-cards"/>
+                        <Label fx:id="drawPileNameLabel" text="抽牌堆" visible="false" managed="false"/>
+                        <Label fx:id="discardPileNameLabel" text="弃牌堆" visible="false" managed="false"/>
+                    </VBox>
+
+                    <VBox fx:id="responseBox" spacing="8.0" visible="false" managed="false"
+                          maxWidth="780.0" styleClass="response-panel">
+                        <HBox spacing="10.0" alignment="CENTER_LEFT">
+                            <Label fx:id="responseTitleLabel" wrapText="true" HBox.hgrow="ALWAYS"
+                                   styleClass="response-title"/>
+                            <Label fx:id="responseCountdownLabel" styleClass="response-countdown"/>
+                        </HBox>
+                        <Label fx:id="responseContextLabel" wrapText="true" styleClass="response-context"/>
+                        <HBox spacing="10.0" alignment="CENTER_RIGHT">
+                            <Button fx:id="responseJsnButton" text="Just Say No" onAction="#onPlayJustSayNo"
+                                    mnemonicParsing="false" styleClass="btn-jsn"/>
+                            <Button fx:id="responsePassButton" text="放弃响应" onAction="#onResponsePass"
+                                    mnemonicParsing="false" styleClass="btn-quiet"/>
+                        </HBox>
+                    </VBox>
+
+                    <VBox fx:id="rentPaymentBox" spacing="8.0" visible="false" managed="false"
+                          maxWidth="780.0" styleClass="rent-payment-panel">
+                        <Label fx:id="rentPaymentHint" wrapText="true" styleClass="rent-title"/>
+                        <Label fx:id="rentPaymentSumLabel" wrapText="true" styleClass="rent-sum"/>
+                        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
+                                    prefHeight="110.0" styleClass="payment-scroll">
+                            <FlowPane fx:id="rentPaymentPickPane" hgap="8.0" vgap="8.0" styleClass="payment-picks"/>
+                        </ScrollPane>
+                        <HBox spacing="10.0" alignment="CENTER_RIGHT">
+                            <Button fx:id="rentPaymentGreedyButton" text="自动选牌" onAction="#onRentPaymentGreedy"
+                                    mnemonicParsing="false" styleClass="btn-auto"/>
+                            <Button fx:id="rentPaymentSubmitButton" text="确认支付" onAction="#onRentPaymentSubmit"
+                                    mnemonicParsing="false" styleClass="btn-confirm"/>
+                            <Button fx:id="rentPaymentClearButton" text="清空" onAction="#onRentPaymentClear"
+                                    mnemonicParsing="false" styleClass="btn-quiet"/>
+                        </HBox>
+                    </VBox>
+                </VBox>
+
+                <HBox fx:id="lowerTableBox" spacing="14.0" alignment="BOTTOM_CENTER" styleClass="lower-table">
+                    <VBox spacing="8.0" prefWidth="460.0" minWidth="360.0" styleClass="side-board">
+                        <Label fx:id="myBoardTitleLabel" text="我的置牌区" styleClass="lane-title"/>
+                        <ScrollPane fx:id="myBoardScroll" fitToWidth="true" hbarPolicy="NEVER"
+                                    vbarPolicy="AS_NEEDED" VBox.vgrow="ALWAYS" styleClass="board-scroll">
+                            <VBox fx:id="myBoardBox" spacing="8.0" styleClass="board-slot"/>
+                        </ScrollPane>
+                    </VBox>
+
+                    <VBox spacing="6.0" HBox.hgrow="ALWAYS" styleClass="hand-panel">
+                        <HBox spacing="10.0" alignment="CENTER_LEFT">
+                            <Label fx:id="handTitleLabel" text="手牌" styleClass="section-title"/>
+                            <Label fx:id="handHintLabel" text="双击会按默认动作快速出牌。" styleClass="hand-hint"/>
+                        </HBox>
+                        <ScrollPane fx:id="handScroll" fitToHeight="true" hbarPolicy="NEVER" vbarPolicy="NEVER"
+                                    prefHeight="212.0" styleClass="hand-scroll">
+                            <HBox fx:id="handStrip" spacing="-48.0" alignment="BOTTOM_CENTER" styleClass="hand-strip">
+                                <padding>
+                                    <Insets bottom="16.0" left="58.0" right="58.0" top="18.0"/>
+                                </padding>
+                            </HBox>
+                        </ScrollPane>
+                    </VBox>
+
+                    <VBox spacing="6.0" prefWidth="236.0" minWidth="210.0" styleClass="action-pad">
+                        <Label fx:id="actionPadTitleLabel" text="操作区" styleClass="action-pad-title"/>
+                        <Label fx:id="selectedCardLabel" text="先点选一张手牌" wrapText="true"
+                               styleClass="selected-card-label"/>
+                        <StackPane fx:id="selectedPreviewPane" visible="false" managed="false"
+                                   minHeight="0.0" styleClass="selected-preview-pane"/>
+                        <Button fx:id="drawButton" text="摸 2 张牌" maxWidth="Infinity" onAction="#onDraw"
+                                mnemonicParsing="false" styleClass="btn-draw"/>
+                        <Button fx:id="endTurnButton" text="结束回合" maxWidth="Infinity" onAction="#onEndTurn"
+                                mnemonicParsing="false" styleClass="btn-end-turn"/>
+                        <Region minHeight="2.0"/>
+                        <Button fx:id="depositButton" text="存入银行" maxWidth="Infinity" onAction="#onDeposit"
+                                mnemonicParsing="false" styleClass="btn-deposit"/>
+                        <Button fx:id="deployButton" text="部署房产" maxWidth="Infinity" onAction="#onDeploy"
+                                mnemonicParsing="false" styleClass="btn-deploy"/>
+                        <Button fx:id="actionButton" text="打出行动牌" maxWidth="Infinity" onAction="#onAction"
+                                mnemonicParsing="false" styleClass="btn-action"/>
+                        <Button fx:id="discardButton" text="弃牌" maxWidth="Infinity" onAction="#onDiscard"
+                                mnemonicParsing="false" styleClass="btn-discard"/>
+                    </VBox>
+                </HBox>
+            </VBox>
+        </center>
+    </BorderPane>
+
+    <ScrollPane fx:id="startPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
+                styleClass="start-screen">
+        <VBox spacing="16.0" alignment="TOP_CENTER" maxWidth="1180.0" styleClass="start-shell">
+            <HBox spacing="18.0" alignment="CENTER_LEFT" styleClass="brand-lockup">
+                <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                    <Label fx:id="brandKickerLabel" text="JavaFX 牌桌" styleClass="brand-kicker"/>
+                    <Label fx:id="appTitleLabel" text="Monopoly Deal" styleClass="brand-title"/>
+                    <Label fx:id="appSubtitleLabel" text="连接 Java WebSocket 后端，体验与 Web 端一致的牌桌。"
+                           wrapText="true" styleClass="brand-subtitle"/>
+                </VBox>
+                <VBox spacing="8.0" styleClass="connect-card">
+                    <GridPane hgap="8.0" vgap="8.0">
                         <columnConstraints>
-                            <ColumnConstraints minWidth="190.0" prefWidth="210.0"/>
+                            <ColumnConstraints minWidth="58.0"/>
+                            <ColumnConstraints hgrow="ALWAYS" minWidth="260.0"/>
+                        </columnConstraints>
+                        <Label fx:id="serverLabel" text="服务器" GridPane.columnIndex="0" GridPane.rowIndex="0"
+                               styleClass="setup-label"/>
+                        <TextField fx:id="wsUrlField" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        <Label fx:id="languageLabel" text="语言" GridPane.columnIndex="0" GridPane.rowIndex="1"
+                               styleClass="setup-label"/>
+                        <HBox spacing="8.0" alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                            <ComboBox fx:id="languageCombo" prefWidth="124.0"/>
+                            <Button fx:id="connectButton" text="连接" onAction="#onConnect" mnemonicParsing="false"
+                                    styleClass="btn-secondary"/>
+                            <Button fx:id="topRefreshRoomsButton" text="刷新房间" onAction="#onRefreshRooms" mnemonicParsing="false"
+                                    styleClass="btn-secondary"/>
+                        </HBox>
+                    </GridPane>
+                    <Label fx:id="statusLabel" text="未连接" styleClass="connection-status"/>
+                </VBox>
+            </HBox>
+
+            <GridPane hgap="0.0" vgap="0.0" styleClass="start-info">
+                <columnConstraints>
+                    <ColumnConstraints minWidth="190.0" prefWidth="210.0"/>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                </columnConstraints>
+                <VBox spacing="8.0" styleClass="info-tabs" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                    <Button fx:id="infoIntroButton" text="游戏介绍" onAction="#onInfoIntro" mnemonicParsing="false"
+                            styleClass="info-tab"/>
+                    <Button fx:id="infoRulesButton" text="规则说明" onAction="#onInfoRules" mnemonicParsing="false"
+                            styleClass="info-tab"/>
+                    <Button fx:id="infoGuideButton" text="联机说明" onAction="#onInfoGuide" mnemonicParsing="false"
+                            styleClass="info-tab"/>
+                </VBox>
+                <VBox spacing="7.0" styleClass="info-copy" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                    <Label fx:id="infoTitleLabel" text="这是什么" styleClass="info-title"/>
+                    <Label fx:id="infoLine1Label" wrapText="true" styleClass="info-line"/>
+                    <Label fx:id="infoLine2Label" wrapText="true" styleClass="info-line"/>
+                    <Label fx:id="infoLine3Label" wrapText="true" styleClass="info-line"/>
+                </VBox>
+            </GridPane>
+
+            <GridPane hgap="14.0" vgap="12.0" styleClass="setup-panel">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="18.0"/>
+                    <ColumnConstraints percentWidth="14.0"/>
+                    <ColumnConstraints percentWidth="18.0"/>
+                    <ColumnConstraints percentWidth="25.0"/>
+                    <ColumnConstraints percentWidth="25.0"/>
+                </columnConstraints>
+                <VBox spacing="5.0" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                    <Label fx:id="gameModeLabel" text="模式" styleClass="setup-label"/>
+                    <ComboBox fx:id="gameModeCombo" maxWidth="Infinity"/>
+                </VBox>
+                <VBox spacing="5.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                    <Label fx:id="playerCountLabel" text="人数" styleClass="setup-label"/>
+                    <Spinner fx:id="playerCountSpinner" editable="false" maxWidth="Infinity"/>
+                </VBox>
+                <VBox fx:id="aiDifficultyBox" spacing="5.0" GridPane.columnIndex="2" GridPane.rowIndex="0">
+                    <Label fx:id="aiDifficultyLabel" text="AI 难度" styleClass="setup-label"/>
+                    <ComboBox fx:id="aiDifficultyCombo" maxWidth="Infinity"/>
+                </VBox>
+                <VBox spacing="5.0" GridPane.columnIndex="3" GridPane.rowIndex="0">
+                    <Label fx:id="playerIdLabel" text="玩家 ID" styleClass="setup-label"/>
+                    <TextField fx:id="playerIdField"/>
+                </VBox>
+                <VBox spacing="5.0" GridPane.columnIndex="4" GridPane.rowIndex="0">
+                    <Label fx:id="sessionIdLabel" text="会话" styleClass="setup-label"/>
+                    <TextField fx:id="sessionIdField"/>
+                </VBox>
+                <HBox fx:id="customLineupBox" spacing="8.0" alignment="CENTER_LEFT" visible="false" managed="false"
+                      GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="1">
+                    <Label fx:id="customLineupLabel" text="自定义席位" styleClass="setup-label"/>
+                    <ComboBox fx:id="customLineupCombo" HBox.hgrow="ALWAYS"/>
+                </HBox>
+                <Label fx:id="modeHintLabel" wrapText="true" styleClass="setup-hint"
+                       GridPane.columnIndex="3" GridPane.columnSpan="2" GridPane.rowIndex="1"/>
+                <HBox spacing="10.0" alignment="CENTER_LEFT" GridPane.columnIndex="0" GridPane.columnSpan="5"
+                      GridPane.rowIndex="2">
+                    <Button fx:id="startGameButton" text="开始游戏" onAction="#onStartGame" mnemonicParsing="false"
+                            styleClass="btn-start-game"/>
+                    <CheckBox fx:id="randomizeFirstCheck" text="随机先手"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="setupErrorLabel" visible="false" managed="false" wrapText="true"
+                           styleClass="setup-error"/>
+                </HBox>
+            </GridPane>
+
+            <GridPane hgap="12.0" vgap="10.0" maxHeight="236.0" styleClass="lobby-panel">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="38.0"/>
+                    <ColumnConstraints percentWidth="62.0"/>
+                </columnConstraints>
+                <VBox spacing="8.0" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                    <HBox spacing="8.0" alignment="CENTER_LEFT">
+                        <Label fx:id="roomListLabel" text="房间列表" styleClass="lobby-section-title"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button fx:id="refreshRoomsButton" text="刷新" onAction="#onRefreshRooms"
+                                mnemonicParsing="false" styleClass="btn-secondary"/>
+                    </HBox>
+                    <ListView fx:id="roomListView" prefHeight="132.0" styleClass="room-list-view"/>
+                    <GridPane hgap="8.0" vgap="8.0">
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="52.0"/>
                             <ColumnConstraints hgrow="ALWAYS"/>
                         </columnConstraints>
-                        <VBox spacing="8.0" styleClass="info-tabs" GridPane.columnIndex="0" GridPane.rowIndex="0">
-                            <Label text="游戏介绍" styleClass="info-tab-active"/>
-                            <Label text="规则说明" styleClass="info-tab"/>
-                            <Label text="联机说明" styleClass="info-tab"/>
-                        </VBox>
-                        <VBox spacing="7.0" styleClass="info-copy" GridPane.columnIndex="1" GridPane.rowIndex="0">
-                            <Label text="这是什么" styleClass="info-title"/>
-                            <Label text="这是 Monopoly Deal 的 JavaFX 牌桌，连接同一个 Java WebSocket 后端。" wrapText="true"
-                                   styleClass="info-line"/>
-                            <Label text="HVM 是人机模式，PVP 和房间大厅可让多个客户端加入同一个会话。" wrapText="true"
-                                   styleClass="info-line"/>
-                            <Label text="目标是先集齐 3 套完整房产。" wrapText="true" styleClass="info-line"/>
-                        </VBox>
+                        <Label fx:id="nicknameLabel" text="昵称" GridPane.columnIndex="0" GridPane.rowIndex="0"
+                               styleClass="setup-label"/>
+                        <TextField fx:id="nicknameField" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        <Button fx:id="createRoomButton" text="创建房间" onAction="#onCreateRoom" mnemonicParsing="false"
+                                maxWidth="Infinity" GridPane.columnIndex="0" GridPane.columnSpan="2"
+                                GridPane.rowIndex="1" styleClass="btn-start-room"/>
+                        <Button fx:id="joinRoomButton" text="加入选中房间" onAction="#onJoinRoom" mnemonicParsing="false"
+                                maxWidth="Infinity" GridPane.columnIndex="0" GridPane.columnSpan="2"
+                                GridPane.rowIndex="2" styleClass="btn-secondary"/>
                     </GridPane>
-
-                    <GridPane hgap="14.0" vgap="12.0" styleClass="setup-panel">
-                        <columnConstraints>
-                            <ColumnConstraints percentWidth="22.0"/>
-                            <ColumnConstraints percentWidth="18.0"/>
-                            <ColumnConstraints percentWidth="20.0"/>
-                            <ColumnConstraints percentWidth="40.0"/>
-                        </columnConstraints>
-                        <VBox spacing="5.0" alignment="CENTER_LEFT" GridPane.columnIndex="0" GridPane.rowIndex="0">
-                            <Label fx:id="gameModeLabel" text="游戏模式" styleClass="setup-label"/>
-                            <ComboBox fx:id="gameModeCombo" maxWidth="Infinity"/>
-                        </VBox>
-                        <VBox spacing="5.0" alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="0">
-                            <Label fx:id="playerCountLabel" text="玩家人数" styleClass="setup-label"/>
-                            <Spinner fx:id="playerCountSpinner" editable="false" maxWidth="Infinity"/>
-                        </VBox>
-                        <VBox fx:id="aiDifficultyBox" spacing="5.0" alignment="CENTER_LEFT"
-                              GridPane.columnIndex="2" GridPane.rowIndex="0">
-                            <Label fx:id="aiDifficultyLabel" text="AI 难度" styleClass="setup-label"/>
-                            <ComboBox fx:id="aiDifficultyCombo" maxWidth="Infinity"/>
-                        </VBox>
-                        <VBox spacing="7.0" GridPane.columnIndex="3" GridPane.rowIndex="0">
-                            <HBox fx:id="customLineupBox" spacing="8.0" alignment="CENTER_LEFT"
-                                  visible="false" managed="false">
-                                <Label fx:id="customLineupLabel" text="自定义席位" styleClass="setup-label"/>
-                                <ComboBox fx:id="customLineupCombo" prefWidth="260.0"/>
-                            </HBox>
-                            <Label fx:id="modeHintLabel" wrapText="true" styleClass="setup-hint"/>
-                        </VBox>
-                        <HBox spacing="10.0" alignment="CENTER_LEFT" GridPane.columnIndex="0"
-                              GridPane.columnSpan="4" GridPane.rowIndex="1">
-                            <Button fx:id="startGameButton" mnemonicParsing="false" onAction="#onQuickAuthAndStart"
-                                    text="开始游戏" styleClass="btn-start-game"/>
-                            <Button fx:id="showGuideButton" mnemonicParsing="false" onAction="#onShowGuide"
-                                    text="如何多人联机？点此查看说明" styleClass="btn-guide-link"/>
-                            <Region HBox.hgrow="ALWAYS"/>
-                            <CheckBox fx:id="randomizeFirstCheck" mnemonicParsing="false" text="随机先手"/>
-                        </HBox>
-                    </GridPane>
-
-                    <Label fx:id="errorLabel" wrapText="true" visible="false" managed="false"
-                           styleClass="setup-error"/>
-
-                    <TitledPane fx:id="lobbyPane" text="房间大厅" collapsible="false" expanded="true"
-                                styleClass="lobby-pane">
-                        <VBox spacing="10.0" styleClass="lobby-content">
-                            <HBox spacing="8.0" alignment="CENTER_LEFT">
-                                <Label fx:id="nicknameLabel" text="昵称" styleClass="setup-label"/>
-                                <TextField fx:id="nicknameField" prefWidth="150.0"/>
-                                <Label fx:id="sessionIdLabel" text="会话 ID" styleClass="setup-label"/>
-                                <TextField fx:id="sessionIdField" prefWidth="170.0"/>
-                                <Button fx:id="createRoomButton" mnemonicParsing="false" onAction="#onCreateRoom"
-                                        text="创建房间" styleClass="btn-start-room"/>
-                                <Button fx:id="joinRoomButton" mnemonicParsing="false" onAction="#onJoinRoom"
-                                        text="加入房间" styleClass="btn-secondary"/>
-                            </HBox>
-
-                            <GridPane hgap="12.0" vgap="10.0">
-                                <columnConstraints>
-                                    <ColumnConstraints percentWidth="38.0"/>
-                                    <ColumnConstraints percentWidth="62.0"/>
-                                </columnConstraints>
-                                <VBox spacing="6.0" GridPane.columnIndex="0" GridPane.rowIndex="0">
-                                    <Label fx:id="roomListLabel" text="房间列表" styleClass="lobby-section-title"/>
-                                    <ListView fx:id="roomListView" prefHeight="174.0" styleClass="room-list-view"/>
-                                </VBox>
-                                <VBox spacing="7.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
-                                    <HBox spacing="8.0" alignment="CENTER_LEFT">
-                                        <Label fx:id="waitingRoomLabel" text="等待厅" styleClass="lobby-section-title"/>
-                                        <Label fx:id="roomStatusLabel" text="未进入房间" styleClass="connection-status"/>
-                                        <Region HBox.hgrow="ALWAYS"/>
-                                        <Button fx:id="startRoomButton" mnemonicParsing="false" onAction="#onStartRoom"
-                                                text="开始房间" styleClass="btn-start-room"/>
-                                        <Button fx:id="leaveRoomButton" mnemonicParsing="false" onAction="#onLeaveRoom"
-                                                text="离开" styleClass="btn-quiet"/>
-                                    </HBox>
-                                    <FlowPane fx:id="roomMembersPane" hgap="6.0" vgap="6.0"/>
-                                    <GridPane fx:id="roomSeatsGrid" hgap="8.0" vgap="8.0"/>
-                                </VBox>
-                            </GridPane>
-                        </VBox>
-                    </TitledPane>
-
-                    <TitledPane fx:id="advancedPane" text="高级设置（玩家ID / 调试开局）"
-                                collapsible="true" expanded="false" styleClass="advanced-pane">
-                        <VBox spacing="8.0" styleClass="advanced-content">
-                            <GridPane hgap="10.0" vgap="8.0">
-                                <columnConstraints>
-                                    <ColumnConstraints hgrow="NEVER" minWidth="58.0"/>
-                                    <ColumnConstraints hgrow="SOMETIMES" minWidth="160.0"/>
-                                    <ColumnConstraints hgrow="NEVER" minWidth="58.0"/>
-                                    <ColumnConstraints hgrow="SOMETIMES" minWidth="160.0"/>
-                                </columnConstraints>
-                                <Label fx:id="playerIdLabel" text="玩家 ID" GridPane.columnIndex="0"
-                                       GridPane.rowIndex="0" styleClass="setup-label"/>
-                                <TextField fx:id="playerIdField" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                            </GridPane>
-                            <HBox spacing="8.0" alignment="CENTER_LEFT">
-                                <Button fx:id="authOnlyButton" mnemonicParsing="false" onAction="#onAuth"
-                                        text="仅认证" styleClass="btn-secondary"/>
-                                <Button fx:id="startOnlyButton" mnemonicParsing="false" onAction="#onStartSession"
-                                        text="仅开局" styleClass="btn-secondary"/>
-                                <Button mnemonicParsing="false" onAction="#onPing" text="PING"
-                                        styleClass="btn-secondary"/>
-                            </HBox>
-                        </VBox>
-                    </TitledPane>
                 </VBox>
-                    </content>
-                </ScrollPane>
-            </StackPane>
-        </StackPane>
-    </Tab>
 
-    <Tab fx:id="rulesTab" text="游戏规则">
-        <BorderPane styleClass="info-page">
-            <center>
-                <WebView fx:id="rulesWebView" prefHeight="600.0"/>
-            </center>
-        </BorderPane>
-    </Tab>
-
-    <Tab fx:id="guideTab" text="联机指南">
-        <BorderPane styleClass="info-page">
-            <center>
-                <WebView fx:id="guideWebView" prefHeight="600.0"/>
-            </center>
-        </BorderPane>
-    </Tab>
-
-    <Tab fx:id="debugTab" text="调试日志">
-        <BorderPane styleClass="debug-page">
-            <top>
-                <VBox spacing="8.0" styleClass="debug-top">
-                    <HBox spacing="8.0">
-                        <Button fx:id="clearLogButton" mnemonicParsing="false" onAction="#onClearTraffic"
-                                text="清空日志" styleClass="btn-secondary"/>
+                <VBox spacing="8.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                    <HBox spacing="8.0" alignment="CENTER_LEFT">
+                        <Label fx:id="waitingRoomLabel" text="等待厅" styleClass="lobby-section-title"/>
+                        <Label fx:id="roomStatusLabel" text="未进入房间" styleClass="connection-status"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button fx:id="startRoomButton" text="开始房间" onAction="#onStartRoom" mnemonicParsing="false"
+                                styleClass="btn-start-room"/>
+                        <Button fx:id="leaveRoomButton" text="离开" onAction="#onLeaveRoom" mnemonicParsing="false"
+                                styleClass="btn-quiet"/>
                     </HBox>
-                    <Accordion>
-                        <panes>
-                            <TitledPane fx:id="debugTitledPane" animated="false" expanded="false"
-                                        text="调试：手动填写参数（可选）">
-                                <GridPane hgap="8.0" vgap="6.0" styleClass="debug-grid">
-                                    <padding>
-                                        <Insets bottom="8.0" left="8.0" right="8.0" top="6.0"/>
-                                    </padding>
-                                    <columnConstraints>
-                                        <ColumnConstraints hgrow="NEVER"/>
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="120.0"/>
-                                        <ColumnConstraints hgrow="NEVER"/>
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="120.0"/>
-                                    </columnConstraints>
-                                    <Label fx:id="debugActionLabel" text="动作" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-                                    <ComboBox fx:id="playActionCombo" prefWidth="140.0" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                                    <HBox spacing="8.0" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.rowIndex="0">
-                                        <Button fx:id="wizardPlayButton" mnemonicParsing="false" onAction="#onPlay"
-                                                text="向导：先拉选项再出牌" styleClass="btn-secondary"/>
-                                        <Button fx:id="directPlayButton" mnemonicParsing="false" onAction="#onPlayDirect"
-                                                text="跳过选项直接 PLAY" styleClass="btn-secondary"/>
-                                    </HBox>
-                                    <Label text="cardId" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-                                    <TextField fx:id="playCardIdField" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-                                    <Label text="targetPlayer" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
-                                    <TextField fx:id="targetPlayerField" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
-                                    <Label text="targetColor" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
-                                    <TextField fx:id="targetColorField" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-                                    <Label text="targetCard" GridPane.columnIndex="2" GridPane.rowIndex="2"/>
-                                    <TextField fx:id="targetCardField" GridPane.columnIndex="3" GridPane.rowIndex="2"/>
-                                    <Label text="actorCard" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
-                                    <TextField fx:id="actorCardField" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-                                    <Label text="targetZone" GridPane.columnIndex="2" GridPane.rowIndex="3"/>
-                                    <TextField fx:id="targetZoneField" GridPane.columnIndex="3" GridPane.rowIndex="3"/>
-                                    <Label text="actingPlayer" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
-                                    <TextField fx:id="actingPlayerField" GridPane.columnIndex="1"
-                                               GridPane.columnSpan="3" GridPane.rowIndex="4"/>
-                                </GridPane>
-                            </TitledPane>
-                        </panes>
-                    </Accordion>
+                    <FlowPane fx:id="roomMembersPane" hgap="6.0" vgap="6.0"/>
+                    <GridPane fx:id="roomSeatsGrid" hgap="8.0" vgap="8.0"/>
                 </VBox>
-            </top>
-            <center>
-                <AnchorPane>
-                    <TextArea fx:id="trafficArea" wrapText="true" styleClass="traffic-area"
-                              AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                              AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0"/>
-                </AnchorPane>
-            </center>
-        </BorderPane>
-    </Tab>
-</TabPane>
+            </GridPane>
+
+            <TextArea fx:id="trafficArea" editable="false" wrapText="true" prefRowCount="5"
+                      visible="false" managed="false"
+                      styleClass="traffic-area"/>
+        </VBox>
+    </ScrollPane>
+</StackPane>

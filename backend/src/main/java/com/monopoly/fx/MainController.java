@@ -181,6 +181,7 @@ public class MainController {
     @FXML private Button discardButton;
     @FXML private Label handTitleLabel;
     @FXML private Label handHintLabel;
+    @FXML private ScrollPane handScroll;
     @FXML private HBox handStrip;
     @FXML private HBox lowerTableBox;
 
@@ -237,6 +238,10 @@ public class MainController {
             updateSelectedPreview();
             syncActionButtons();
         });
+
+        if (handScroll != null) {
+            handScroll.viewportBoundsProperty().addListener((obs, oldB, newB) -> recomputeHandSpacing());
+        }
 
         trafficArea.setEditable(false);
         randomizeFirstCheck.setSelected(false);
@@ -1187,7 +1192,7 @@ public class MainController {
             CardDisplayData data = CardDisplayData.fromHandCardJson(el.getAsJsonObject());
             CardView view = new CardView(data, cardKindClass(data));
             view.setToggleGroup(handToggleGroup);
-            view.setRotate(Math.max(-8.0, Math.min(8.0, (index - (total - 1) / 2.0) * 1.45)));
+            view.setRotate(Math.max(-6.0, Math.min(6.0, (index - (total - 1) / 2.0) * 1.2)));
             view.setOnMouseClicked(event -> {
                 if (event.getClickCount() >= 2) {
                     quickPlay(data);
@@ -1196,9 +1201,36 @@ public class MainController {
             handStrip.getChildren().add(view);
             index++;
         }
+        recomputeHandSpacing();
         selectedCardLabel.setText(i18n("label.selectCardHint"));
         updateSelectedPreview();
         syncActionButtons();
+    }
+
+    /**
+     * Pick the hand-strip overlap so every card fits the visible width: spread out
+     * when there are few cards, tighten the fan when there are many, so the right
+     * edge never spills under the action pad.
+     */
+    private void recomputeHandSpacing() {
+        int n = handStrip.getChildren().size();
+        if (n <= 1) {
+            handStrip.setSpacing(-32);
+            return;
+        }
+        double cardW = CardView.CARD_WIDTH;
+        double padding = 96; // hand-strip left + right insets
+        double spacing = -32;
+        double avail = handScroll != null && handScroll.getViewportBounds() != null
+                ? handScroll.getViewportBounds().getWidth()
+                : 0;
+        if (avail > cardW + padding) {
+            double step = (avail - padding - cardW) / (n - 1);
+            spacing = step - cardW;
+        }
+        // Always keep a slight overlap (fan look); never overlap into illegibility.
+        spacing = Math.max(-86, Math.min(-12, spacing));
+        handStrip.setSpacing(spacing);
     }
 
     private static String handSignature(JsonArray cards) {

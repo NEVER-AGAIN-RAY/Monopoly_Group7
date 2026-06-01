@@ -70,6 +70,7 @@ public class MainController {
     private Timeline responseCountdownTimer;
     private JsonObject currentLobbyRoom;
     private String infoPanel = "intro";
+    private boolean infoDetailExpanded;
     private int pendingRentPaymentM;
     private String lastAutoDrawKey = "";
     private String playedSessionKey = "";
@@ -121,6 +122,10 @@ public class MainController {
     @FXML private Label infoLine1Label;
     @FXML private Label infoLine2Label;
     @FXML private Label infoLine3Label;
+    @FXML private Label infoLine4Label;
+    @FXML private Button infoDetailButton;
+    @FXML private ScrollPane infoDetailScroll;
+    @FXML private Label infoDetailLabel;
 
     @FXML private Label roomListLabel;
     @FXML private ListView<String> roomListView;
@@ -257,18 +262,27 @@ public class MainController {
     @FXML
     private void onInfoIntro() {
         infoPanel = "intro";
+        infoDetailExpanded = false;
         updateInfoPanel();
     }
 
     @FXML
     private void onInfoRules() {
         infoPanel = "rules";
+        infoDetailExpanded = false;
         updateInfoPanel();
     }
 
     @FXML
     private void onInfoGuide() {
         infoPanel = "guide";
+        infoDetailExpanded = false;
+        updateInfoPanel();
+    }
+
+    @FXML
+    private void onInfoDetailToggle() {
+        infoDetailExpanded = !infoDetailExpanded;
         updateInfoPanel();
     }
 
@@ -1851,22 +1865,20 @@ public class MainController {
             default -> infoIntroButton;
         };
         active.getStyleClass().add("active");
-        if ("rules".equals(infoPanel)) {
-            infoTitleLabel.setText(i18n("infoRulesTitle"));
-            infoLine1Label.setText(i18n("infoRules1"));
-            infoLine2Label.setText(i18n("infoRules2"));
-            infoLine3Label.setText(i18n("infoRules3"));
-        } else if ("guide".equals(infoPanel)) {
-            infoTitleLabel.setText(i18n("infoGuideTitle"));
-            infoLine1Label.setText(i18n("infoGuide1"));
-            infoLine2Label.setText(i18n("infoGuide2"));
-            infoLine3Label.setText(i18n("infoGuide3"));
-        } else {
-            infoTitleLabel.setText(i18n("infoIntroTitle"));
-            infoLine1Label.setText(i18n("infoIntro1"));
-            infoLine2Label.setText(i18n("infoIntro2"));
-            infoLine3Label.setText(i18n("infoIntro3"));
-        }
+        String prefix = switch (infoPanel) {
+            case "rules" -> "infoRules";
+            case "guide" -> "infoGuide";
+            default -> "infoIntro";
+        };
+        infoTitleLabel.setText(i18n(prefix + "Title"));
+        infoLine1Label.setText(i18n(prefix + "1"));
+        infoLine2Label.setText(i18n(prefix + "2"));
+        infoLine3Label.setText(i18n(prefix + "3"));
+        infoLine4Label.setText(i18n(prefix + "4"));
+        infoDetailButton.setText(i18n(infoDetailExpanded ? "infoDetailHide" : "infoDetailShow"));
+        infoDetailLabel.setText(i18n(prefix + "Detail"));
+        infoDetailScroll.setVisible(infoDetailExpanded);
+        infoDetailScroll.setManaged(infoDetailExpanded);
     }
 
     private void switchToGameView() {

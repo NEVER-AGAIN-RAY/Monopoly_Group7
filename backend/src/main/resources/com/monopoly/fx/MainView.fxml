@@ -214,6 +214,15 @@
                     <Label fx:id="infoLine1Label" wrapText="true" styleClass="info-line"/>
                     <Label fx:id="infoLine2Label" wrapText="true" styleClass="info-line"/>
                     <Label fx:id="infoLine3Label" wrapText="true" styleClass="info-line"/>
+                    <Label fx:id="infoLine4Label" wrapText="true" styleClass="info-line"/>
+                    <Button fx:id="infoDetailButton" text="查看详细解释" maxWidth="Infinity"
+                            onAction="#onInfoDetailToggle"
+                            mnemonicParsing="false" styleClass="info-detail-button"/>
+                    <ScrollPane fx:id="infoDetailScroll" fitToWidth="true" hbarPolicy="NEVER"
+                                vbarPolicy="AS_NEEDED" visible="false" managed="false"
+                                prefHeight="142.0" styleClass="info-detail-scroll">
+                        <Label fx:id="infoDetailLabel" wrapText="true" styleClass="info-detail-text"/>
+                    </ScrollPane>
                 </VBox>
             </GridPane>
 

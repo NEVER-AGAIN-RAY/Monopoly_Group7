@@ -12,12 +12,12 @@ import com.monopoly.model.effects.EffectStackEntry;
 import com.monopoly.model.effects.StackResponseState;
 import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.settlement.PaymentSettlement;
-import com.monopoly.simulation.JsonlDecisionTraceSink;
+import com.monopoly.simulation.DecisionTraceSink;
+import com.monopoly.simulation.SimulationDecisionRequest;
+import com.monopoly.simulation.SimulationDecisionResult;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,9 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SearchLookaheadAiPlayStrategyTest {
-
-    @TempDir
-    Path tempDir;
 
     @Test
     void defaultBuildingParametersUsePromotedNaturalWinRateCandidate() {
@@ -302,48 +299,49 @@ class SearchLookaheadAiPlayStrategyTest {
     }
 
     @Test
-    void paymentTraceIncludesAuxiliaryMementoWhenPresent() throws Exception {
-        Path trace = tempDir.resolve("payment-trace.jsonl");
-        try (JsonlDecisionTraceSink sink = new JsonlDecisionTraceSink(trace)) {
-            SearchLookaheadAiPlayStrategy strategy =
-                    new SearchLookaheadAiPlayStrategy(sink, "trace-session");
-            AIPlayer bot = new AIPlayer("ai-1", "AI", strategy);
-            MoneyCard fallbackCard = new MoneyCard("m1", "1M", 1);
-            bot.addToBank(fallbackCard);
-            GameContext context = new GameContext();
-            context.setAuxiliaryDecisionMementoJson("{\"sessionId\":\"s1\"}");
-            PaymentSettlement.PaymentChoice fallback =
-                    new PaymentSettlement.PaymentChoice(List.of(fallbackCard), 1);
+    void paymentTraceIncludesAuxiliaryMementoWhenPresent() {
+        CapturingTraceSink sink = new CapturingTraceSink();
+        SearchLookaheadAiPlayStrategy strategy =
+                new SearchLookaheadAiPlayStrategy(sink, "trace-session");
+        AIPlayer bot = new AIPlayer("ai-1", "AI", strategy);
+        MoneyCard fallbackCard = new MoneyCard("m1", "1M", 1);
+        bot.addToBank(fallbackCard);
+        GameContext context = new GameContext();
+        context.setAuxiliaryDecisionMementoJson("{\"sessionId\":\"s1\"}");
+        PaymentSettlement.PaymentChoice fallback =
+                new PaymentSettlement.PaymentChoice(List.of(fallbackCard), 1);
 
-            strategy.choosePayment(bot, context, null, 1, fallback);
-        }
+        strategy.choosePayment(bot, context, null, 1, fallback);
 
-        String row = Files.readString(trace);
-        assertTrue(row.contains("\"decisionKind\":\"PAYMENT\""));
-        assertTrue(row.contains("\"self\""));
-        assertTrue(row.contains("\"payableCards\""));
-        assertTrue(row.contains("\"mementoJson\":\"{\\\"sessionId\\\":\\\"s1\\\"}\""));
+        SimulationDecisionRequest request = sink.onlyRequest();
+        assertEquals("PAYMENT", request.getDecisionKind());
+        assertTrue(request.getContextJson().has("self"));
+        assertTrue(request.getContextJson().getAsJsonObject("decision").has("payableCards"));
+        assertEquals(
+                "{\"sessionId\":\"s1\"}",
+                request.getContextJson()
+                        .getAsJsonObject("counterfactual")
+                        .get("mementoJson")
+                        .getAsString());
     }
 
     @Test
-    void responseTraceIncludesPlayableJustSayNoCandidateWhenChosenPasses() throws Exception {
-        Path trace = tempDir.resolve("response-trace.jsonl");
-        try (JsonlDecisionTraceSink sink = new JsonlDecisionTraceSink(trace)) {
-            SearchLookaheadAiPlayStrategy strategy =
-                    new SearchLookaheadAiPlayStrategy(sink, "trace-session");
-            AIPlayer tenant = new AIPlayer("tenant", "Tenant", strategy);
-            tenant.receiveCardToHand(new ActionCard("no-1", "Just Say No", "RENT_WAIVER"));
-            GameContext context = new GameContext();
-            context.pushEffect(EffectStackEntry.pendingRent("landlord", "tenant", "BROWN", 2));
-            context.setResponseState(new StackResponseState(StackResponseState.Role.TENANT, "tenant", 0L));
+    void responseTraceIncludesPlayableJustSayNoCandidateWhenChosenPasses() {
+        CapturingTraceSink sink = new CapturingTraceSink();
+        SearchLookaheadAiPlayStrategy strategy =
+                new SearchLookaheadAiPlayStrategy(sink, "trace-session");
+        AIPlayer tenant = new AIPlayer("tenant", "Tenant", strategy);
+        tenant.receiveCardToHand(new ActionCard("no-1", "Just Say No", "RENT_WAIVER"));
+        GameContext context = new GameContext();
+        context.pushEffect(EffectStackEntry.pendingRent("landlord", "tenant", "BROWN", 2));
+        context.setResponseState(new StackResponseState(StackResponseState.Role.TENANT, "tenant", 0L));
 
-            strategy.chooseResponse(tenant, context, false);
-        }
+        strategy.chooseResponse(tenant, context, false);
 
-        String row = Files.readString(trace);
-        assertTrue(row.contains("\"decisionKind\":\"JUST_SAY_NO\""));
-        assertTrue(row.contains("\"choiceId\":\"PASS\""));
-        assertTrue(row.contains("\"id\":\"PLAY_JSN\""));
+        SimulationDecisionRequest request = sink.onlyRequest();
+        assertEquals("JUST_SAY_NO", request.getDecisionKind());
+        assertEquals("PASS", sink.onlyResult().getChoiceId());
+        assertTrue(request.hasCandidate("PLAY_JSN"));
     }
 
     @Test
@@ -439,5 +437,26 @@ class SearchLookaheadAiPlayStrategyTest {
         GameStateSnapshot snapshot = new GameStateSnapshot();
         snapshot.setGameOver(true);
         return snapshot;
+    }
+
+    private static final class CapturingTraceSink implements DecisionTraceSink {
+        private final List<SimulationDecisionRequest> requests = new ArrayList<>();
+        private final List<SimulationDecisionResult> results = new ArrayList<>();
+
+        @Override
+        public void record(SimulationDecisionRequest request, SimulationDecisionResult result) {
+            requests.add(request);
+            results.add(result);
+        }
+
+        SimulationDecisionRequest onlyRequest() {
+            assertEquals(1, requests.size());
+            return requests.get(0);
+        }
+
+        SimulationDecisionResult onlyResult() {
+            assertEquals(1, results.size());
+            return results.get(0);
+        }
     }
 }

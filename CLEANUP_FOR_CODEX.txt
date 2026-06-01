@@ -1,0 +1,155 @@
+================================================================================
+  Monopoly_Group7 项目清理清单（交给 Codex 执行）
+  生成日期: 2026-06-01
+  作者: 经 Claude 逐文件依赖核对后整理
+================================================================================
+
+【背景与决策】
+--------------------------------------------------------------------------------
+本项目是软件工程课程作业。按 docs/requirements/requirements.md，交付物只要求：
+  - Java(JDK17) WebSocket 后端
+  - JavaFX + FXML 桌面客户端
+  - MVC + 设计模式(Factory/Strategy/Observer/Singleton/Memento)
+  - JUnit 测试
+  - AI 难度仅需 Easy / Normal / Hard
+
+仓库里额外存在一整套「LLM 蒸馏 / 自对弈训练」研究代码与产物，这些不在作业要求内。
+
+本次清理采用【保守策略】，已由项目负责人确认：
+  ★ 保留 DeepSeek / Lookahead / Student 三个 AI 作为可玩对手，游戏行为不变。
+  ★ 保留 Vue/Vite 网页前端 frontend/（额外展示，不动）。
+  ★ 只删除「纯研究脚手架」：训练脚本、ML 研究文档、未用模型产物、
+    以及仅被实验工具/测试引用的死 Java 代码。
+
+⚠ 重要：本清单已做过构建安全核对。务必严格按【保留清单】区分，不要多删。
+  尤其 simulation/ 包不能整包删——其中 4 个类被保留的生产策略 import。
+
+================================================================================
+  第一部分：零风险删除（非 Java 编译内容，删了不影响构建）
+================================================================================
+
+--- 1A. 个人/研究文档（git 已追踪）---
+resume_project_intro.txt                      # 个人简历草稿，不该进仓库
+docs/ai-cost-and-experiment-roadmap.md        # DeepSeek API 成本规划
+docs/ai-delivery-checklist.md                 # AI 训练管道交付清单
+docs/ai-distillation-plan.md                  # 蒸馏实验计划
+docs/ai-paper-outline.md                      # 研究论文大纲
+docs/ai-research-experiment-plan.md           # 研究实验计划
+docs/ai-training-log.md                       # 6018 行训练日志
+
+--- 1B. Python/Shell 训练与评估脚本（git 已追踪，约 676K，58 文件）---
+training/                                      # 整个目录删除（scripts/ 下全是蒸馏/评估工具）
+tests/                                         # 整个目录删除（仅 __init__.py + test_distill_dataset.py，python 蒸馏测试）
+run-ai-battle.sh                               # 根目录研究对战脚本
+
+--- 1C. 未被代码引用的模型产物（git 已追踪，backend/models 共 125MB / 173 文件）---
+backend/models/selfplay/                       # 整个目录删除（GameController 0 处引用，确认无关）
+backend/models/distillation/                   # 删除该目录下「除下列 4 个子目录外」的全部内容
+                                               # ↓↓↓ 这 4 个子目录必须保留(被 GameController 加载) ↓↓↓
+   保留: backend/models/distillation/deepseek-production-20260524/merged-full-plus-direct-8940-mlp/
+   保留: backend/models/distillation/lookahead-student-v13-actiongateA-dagger3125-w3-listwise-mlp/
+   保留: backend/models/distillation/lookahead-student-v9-dagger1956-balanced-softscore-listwise-mlp/
+   保留: backend/models/distillation/lookahead-student-v6-dagger1394-randomfirst-w4-listwise-mlp/
+
+  执行建议：删除 distillation/ 下其余 ~70 个实验子目录，只留上面 4 个。
+  核对引用位置：backend/src/main/java/com/monopoly/controller/GameController.java 第 81-88 行。
+
+================================================================================
+  第二部分：死 Java 代码 + 对应测试（仅被实验工具/测试引用，删除后构建仍通过）
+================================================================================
+
+--- 2A. simulation/ 包：删除以下 12 个文件 ---
+  路径前缀：backend/src/main/java/com/monopoly/simulation/
+  DecisionBroker.java
+  DeepSeekBatchDecisionTeacher.java
+  FirstChoiceDecisionTeacher.java
+  HeuristicDecisionTeacher.java
+  JsonlDecisionTraceSink.java
+  LocalRankerDecisionTeacher.java
+  LookaheadDecisionTeacher.java
+  OutcomeDecisionTraceSink.java
+  SimulationDecisionTeacher.java
+  SimulationResult.java
+  SimulationWorker.java
+  StrategicHeuristicDecisionTeacher.java
+
+  ★★★ simulation/ 包内以下 4 个文件【必须保留】★★★
+  （被保留的 DeepSeekAiPlayStrategy / SearchLookaheadAiPlayStrategy /
+    LocalRankerAiPlayStrategy 直接 import，删了会编译失败）
+  保留: DecisionTraceSink.java
+  保留: SimulationDecisionCandidate.java
+  保留: SimulationDecisionRequest.java
+  保留: SimulationDecisionResult.java
+
+--- 2B. strategy/ 包：删除以下 3 个「死策略」---
+  路径前缀：backend/src/main/java/com/monopoly/pattern/strategy/
+  BrokeredAiPlayStrategy.java                  # 仅 SimulationWorker + 实验工具用
+  LocalLinearRankerAiPlayStrategy.java         # 仅自身测试引用，生产 0 引用
+  HybridLookaheadPaymentRankerAiPlayStrategy.java  # 仅 MixedAiBattleExperimentRunner 用
+
+--- 2C. tools/ 包：整个删除（7 个实验跑批入口，零生产引用）---
+  backend/src/main/java/com/monopoly/tools/    # 整个目录删除
+  （含 AiBattleExperimentRunner / CounterfactualReplayRunner /
+    LocalRankerEvaluationRunner / MixedAiBattleExperimentRunner /
+    PairedSeedPolicyExperimentRunner / SimulationBatchRunner / TraceRelabeler）
+
+--- 2D. 对应测试：删除以下 9 个测试文件（它们测试的是上面被删的类）---
+  路径前缀：backend/src/test/java/com/monopoly/
+  simulation/DecisionBrokerTest.java
+  simulation/HeuristicDecisionTeacherTest.java
+  simulation/JsonlDecisionTraceSinkTest.java
+  simulation/SimulationWorkerTest.java
+  simulation/StrategicHeuristicDecisionTeacherTest.java
+  tools/LocalRankerEvaluationRunnerTest.java
+  tools/MixedAiBattleExperimentRunnerTest.java
+  tools/TraceRelabelerTest.java
+  pattern/strategy/LocalLinearRankerAiPlayStrategyTest.java
+
+================================================================================
+  第三部分：可选清理（需先编译确认，谨慎处理）
+================================================================================
+GameController.java 中存在几个「仅供模拟/实验」的钩子方法，删除 tools/、simulation/
+引擎后它们可能变为死代码，但不影响编译。保守起见【默认不动】，如要进一步精简可在
+删除后单独评估（务必先跑测试确认没有保留的测试在用）：
+  - setLookaheadAiStrategyFactory(...)         (约 154 行)
+  - setDeepSeekAiStrategyFactory(...)          (约 146-152 行)
+  - resetSessionClockForSimulation()           (约 843 行)
+  - refreshAndGetAiDecisionContextForSimulation()  (约 943 行)
+  - resolvePaymentChoiceForSimulation(...)     (约 948 行)
+
+================================================================================
+  【保留清单】以下内容务必不要删（防止误删）
+================================================================================
+后端核心 AI（保留为可玩对手）：
+  pattern/strategy/EasyAiPlayStrategy.java / NormalAiPlayStrategy.java / HardAiPlayStrategy.java
+  pattern/strategy/AiPlayStrategy.java / AiHeuristics.java / AiChoiceAdvisor.java
+  pattern/strategy/AiStrategyProfile.java / AiBattleLogger.java / DeepSeekClient.java
+  pattern/strategy/DeepSeekAiPlayStrategy.java          # HVM 默认对手
+  pattern/strategy/SearchLookaheadAiPlayStrategy.java   # lookahead/strong 角色
+  pattern/strategy/LocalRankerAiPlayStrategy.java       # student 角色
+  simulation/ 下的 4 个 DTO/接口类（见 2A 保留项）
+  上面列出的 4 个模型子目录
+  这些的保留测试：DeepSeekClientConfigTest / DeepSeekAiPlayStrategyCandidateScoreTest /
+                  SearchLookaheadAiPlayStrategyTest（已核对：不引用任何被删类）
+其他保留：
+  frontend/                                    # Vue/Vite 网页前端（按决策保留）
+  .env.example                                 # DeepSeek key 模板，README 引用，AI 保留则保留
+  docs/requirements/ docs/architecture/ docs/interface/ docs/implementation/
+  docs/ENGINEERING.md（changelog，CLAUDE.md 规定保留）
+  docs/局域网多人对战操作指南.md
+  rules.md（CLAUDE.md 指定的规则权威）
+  README.md / CLAUDE.md / AGENTS.md / pom.xml / Group 7.pdf
+
+注：AI_BATTLE_LOG.md 已在 .gitignore 中（本地生成、未追踪），非 git 清理对象；
+    如需要可本地手动删除，不影响仓库。
+
+================================================================================
+  执行后验证（务必跑通再提交）
+================================================================================
+  mvn -q test            # 全部测试应通过
+  mvn -q exec:java       # 服务器应能启动 (ws://localhost:8025/ws)
+  mvn javafx:run         # 桌面客户端应能启动并可选 easy/normal/hard/llm/student/lookahead 角色
+
+  若 mvn test 报 “找不到符号 / cannot find symbol” 指向某 simulation 类，
+  说明误删了第 2A 节要求保留的 4 个类之一，请恢复。
+================================================================================

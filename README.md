@@ -61,11 +61,9 @@ Monopoly Deal: Java WebSocket server plus a **JavaFX + FXML** desktop client (`m
 
 ### 目录约定
 
-- `backend/src/`: Java backend, simulation tools, JavaFX desktop client.
+- `backend/src/`: Java backend, JavaFX desktop client.
 - `backend/models/`: runtime local ranker checkpoints used by the backend.
 - `frontend/`: Vite/Vue web client.
-- `training/scripts/`: Python and shell training/evaluation utilities.
-- `training/data/`: local generated traces, datasets, reports, and old large experiment artifacts; ignored by Git.
 
 ### JVM 参数
 

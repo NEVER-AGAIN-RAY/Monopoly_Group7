@@ -44,10 +44,7 @@ wscat -c ws://localhost:8025/ws
 
 **Repository layout**: Java backend and JavaFX sources live under `backend/src/`;
 runtime local ranker checkpoints live under `backend/models/`; the Vite/Vue web
-client lives under `frontend/`; training and evaluation utilities live under
-`training/scripts/`; generated training data, traces, reports, and old large
-experiment artifacts live under `training/data/` and are intentionally ignored
-by Git.
+client lives under `frontend/`.
 
 **Topology**: The server is a single-process WebSocket server (`WsServerMain` → Tyrus/Grizzly on port 8025). The JavaFX client (`MonopolyFxApp`) connects as a WebSocket client. Both can run on the same machine. The communication protocol is JSON envelopes over WebSocket text frames (see `docs/interface/websocket-protocol.md`).
 

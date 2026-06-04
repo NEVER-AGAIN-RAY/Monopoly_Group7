@@ -3,8 +3,13 @@ package com.monopoly.fx.ui;
 import com.monopoly.fx.I18n;
 import com.monopoly.fx.presentation.CardDisplayData;
 import com.monopoly.fx.presentation.CardImageCache;
+import javafx.animation.Interpolator;
+import javafx.animation.ParallelTransition;
+import javafx.animation.ScaleTransition;
+import javafx.animation.TranslateTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
@@ -14,6 +19,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 
 /**
  * Visual control for one hand card; styling lives in styles.css.
@@ -23,7 +29,15 @@ public class CardView extends ToggleButton {
     public static final double CARD_WIDTH = 122;
     public static final double CARD_HEIGHT = 205;
 
+    /** Vertical lift (px) for hovered and selected cards; selection lifts higher. */
+    private static final double HOVER_LIFT = -12;
+    private static final double SELECT_LIFT = -20;
+    private static final double HOVER_SCALE = 1.04;
+    private static final double SELECT_SCALE = 1.06;
+    private static final Duration ELEVATE_DURATION = Duration.millis(130);
+
     private final CardDisplayData data;
+    private ParallelTransition elevateAnim;
 
     public CardView(CardDisplayData data, String kindStyleClass) {
         this.data = data;
@@ -34,6 +48,9 @@ public class CardView extends ToggleButton {
         setWrapText(true);
         setMaxWidth(Region.USE_PREF_SIZE);
         setText(null);
+        setCursor(Cursor.HAND);
+        hoverProperty().addListener((obs, was, now) -> applyElevation());
+        selectedProperty().addListener((obs, was, now) -> applyElevation());
 
         javafx.scene.image.Image cardImage = CardImageCache.image(data, CARD_WIDTH * 2, CARD_HEIGHT * 2);
         if (cardImage != null) {
@@ -118,6 +135,32 @@ public class CardView extends ToggleButton {
 
     public CardDisplayData getCardData() {
         return data;
+    }
+
+    /**
+     * Animate the card to its target lift/scale based on hover + selection state.
+     * Selected cards lift highest; hovered (unselected) cards lift a little.
+     * Raised cards are pulled to the front so the fan overlap never hides them.
+     */
+    private void applyElevation() {
+        boolean selected = isSelected();
+        boolean hovered = isHover();
+        double targetY = selected ? SELECT_LIFT : (hovered ? HOVER_LIFT : 0);
+        double targetScale = selected ? SELECT_SCALE : (hovered ? HOVER_SCALE : 1.0);
+        setViewOrder(selected || hovered ? -1 : 0);
+
+        if (elevateAnim != null) {
+            elevateAnim.stop();
+        }
+        TranslateTransition move = new TranslateTransition(ELEVATE_DURATION, this);
+        move.setToY(targetY);
+        move.setInterpolator(Interpolator.EASE_BOTH);
+        ScaleTransition scale = new ScaleTransition(ELEVATE_DURATION, this);
+        scale.setToX(targetScale);
+        scale.setToY(targetScale);
+        scale.setInterpolator(Interpolator.EASE_BOTH);
+        elevateAnim = new ParallelTransition(move, scale);
+        elevateAnim.play();
     }
 
     private static void applyColorBar(Region bar, CardDisplayData d) {

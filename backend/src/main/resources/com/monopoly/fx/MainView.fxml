@@ -65,7 +65,8 @@
                 </ScrollPane>
 
                 <VBox spacing="10.0" alignment="CENTER" VBox.vgrow="ALWAYS" styleClass="center-table">
-                    <VBox spacing="6.0" alignment="CENTER" VBox.vgrow="ALWAYS" styleClass="center-play-zone">
+                    <VBox spacing="6.0" alignment="CENTER" VBox.vgrow="ALWAYS"
+                          maxWidth="760.0" styleClass="center-play-zone">
                         <VBox fx:id="centerNoticeBox" spacing="4.0" alignment="CENTER"
                               visible="false" managed="false" styleClass="center-notice">
                             <Label fx:id="centerTitleLabel" text="牌桌就绪" styleClass="center-title"/>
@@ -127,11 +128,11 @@
                             <Label fx:id="handTitleLabel" text="手牌" styleClass="section-title"/>
                             <Label fx:id="handHintLabel" text="双击会按默认动作快速出牌。" styleClass="hand-hint"/>
                         </HBox>
-                        <ScrollPane fx:id="handScroll" fitToHeight="true" hbarPolicy="NEVER" vbarPolicy="NEVER"
-                                    prefHeight="212.0" styleClass="hand-scroll">
-                            <HBox fx:id="handStrip" spacing="-48.0" alignment="BOTTOM_CENTER" styleClass="hand-strip">
+                        <ScrollPane fx:id="handScroll" fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
+                                    prefHeight="250.0" styleClass="hand-scroll">
+                            <HBox fx:id="handStrip" spacing="-32.0" alignment="BOTTOM_CENTER" styleClass="hand-strip">
                                 <padding>
-                                    <Insets bottom="16.0" left="58.0" right="58.0" top="18.0"/>
+                                    <Insets bottom="14.0" left="48.0" right="48.0" top="24.0"/>
                                 </padding>
                             </HBox>
                         </ScrollPane>
@@ -211,6 +212,15 @@
                     <Label fx:id="infoLine1Label" wrapText="true" styleClass="info-line"/>
                     <Label fx:id="infoLine2Label" wrapText="true" styleClass="info-line"/>
                     <Label fx:id="infoLine3Label" wrapText="true" styleClass="info-line"/>
+                    <Label fx:id="infoLine4Label" wrapText="true" styleClass="info-line"/>
+                    <Button fx:id="infoDetailButton" text="查看详细解释" maxWidth="Infinity"
+                            onAction="#onInfoDetailToggle"
+                            mnemonicParsing="false" styleClass="info-detail-button"/>
+                    <ScrollPane fx:id="infoDetailScroll" fitToWidth="true" hbarPolicy="NEVER"
+                                vbarPolicy="AS_NEEDED" visible="false" managed="false"
+                                prefHeight="142.0" styleClass="info-detail-scroll">
+                        <Label fx:id="infoDetailLabel" wrapText="true" styleClass="info-detail-text"/>
+                    </ScrollPane>
                 </VBox>
             </VBox>
 

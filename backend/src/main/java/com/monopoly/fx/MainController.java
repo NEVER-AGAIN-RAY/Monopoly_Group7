@@ -73,6 +73,7 @@ public class MainController {
     private Timeline responseCountdownTimer;
     private JsonObject currentLobbyRoom;
     private String infoPanel = "intro";
+    private boolean infoDetailExpanded;
     private int pendingRentPaymentM;
     private String lastAutoDrawKey = "";
     private String playedSessionKey = "";
@@ -140,6 +141,10 @@ public class MainController {
     @FXML private Label infoLine1Label;
     @FXML private Label infoLine2Label;
     @FXML private Label infoLine3Label;
+    @FXML private Label infoLine4Label;
+    @FXML private Button infoDetailButton;
+    @FXML private ScrollPane infoDetailScroll;
+    @FXML private Label infoDetailLabel;
 
     @FXML private Label roomListLabel;
     @FXML private GridPane lobbyPanel;
@@ -201,6 +206,7 @@ public class MainController {
     @FXML private Button discardButton;
     @FXML private Label handTitleLabel;
     @FXML private Label handHintLabel;
+    @FXML private ScrollPane handScroll;
     @FXML private HBox handStrip;
     @FXML private HBox lowerTableBox;
 
@@ -262,6 +268,10 @@ public class MainController {
             syncActionButtons();
         });
 
+        if (handScroll != null) {
+            handScroll.viewportBoundsProperty().addListener((obs, oldB, newB) -> recomputeHandSpacing());
+        }
+
         trafficArea.setEditable(false);
         randomizeFirstCheck.setSelected(false);
         syncModeUi();
@@ -285,6 +295,7 @@ public class MainController {
             infoPanel = panel;
             infoVisible = true;
         }
+        infoDetailExpanded = false;
         updateInfoPanel();
     }
 
@@ -304,6 +315,12 @@ public class MainController {
         playerCountSpinner.getValueFactory().setValue(2);
         playerIdField.setText("human-1");
         onStartGame();
+    }
+
+    @FXML
+    private void onInfoDetailToggle() {
+        infoDetailExpanded = !infoDetailExpanded;
+        updateInfoPanel();
     }
 
     @FXML
@@ -1408,7 +1425,7 @@ public class MainController {
             CardDisplayData data = CardDisplayData.fromHandCardJson(el.getAsJsonObject());
             CardView view = new CardView(data, cardKindClass(data));
             view.setToggleGroup(handToggleGroup);
-            view.setRotate(Math.max(-8.0, Math.min(8.0, (index - (total - 1) / 2.0) * 1.45)));
+            view.setRotate(Math.max(-6.0, Math.min(6.0, (index - (total - 1) / 2.0) * 1.2)));
             view.setOnMouseClicked(event -> {
                 if (event.getClickCount() >= 2) {
                     quickPlay(data);
@@ -1417,9 +1434,36 @@ public class MainController {
             handStrip.getChildren().add(view);
             index++;
         }
+        recomputeHandSpacing();
         selectedCardLabel.setText(i18n("label.selectCardHint"));
         updateSelectedPreview();
         syncActionButtons();
+    }
+
+    /**
+     * Pick the hand-strip overlap so every card fits the visible width: spread out
+     * when there are few cards, tighten the fan when there are many, so the right
+     * edge never spills under the action pad.
+     */
+    private void recomputeHandSpacing() {
+        int n = handStrip.getChildren().size();
+        if (n <= 1) {
+            handStrip.setSpacing(-32);
+            return;
+        }
+        double cardW = CardView.CARD_WIDTH;
+        double padding = 96; // hand-strip left + right insets
+        double spacing = -32;
+        double avail = handScroll != null && handScroll.getViewportBounds() != null
+                ? handScroll.getViewportBounds().getWidth()
+                : 0;
+        if (avail > cardW + padding) {
+            double step = (avail - padding - cardW) / (n - 1);
+            spacing = step - cardW;
+        }
+        // Always keep a slight overlap (fan look); never overlap into illegibility.
+        spacing = Math.max(-86, Math.min(-12, spacing));
+        handStrip.setSpacing(spacing);
     }
 
     private static String handSignature(JsonArray cards) {
@@ -2166,22 +2210,20 @@ public class MainController {
         if (infoVisible) {
             active.getStyleClass().add("active");
         }
-        if ("rules".equals(infoPanel)) {
-            infoTitleLabel.setText(i18n("infoRulesTitle"));
-            infoLine1Label.setText(i18n("infoRules1"));
-            infoLine2Label.setText(i18n("infoRules2"));
-            infoLine3Label.setText(i18n("infoRules3"));
-        } else if ("guide".equals(infoPanel)) {
-            infoTitleLabel.setText(i18n("infoGuideTitle"));
-            infoLine1Label.setText(i18n("infoGuide1"));
-            infoLine2Label.setText(i18n("infoGuide2"));
-            infoLine3Label.setText(i18n("infoGuide3"));
-        } else {
-            infoTitleLabel.setText(i18n("infoIntroTitle"));
-            infoLine1Label.setText(i18n("infoIntro1"));
-            infoLine2Label.setText(i18n("infoIntro2"));
-            infoLine3Label.setText(i18n("infoIntro3"));
-        }
+        String prefix = switch (infoPanel) {
+            case "rules" -> "infoRules";
+            case "guide" -> "infoGuide";
+            default -> "infoIntro";
+        };
+        infoTitleLabel.setText(i18n(prefix + "Title"));
+        infoLine1Label.setText(i18n(prefix + "1"));
+        infoLine2Label.setText(i18n(prefix + "2"));
+        infoLine3Label.setText(i18n(prefix + "3"));
+        infoLine4Label.setText(i18n(prefix + "4"));
+        infoDetailButton.setText(i18n(infoDetailExpanded ? "infoDetailHide" : "infoDetailShow"));
+        infoDetailLabel.setText(i18n(prefix + "Detail"));
+        infoDetailScroll.setVisible(infoDetailExpanded);
+        infoDetailScroll.setManaged(infoDetailExpanded);
     }
 
     private void switchToGameView() {

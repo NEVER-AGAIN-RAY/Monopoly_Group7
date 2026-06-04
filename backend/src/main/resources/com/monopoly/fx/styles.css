@@ -45,8 +45,12 @@
     -fx-background-color: transparent;
 }
 
+.start-viewport {
+    -fx-padding: 88px 0 56px 0;
+}
+
 .start-shell {
-    -fx-padding: 26px 34px 28px 34px;
+    -fx-padding: 0 34px 0 34px;
 }
 
 .brand-lockup {
@@ -55,7 +59,7 @@
     -fx-border-color: #7b4b23;
     -fx-border-width: 7px;
     -fx-border-radius: 18px;
-    -fx-padding: 24px 28px;
+    -fx-padding: 20px 30px 22px 30px;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.38), 38, 0.18, 0, 16);
 }
 
@@ -63,23 +67,30 @@
     -fx-text-fill: #1b5e3d;
     -fx-font-size: 12px;
     -fx-font-weight: 900;
+    -fx-font-family: "Avenir Next", "Inter", "Segoe UI", "Microsoft YaHei UI", sans-serif;
 }
 
 .brand-title {
-    -fx-text-fill: #c62828;
-    -fx-font-size: 54px;
+    -fx-font-family: "Avenir Next", "Trebuchet MS", "Inter", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    -fx-text-fill: linear-gradient(to bottom, #d63a33, #a91f1f);
+    -fx-font-size: 56px;
     -fx-font-weight: 900;
+    -fx-padding: 0 0 0 0;
+    -fx-effect: dropshadow(gaussian, rgba(88, 24, 14, 0.20), 2, 0.12, 0, 2);
 }
 
 .brand-subtitle {
     -fx-text-fill: #46533e;
     -fx-font-weight: 800;
+    -fx-font-family: "Avenir Next", "Inter", "Segoe UI", "Microsoft YaHei UI", sans-serif;
 }
 
 .connect-card,
 .setup-panel,
-.start-info,
-.lobby-panel {
+.lobby-panel,
+.ai-card,
+.live-card,
+.feature-pill {
     -fx-background-color: rgba(249, 244, 220, 0.97);
     -fx-background-radius: 10px;
     -fx-border-color: rgba(58, 42, 20, 0.16);
@@ -90,6 +101,8 @@
 
 .connect-card {
     -fx-effect: none;
+    -fx-padding: 12px;
+    -fx-max-width: 398px;
 }
 
 .setup-label {
@@ -110,11 +123,6 @@
     -fx-font-weight: 900;
 }
 
-.start-info {
-    -fx-padding: 0;
-    -fx-max-height: 172px;
-}
-
 .setup-panel {
     -fx-padding: 14px 16px;
 }
@@ -125,16 +133,17 @@
 }
 
 .info-tabs {
-    -fx-background-color: rgba(36, 83, 56, 0.10);
-    -fx-padding: 14px;
-    -fx-background-radius: 10px 0 0 10px;
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-background-radius: 0;
 }
 
 .info-tab {
-    -fx-background-color: rgba(255, 255, 255, 0.58);
+    -fx-background-color: rgba(36, 83, 56, 0.10);
     -fx-text-fill: #2f2515;
-    -fx-alignment: CENTER_LEFT;
-    -fx-min-height: 40px;
+    -fx-alignment: CENTER;
+    -fx-min-height: 34px;
+    -fx-padding: 7px 14px;
 }
 
 .info-tab.active {
@@ -143,7 +152,11 @@
 }
 
 .info-copy {
-    -fx-padding: 17px 20px;
+    -fx-padding: 12px 16px;
+    -fx-background-color: rgba(255, 255, 255, 0.42);
+    -fx-background-radius: 10px;
+    -fx-border-color: rgba(36, 83, 56, 0.12);
+    -fx-border-radius: 10px;
 }
 
 .info-title {
@@ -156,6 +169,69 @@
     -fx-text-fill: #243023;
     -fx-font-size: 15px;
     -fx-font-weight: 900;
+}
+
+.mode-grid {
+    -fx-pref-width: 100000px;
+}
+
+.ai-card,
+.live-card {
+    -fx-min-height: 360px;
+    -fx-pref-height: 370px;
+    -fx-padding: 22px 24px 24px 24px;
+}
+
+.ai-card {
+    -fx-border-color: #c62828, rgba(58, 42, 20, 0.16);
+    -fx-border-width: 6px 1px 1px 1px;
+}
+
+.live-card {
+    -fx-border-color: #245338, rgba(58, 42, 20, 0.16);
+    -fx-border-width: 6px 1px 1px 1px;
+}
+
+.mode-kicker {
+    -fx-text-fill: #245338;
+    -fx-font-size: 12px;
+    -fx-font-weight: 900;
+    -fx-font-family: "Avenir Next", "Inter", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+}
+
+.mode-title {
+    -fx-font-family: "Avenir Next", "Trebuchet MS", "Inter", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    -fx-text-fill: linear-gradient(to bottom, #d63a33, #a91f1f);
+    -fx-font-size: 36px;
+    -fx-font-weight: 900;
+    -fx-effect: dropshadow(gaussian, rgba(88, 24, 14, 0.12), 2, 0.10, 0, 1);
+}
+
+.mode-subtitle {
+    -fx-text-fill: #3f3524;
+    -fx-font-size: 14px;
+    -fx-font-weight: 900;
+}
+
+.feature-strip {
+    -fx-pref-width: 100000px;
+}
+
+.feature-pill {
+    -fx-padding: 12px 14px;
+    -fx-min-height: 64px;
+    -fx-effect: none;
+}
+
+.feature-title {
+    -fx-text-fill: #c62828;
+    -fx-font-size: 12px;
+    -fx-font-weight: 900;
+}
+
+.feature-text {
+    -fx-text-fill: #4b3d25;
+    -fx-font-weight: 800;
 }
 
 .room-list-view {
@@ -207,6 +283,11 @@
 .btn-quiet {
     -fx-background-color: #f7f0d5;
     -fx-text-fill: #2f2515;
+}
+
+.btn-soft-green {
+    -fx-background-color: #a9c39a;
+    -fx-text-fill: white;
 }
 
 .btn-disconnect,

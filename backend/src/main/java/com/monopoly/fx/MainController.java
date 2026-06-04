@@ -15,6 +15,8 @@ import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -32,6 +34,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 import javafx.util.Duration;
 
 import java.time.LocalTime;
@@ -77,6 +80,8 @@ public class MainController {
     private long lastRecordedPlayedSequence;
     private int trafficLineCount;
     private boolean awaitingInitialState;
+    private boolean infoVisible;
+    private boolean startCreatedRoomImmediately;
     private final List<PlayedEvent> playedEvents = new ArrayList<>();
 
     @FXML private StackPane root;
@@ -95,6 +100,19 @@ public class MainController {
     @FXML private Label appSubtitleLabel;
     @FXML private Label serverLabel;
     @FXML private Label languageLabel;
+    @FXML private Label aiCardKickerLabel;
+    @FXML private Label aiCardTitleLabel;
+    @FXML private Label aiCardSubtitleLabel;
+    @FXML private Label liveCardKickerLabel;
+    @FXML private Label liveCardTitleLabel;
+    @FXML private Label liveCardSubtitleLabel;
+    @FXML private Button startAiButton;
+    @FXML private Label featureAiTitleLabel;
+    @FXML private Label featureAiTextLabel;
+    @FXML private Label featurePvpTitleLabel;
+    @FXML private Label featurePvpTextLabel;
+    @FXML private Label featureDemoTitleLabel;
+    @FXML private Label featureDemoTextLabel;
     @FXML private Label gameModeLabel;
     @FXML private Label playerCountLabel;
     @FXML private Label aiDifficultyLabel;
@@ -117,12 +135,14 @@ public class MainController {
     @FXML private Button infoIntroButton;
     @FXML private Button infoRulesButton;
     @FXML private Button infoGuideButton;
+    @FXML private VBox infoCopyBox;
     @FXML private Label infoTitleLabel;
     @FXML private Label infoLine1Label;
     @FXML private Label infoLine2Label;
     @FXML private Label infoLine3Label;
 
     @FXML private Label roomListLabel;
+    @FXML private GridPane lobbyPanel;
     @FXML private ListView<String> roomListView;
     @FXML private Label nicknameLabel;
     @FXML private TextField nicknameField;
@@ -191,12 +211,14 @@ public class MainController {
         wsUrlField.setText("ws://localhost:8025/ws");
         sessionIdField.setText("web-demo");
         playerIdField.setText("human-1");
-        nicknameField.setText("玩家");
+        nicknameField.setText(I18n.get("default.nickname"));
 
         playerCountSpinner.setValueFactory(new javafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory(2, 5, 2));
         gameModeCombo.getItems().setAll("HVM", "PVP", "LLM", "CUSTOM");
+        gameModeCombo.setConverter(localizedValueConverter("mode."));
         gameModeCombo.getSelectionModel().select("HVM");
         aiDifficultyCombo.getItems().setAll("EASY", "NORMAL", "HARD", "STRONG");
+        aiDifficultyCombo.setConverter(aiDifficultyValueConverter());
         aiDifficultyCombo.getSelectionModel().select("NORMAL");
         customLineupCombo.getItems().setAll(
                 "human,strong",
@@ -212,7 +234,9 @@ public class MainController {
         languageCombo.getSelectionModel().selectFirst();
         languageCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
             I18n.setLocale("English".equals(newValue) ? Locale.ENGLISH : Locale.CHINESE);
+            syncDefaultNickname();
             applyI18n();
+            rebuildHand();
             rebuildAllFromState();
         });
         gameModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> syncModeUi());
@@ -251,20 +275,35 @@ public class MainController {
 
     @FXML
     private void onInfoIntro() {
-        infoPanel = "intro";
+        toggleInfoPanel("intro");
+    }
+
+    private void toggleInfoPanel(String panel) {
+        if (infoVisible && infoPanel.equals(panel)) {
+            infoVisible = false;
+        } else {
+            infoPanel = panel;
+            infoVisible = true;
+        }
         updateInfoPanel();
     }
 
     @FXML
     private void onInfoRules() {
-        infoPanel = "rules";
-        updateInfoPanel();
+        toggleInfoPanel("rules");
     }
 
     @FXML
     private void onInfoGuide() {
-        infoPanel = "guide";
-        updateInfoPanel();
+        toggleInfoPanel("guide");
+    }
+
+    @FXML
+    private void onStartAiGame() {
+        gameModeCombo.getSelectionModel().select("HVM");
+        playerCountSpinner.getValueFactory().setValue(2);
+        playerIdField.setText("human-1");
+        onStartGame();
     }
 
     @FXML
@@ -322,6 +361,7 @@ public class MainController {
                     pendingOptionsResultHandler = null;
                     postConnectAction = null;
                     awaitingInitialState = false;
+                    startCreatedRoomImmediately = false;
                     currentLobbyRoom = null;
                     switchToStartView();
                     refreshButtons();
@@ -356,6 +396,7 @@ public class MainController {
         selectedCard = null;
         pendingOptionsResultHandler = null;
         awaitingInitialState = false;
+        startCreatedRoomImmediately = false;
         roomRowsByLabel.clear();
         roomListView.getItems().clear();
         switchToStartView();
@@ -383,6 +424,7 @@ public class MainController {
     @FXML
     private void onCreateRoom() {
         runWhenConnected(() -> {
+            startCreatedRoomImmediately = true;
             Map<String, Object> payload = scopedPayload();
             payload.put("nickname", nickname());
             sendEnvelope("CREATE_ROOM", payload);
@@ -399,7 +441,7 @@ public class MainController {
         runWhenConnected(() -> {
             Map<String, Object> payload = scopedPayload();
             payload.put("nickname", nickname());
-            sendEnvelope("JOIN_ROOM", payload);
+            sendEnvelope(row == null ? "CREATE_ROOM" : "JOIN_ROOM", payload);
         });
     }
 
@@ -413,6 +455,7 @@ public class MainController {
     @FXML
     private void onLeaveRoom() {
         sendEnvelope("LEAVE_ROOM", scopedPayload());
+        startCreatedRoomImmediately = false;
         currentLobbyRoom = null;
         rebuildRoomState(null);
         updateLobbyControls();
@@ -631,7 +674,7 @@ public class MainController {
 
     private void handlePlayOptions(JsonObject payload, String cardId, String actionType, boolean autoDefault) {
         if (payload == null || !jsonBool(payload, "ok", false)) {
-            showError(jsonString(payload, "error", i18n("error.noOptions")));
+            showError(localizedBackendMessage(jsonString(payload, "error", ""), i18n("error.noOptions")));
             return;
         }
         JsonArray options = payload.has("options") && payload.get("options").isJsonArray()
@@ -671,13 +714,12 @@ public class MainController {
         }
         javafx.scene.control.Dialog<JsonObject> dialog = new javafx.scene.control.Dialog<>();
         dialog.setTitle(i18n("dialog.chooseParam"));
-        dialog.setHeaderText(i18n("dialog.chooseHint"));
-        dialog.getDialogPane().getButtonTypes().addAll(
-                javafx.scene.control.ButtonType.CANCEL,
-                javafx.scene.control.ButtonType.OK
-        );
+        dialog.setHeaderText(i18n("dialog.playOptionHeader"));
+        ButtonType cancelType = new ButtonType(i18n("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType confirmType = new ButtonType(i18n("dialog.confirm"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(cancelType, confirmType);
         ListView<JsonObject> list = new ListView<>();
-        list.setPrefSize(520, Math.min(360, Math.max(160, options.size() * 42)));
+        list.setPrefSize(640, Math.min(420, Math.max(180, options.size() * 54)));
         for (JsonElement el : options) {
             if (el.isJsonObject()) {
                 list.getItems().add(el.getAsJsonObject());
@@ -694,7 +736,7 @@ public class MainController {
             list.getSelectionModel().selectFirst();
         }
         dialog.getDialogPane().setContent(list);
-        dialog.setResultConverter(button -> button == javafx.scene.control.ButtonType.OK
+        dialog.setResultConverter(button -> button == confirmType
                 ? list.getSelectionModel().getSelectedItem()
                 : null);
         if (root != null && root.getScene() != null) {
@@ -704,30 +746,160 @@ public class MainController {
     }
 
     private String optionLabel(JsonObject row, String actionType) {
+        if (row == null) {
+            return i18n("dialog.directPlay");
+        }
         if ("DEPLOY".equals(actionType)) {
             String color = jsonString(row, "targetColorKey", "");
             if (!color.isBlank()) {
                 return i18n("deployAsColor", colorName(color));
             }
         }
-        String label = jsonString(row, I18n.isChinese() ? "labelZh" : "labelEn", "");
-        if (!label.isBlank()) {
-            return label;
-        }
+        String effect = selectedCard == null ? "" : safeUpper(selectedCard.getEffectCode());
         String targetPlayer = jsonString(row, "targetPlayerId", "");
         String targetColor = jsonString(row, "targetColorKey", "");
         String targetCard = jsonString(row, "targetCardId", "");
+        String actorCard = jsonString(row, "actorCardId", "");
+        boolean allOthers = jsonBool(row, "allOtherPlayers", false);
+        String targetName = targetPlayer.isBlank() ? i18n("player.fallback") : displayNameForPlayer(targetPlayer);
+        String targetColorName = targetColor.isBlank() ? "" : colorName(targetColor);
+        String targetCardName = targetCard.isBlank() ? i18n("dialog.unknownCard") : publicCardLabel(targetPlayer, targetCard);
+        String actorCardName = actorCard.isBlank() ? i18n("dialog.unknownCard") : publicCardLabel(playerId(), actorCard);
+
+        if ("ACTION".equals(actionType)) {
+            switch (effect) {
+                case "STEAL_PROPERTY" -> {
+                    return i18n("dialog.stealOption", targetName, targetCardName);
+                }
+                case "FORCED_DEAL" -> {
+                    return i18n("dialog.forcedDealOption", actorCardName, targetName, targetCardName);
+                }
+                case "DEAL_BREAKER" -> {
+                    return i18n("dialog.dealBreakerOption", targetName, targetColorName);
+                }
+                case "DEBT_COLLECTOR" -> {
+                    return i18n("dialog.debtOption", targetName);
+                }
+                case "RENT", "RENT_DUAL" -> {
+                    return allOthers
+                            ? i18n("dialog.allRentOption", targetColorName)
+                            : i18n("dialog.rentOption", targetName, targetColorName);
+                }
+                case "DOUBLE_RENT" -> {
+                    return i18n("dialog.doubleRentOption");
+                }
+                case "HOUSE" -> {
+                    return i18n("dialog.houseOption", targetCardName);
+                }
+                case "HOTEL" -> {
+                    return i18n("dialog.hotelOption", targetCardName);
+                }
+                default -> {
+                    if (targetPlayer.isBlank() && targetColor.isBlank() && targetCard.isBlank() && actorCard.isBlank()) {
+                        return i18n("dialog.directPlay");
+                    }
+                }
+            }
+        }
+
+        String label = jsonString(row, I18n.isChinese() ? "labelZh" : "labelEn", "");
+        if (I18n.isChinese() && !label.isBlank()) {
+            return label;
+        }
         List<String> pieces = new ArrayList<>();
         if (!targetPlayer.isBlank()) {
-            pieces.add(displayNameForPlayer(targetPlayer));
+            pieces.add(i18n("dialog.targetPlayer") + ": " + targetName);
         }
         if (!targetColor.isBlank()) {
-            pieces.add(colorName(targetColor));
+            pieces.add(i18n("dialog.targetColor") + ": " + targetColorName);
         }
         if (!targetCard.isBlank()) {
-            pieces.add(targetCard);
+            pieces.add(i18n("dialog.targetCard") + ": " + targetCardName);
         }
-        return pieces.isEmpty() ? i18n("directPlay") : String.join(" · ", pieces);
+        if (!actorCard.isBlank()) {
+            pieces.add(i18n("dialog.actorCard") + ": " + actorCardName);
+        }
+        return pieces.isEmpty() ? i18n("dialog.directPlay") : String.join(" · ", pieces);
+    }
+
+    private String publicCardLabel(String ownerPlayerId, String cardId) {
+        if (cardId == null || cardId.isBlank()) {
+            return i18n("dialog.unknownCard");
+        }
+        JsonObject card = findPublicCard(ownerPlayerId, cardId);
+        if (card == null) {
+            return i18n("dialog.unknownCardWithId", cardId);
+        }
+        CardDisplayData data = CardDisplayData.fromHandCardJson(card);
+        String title = cardTitle(data);
+        String color = data.getAssignedColorKey() == null || data.getAssignedColorKey().isBlank()
+                ? data.getColorGroup()
+                : data.getAssignedColorKey();
+        List<String> parts = new ArrayList<>();
+        parts.add(title);
+        if (color != null && !color.isBlank()
+                && ("PROPERTY".equals(data.getKind()) || "WILD".equals(data.getKind()))) {
+            parts.add(colorName(color));
+        }
+        int value = jsonInt(card, "valueM", -1);
+        if (value > 0) {
+            parts.add(value + "M");
+        }
+        return String.join(" · ", parts);
+    }
+
+    private JsonObject findPublicCard(String ownerPlayerId, String cardId) {
+        JsonObject fromHand = findCardInArray(latestHandCards, cardId);
+        if (fromHand != null) {
+            return fromHand;
+        }
+        if (lastStatePayload == null || !lastStatePayload.has("players") || !lastStatePayload.get("players").isJsonArray()) {
+            return null;
+        }
+        JsonObject exactOwner = ownerPlayerId == null || ownerPlayerId.isBlank()
+                ? null
+                : findPlayerInState(lastStatePayload, ownerPlayerId);
+        JsonObject found = findPublicCardInPlayer(exactOwner, cardId);
+        if (found != null) {
+            return found;
+        }
+        for (JsonElement el : lastStatePayload.getAsJsonArray("players")) {
+            if (el.isJsonObject()) {
+                found = findPublicCardInPlayer(el.getAsJsonObject(), cardId);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private JsonObject findPublicCardInPlayer(JsonObject player, String cardId) {
+        if (player == null) {
+            return null;
+        }
+        JsonObject found = findCardInArray(player.getAsJsonArray("propertyZoneCards"), cardId);
+        if (found != null) {
+            return found;
+        }
+        found = findCardInArray(player.getAsJsonArray("bankCards"), cardId);
+        return found != null ? found : findCardInArray(player.getAsJsonArray("actionZoneCards"), cardId);
+    }
+
+    private static JsonObject findCardInArray(JsonArray cards, String cardId) {
+        if (cards == null || cardId == null || cardId.isBlank()) {
+            return null;
+        }
+        for (JsonElement el : cards) {
+            if (!el.isJsonObject()) {
+                continue;
+            }
+            JsonObject card = el.getAsJsonObject();
+            if (cardId.equals(jsonString(card, "id", ""))) {
+                return card;
+            }
+        }
+        return null;
     }
 
     private void sendPlayFromOptionRow(String actionType, String cardId, JsonObject row) {
@@ -789,7 +961,7 @@ public class MainController {
             clearError();
             eventLineLabel.setText(i18n("msg.authSuccess"));
         } else {
-            showError(jsonString(payload, "error", i18n("error.authFailed")));
+            showError(localizedBackendMessage(jsonString(payload, "error", ""), i18n("error.authFailed")));
         }
     }
 
@@ -853,13 +1025,15 @@ public class MainController {
         }
         rebuildRoomState(currentLobbyRoom);
         updateLobbyControls();
+        maybeStartCreatedRoom();
         if (jsonBool(currentLobbyRoom, "started", false)) {
             switchToGameView();
         }
     }
 
     private void applyRoomError(String raw) {
-        showError(jsonString(payload(raw), "error", i18n("lobby.roomError")));
+        startCreatedRoomImmediately = false;
+        showError(localizedBackendMessage(jsonString(payload(raw), "error", ""), i18n("lobby.roomError")));
     }
 
     private void applyPendingOptionsResult(String raw) {
@@ -874,7 +1048,8 @@ public class MainController {
         pendingOptionsResultHandler = null;
         awaitingInitialState = false;
         JsonObject payload = payload(raw);
-        showError(jsonString(payload, "message", jsonString(payload, "error", i18n("log.error"))));
+        String message = jsonString(payload, "message", jsonString(payload, "error", ""));
+        showError(localizedBackendMessage(message, i18n("log.error")));
     }
 
     private void rebuildAllFromState() {
@@ -911,11 +1086,10 @@ public class MainController {
         boolean over = jsonBool(p, "gameOver", false);
         if (over) {
             tableStatusLabel.setText(i18n("gameOver"));
-            String summary = jsonString(p, "lastActionSummary", i18n("gameOver"));
-            updateCenterNotice(true, i18n("gameOver"), summary, "game-over");
+            updateCenterNotice(true, i18n("gameOver"), gameOverSummary(p), "game-over");
         } else if (playerId().equals(decision)) {
-            tableStatusLabel.setText(jsonString(p, "decisionLabel", i18n("yourDecision")));
-            updateCenterNotice(true, jsonString(p, "decisionLabel", i18n("yourDecision")), centerNoticeText(p), "decision");
+            tableStatusLabel.setText(decisionTitle(p, true));
+            updateCenterNotice(true, decisionTitle(p, true), centerNoticeText(p), "decision");
         } else if (!decision.isBlank()) {
             String name = displayNameForPlayer(decision);
             tableStatusLabel.setText(i18n("waitingFor", name));
@@ -930,10 +1104,39 @@ public class MainController {
 
         String line = waitingResponseText();
         if (line.isBlank()) {
-            line = jsonString(p, "lastActionSummary", i18n("brandIntro"));
+            line = compactEventLine(p);
         }
         eventLineLabel.setText(line);
         connectionLabel.setText(ws.isConnected() ? i18n("status.connected") : i18n("status.disconnected"));
+    }
+
+    private String decisionTitle(JsonObject state, boolean self) {
+        String kind = safeUpper(jsonString(state, "decisionKind", ""));
+        if (self) {
+            return switch (kind) {
+                case "DRAW" -> i18n("guide.yourTurnDraw");
+                case "PLAY", "DISCARD_OVERFLOW" -> i18n("yourDecision");
+                case "PAY_OR_JUST_SAY_NO", "JUST_SAY_NO_OR_PASS", "COUNTER_JUST_SAY_NO" -> i18n("guide.yourTurnResponse");
+                default -> i18n("yourDecision");
+            };
+        }
+        return i18n("waitingFor", displayNameForPlayer(jsonString(state, "decisionPlayerId", "")));
+    }
+
+    private String compactEventLine(JsonObject p) {
+        if (p == null) {
+            return i18n("brandIntro");
+        }
+        String text = centerNoticeText(p);
+        return text.isBlank() ? i18n("brandIntro") : text.replace('\n', ' ');
+    }
+
+    private String gameOverSummary(JsonObject p) {
+        String reason = jsonString(p, "forceEndReason", "");
+        if (!reason.isBlank()) {
+            return i18n("gameOverReason", reason);
+        }
+        return i18n("gameOver");
     }
 
     private void updateCenterNotice(boolean show, String title, String body, String styleClass) {
@@ -964,10 +1167,28 @@ public class MainController {
             String actor = displayNameForPlayer(jsonString(p, "lastPlayedPlayerId", ""));
             CardDisplayData card = CardDisplayData.fromHandCardJson(p.getAsJsonObject("lastPlayedCard"));
             String action = playActionLabel(jsonString(p, "lastPlayedActionType", ""));
-            return i18n("notice.playedAction", actor, cardTitle(card), action,
-                    jsonString(p, "lastActionSummary", ""));
+            String detail = playedActionDetail(p);
+            return i18n("notice.playedAction", actor, cardTitle(card), action, detail);
         }
-        return jsonString(p, "lastActionSummary", "");
+        return "";
+    }
+
+    private String playedActionDetail(JsonObject p) {
+        if (p == null || !p.has("lastPlayedCard") || !p.get("lastPlayedCard").isJsonObject()) {
+            return "";
+        }
+        CardDisplayData card = CardDisplayData.fromHandCardJson(p.getAsJsonObject("lastPlayedCard"));
+        String effect = safeUpper(card.getEffectCode());
+        if (effect.isBlank()) {
+            return card.getHint();
+        }
+        return switch (effect) {
+            case "PASS_GO" -> i18n("dialog.passGoDetail");
+            case "DOUBLE_RENT" -> i18n("dialog.doubleRentOption");
+            case "BIRTHDAY" -> i18n("dialog.birthdayDetail");
+            case "RENT_WAIVER" -> i18n("action.RENT_WAIVER");
+            default -> actionEffectLabel(effect);
+        };
     }
 
     private void updateResponsiveTableLayout() {
@@ -1501,11 +1722,13 @@ public class MainController {
     private String responseActionTitle(JsonObject ctx, String prefix) {
         String nameKey = prefix == null || prefix.isBlank() ? "actionCardName" : prefix + "ActionCardName";
         String codeKey = prefix == null || prefix.isBlank() ? "actionEffectCode" : prefix + "ActionEffectCode";
-        String name = jsonString(ctx, nameKey, "");
-        if (!name.isBlank()) {
-            return name;
+        String code = jsonString(ctx, codeKey, "");
+        String localized = actionEffectLabel(code);
+        if (!localized.isBlank() && !localized.startsWith("!action.")) {
+            return localized;
         }
-        return actionEffectLabel(jsonString(ctx, codeKey, ""));
+        String name = jsonString(ctx, nameKey, "");
+        return name.isBlank() ? localized : name;
     }
 
     private String responsePlayerName(String name, String id) {
@@ -1564,6 +1787,8 @@ public class MainController {
     private void rebuildRoomState(JsonObject room) {
         roomMembersPane.getChildren().clear();
         roomSeatsGrid.getChildren().clear();
+        currentLobbyRoom = room;
+        updateLiveCardSubtitle();
         if (room == null) {
             roomStatusLabel.setText(i18n("lobby.noRoom"));
             return;
@@ -1578,6 +1803,7 @@ public class MainController {
                 jsonString(room, "sessionId", ""),
                 members.size(),
                 activeSeatCount(seats)));
+        updateLiveCardSubtitle();
         for (JsonElement el : members) {
             if (!el.isJsonObject()) {
                 continue;
@@ -1610,6 +1836,7 @@ public class MainController {
 
         ComboBox<String> roleBox = new ComboBox<>();
         roleBox.getItems().setAll("empty", "human", "hard", "strong", "llm", "student");
+        roleBox.setConverter(localizedValueConverter("seat."));
         roleBox.getSelectionModel().select(role);
         roleBox.setDisable(!isLobbyHost(room));
         roleBox.valueProperty().addListener((obs, oldRole, newRole) -> {
@@ -1654,6 +1881,8 @@ public class MainController {
     private void updateLobbyControls() {
         boolean inRoom = currentLobbyRoom != null;
         boolean host = isLobbyHost(currentLobbyRoom);
+        lobbyPanel.setVisible(inRoom);
+        lobbyPanel.setManaged(inRoom);
         createRoomButton.setDisable(inRoom);
         joinRoomButton.setDisable(inRoom);
         leaveRoomButton.setDisable(!inRoom);
@@ -1733,6 +1962,100 @@ public class MainController {
         });
     }
 
+    private void updateLiveCardSubtitle() {
+        int joined = 0;
+        int capacity = 5;
+        if (currentLobbyRoom != null) {
+            JsonArray members = currentLobbyRoom.has("members") && currentLobbyRoom.get("members").isJsonArray()
+                    ? currentLobbyRoom.getAsJsonArray("members")
+                    : new JsonArray();
+            JsonArray seats = currentLobbyRoom.has("seats") && currentLobbyRoom.get("seats").isJsonArray()
+                    ? currentLobbyRoom.getAsJsonArray("seats")
+                    : new JsonArray();
+            joined = members.size();
+            capacity = Math.max(2, seats.size());
+        }
+        liveCardSubtitleLabel.setText(i18n("start.liveSubtitle", joined, capacity));
+    }
+
+    private void rebuildRoomListLabels() {
+        if (roomRowsByLabel.isEmpty()) {
+            return;
+        }
+        JsonObject selectedRoom = roomRowsByLabel.get(roomListView.getSelectionModel().getSelectedItem());
+        List<JsonObject> rooms = new ArrayList<>(roomRowsByLabel.values());
+        roomRowsByLabel.clear();
+        roomListView.getItems().clear();
+        for (JsonObject room : rooms) {
+            String label = roomListLabel(room);
+            roomRowsByLabel.put(label, room);
+            roomListView.getItems().add(label);
+            if (selectedRoom == room) {
+                roomListView.getSelectionModel().select(label);
+            }
+        }
+        if (!roomListView.getItems().isEmpty() && roomListView.getSelectionModel().getSelectedItem() == null) {
+            roomListView.getSelectionModel().selectFirst();
+        }
+    }
+
+    private void maybeStartCreatedRoom() {
+        if (!startCreatedRoomImmediately || currentLobbyRoom == null) {
+            return;
+        }
+        JsonArray seats = currentLobbyRoom.has("seats") && currentLobbyRoom.get("seats").isJsonArray()
+                ? currentLobbyRoom.getAsJsonArray("seats")
+                : new JsonArray();
+        if (!isLobbyHost(currentLobbyRoom) || activeSeatCount(seats) < 2) {
+            return;
+        }
+        startCreatedRoomImmediately = false;
+        Map<String, Object> payload = scopedPayload();
+        payload.put("randomizeFirstPlayer", randomizeFirstCheck.isSelected());
+        sendEnvelope("START_ROOM", payload);
+    }
+
+    private StringConverter<String> localizedValueConverter(String prefix) {
+        return new StringConverter<>() {
+            @Override
+            public String toString(String value) {
+                if (value == null || value.isBlank()) {
+                    return "";
+                }
+                String translated = i18n(prefix + value);
+                return translated.startsWith("!" + prefix) ? value : translated;
+            }
+
+            @Override
+            public String fromString(String value) {
+                return value;
+            }
+        };
+    }
+
+    private StringConverter<String> aiDifficultyValueConverter() {
+        return new StringConverter<>() {
+            @Override
+            public String toString(String value) {
+                if (value == null || value.isBlank()) {
+                    return "";
+                }
+                return switch (value) {
+                    case "EASY" -> "Easy";
+                    case "NORMAL" -> "Normal";
+                    case "HARD" -> "Hard";
+                    case "STRONG" -> "Strong Search";
+                    default -> value;
+                };
+            }
+
+            @Override
+            public String fromString(String value) {
+                return value;
+            }
+        };
+    }
+
     private void syncCustomLineupCount() {
         if (!"CUSTOM".equals(gameModeCombo.getSelectionModel().getSelectedItem())) {
             return;
@@ -1744,11 +2067,25 @@ public class MainController {
     }
 
     private void applyI18n() {
+        syncDefaultNickname();
         brandKickerLabel.setText(i18n("brandKicker"));
         appTitleLabel.setText(i18n("app.title"));
         appSubtitleLabel.setText(i18n("app.subtitle"));
         serverLabel.setText(i18n("label.server"));
         languageLabel.setText(i18n("label.language"));
+        aiCardKickerLabel.setText(i18n("start.aiKicker"));
+        aiCardTitleLabel.setText(i18n("start.aiTitle"));
+        aiCardSubtitleLabel.setText(i18n("start.aiSubtitle"));
+        liveCardKickerLabel.setText(i18n("start.liveKicker"));
+        liveCardTitleLabel.setText(i18n("start.liveTitle"));
+        updateLiveCardSubtitle();
+        startAiButton.setText(i18n("start.aiButton"));
+        featureAiTitleLabel.setText(i18n("feature.aiTitle"));
+        featureAiTextLabel.setText(i18n("feature.aiText"));
+        featurePvpTitleLabel.setText(i18n("feature.pvpTitle"));
+        featurePvpTextLabel.setText(i18n("feature.pvpText"));
+        featureDemoTitleLabel.setText(i18n("feature.demoTitle"));
+        featureDemoTextLabel.setText(i18n("feature.demoText"));
         connectButton.setText(i18n("btn.connect"));
         refreshRoomsButton.setText(i18n("btn.refreshRooms"));
         topRefreshRoomsButton.setText(i18n("btn.refreshRooms"));
@@ -1761,6 +2098,8 @@ public class MainController {
         customLineupLabel.setText(i18n("label.customLineup"));
         playerIdLabel.setText(i18n("label.playerId"));
         sessionIdLabel.setText(i18n("label.sessionId"));
+        gameModeCombo.setConverter(localizedValueConverter("mode."));
+        aiDifficultyCombo.setConverter(aiDifficultyValueConverter());
         randomizeFirstCheck.setText(i18n("check.randomFirst"));
         startGameButton.setText(i18n("btn.startGame"));
 
@@ -1776,6 +2115,10 @@ public class MainController {
         waitingRoomLabel.setText(i18n("lobby.waitingRoom"));
         startRoomButton.setText(i18n("btn.startRoom"));
         leaveRoomButton.setText(i18n("btn.leaveRoom"));
+        rebuildRoomListLabels();
+        if (currentLobbyRoom != null) {
+            rebuildRoomState(currentLobbyRoom);
+        }
 
         disconnectButton.setText(i18n("btn.disconnect"));
         backSetupButton().setText(i18n("backSetup"));
@@ -1813,12 +2156,16 @@ public class MainController {
         infoIntroButton.getStyleClass().setAll("info-tab");
         infoRulesButton.getStyleClass().setAll("info-tab");
         infoGuideButton.getStyleClass().setAll("info-tab");
+        infoCopyBox.setVisible(infoVisible);
+        infoCopyBox.setManaged(infoVisible);
         Button active = switch (infoPanel) {
             case "rules" -> infoRulesButton;
             case "guide" -> infoGuideButton;
             default -> infoIntroButton;
         };
-        active.getStyleClass().add("active");
+        if (infoVisible) {
+            active.getStyleClass().add("active");
+        }
         if ("rules".equals(infoPanel)) {
             infoTitleLabel.setText(i18n("infoRulesTitle"));
             infoLine1Label.setText(i18n("infoRules1"));
@@ -2087,38 +2434,8 @@ public class MainController {
 
     private String actionEffectLabel(String code) {
         String normalized = safeUpper(code);
-        if (I18n.isChinese()) {
-            return switch (normalized) {
-                case "RENT" -> "收租";
-                case "RENT_DUAL" -> "双色收租";
-                case "DOUBLE_RENT" -> "租金加倍";
-                case "STEAL_PROPERTY" -> "暗中夺产";
-                case "FORCED_DEAL" -> "强制交易";
-                case "DEBT_COLLECTOR" -> "讨债";
-                case "RENT_WAIVER" -> "Just Say No";
-                case "PASS_GO" -> "经过起点";
-                case "HOUSE" -> "房屋";
-                case "HOTEL" -> "旅馆";
-                case "BIRTHDAY" -> "生日礼金";
-                case "DEAL_BREAKER" -> "交易破坏者";
-                default -> normalized;
-            };
-        }
-        return switch (normalized) {
-            case "RENT" -> "Rent";
-            case "RENT_DUAL" -> "Dual-Color Rent";
-            case "DOUBLE_RENT" -> "Double Rent";
-            case "STEAL_PROPERTY" -> "Sly Deal";
-            case "FORCED_DEAL" -> "Forced Deal";
-            case "DEBT_COLLECTOR" -> "Debt Collector";
-            case "RENT_WAIVER" -> "Just Say No";
-            case "PASS_GO" -> "Pass Go";
-            case "HOUSE" -> "House";
-            case "HOTEL" -> "Hotel";
-            case "BIRTHDAY" -> "Birthday";
-            case "DEAL_BREAKER" -> "Deal Breaker";
-            default -> normalized;
-        };
+        String value = i18n("action." + normalized);
+        return value.startsWith("!action.") ? normalized : value;
     }
 
     private String colorName(String colorKey) {
@@ -2132,6 +2449,29 @@ public class MainController {
         target.setText(message == null ? "" : message);
         target.setVisible(message != null && !message.isBlank());
         target.setManaged(message != null && !message.isBlank());
+    }
+
+    private String localizedBackendMessage(String message, String fallback) {
+        if (message == null || message.isBlank()) {
+            return fallback;
+        }
+        if (!I18n.isChinese() && containsHan(message)) {
+            return fallback;
+        }
+        return message;
+    }
+
+    private static boolean containsHan(String value) {
+        if (value == null) {
+            return false;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            Character.UnicodeScript script = Character.UnicodeScript.of(value.charAt(i));
+            if (script == Character.UnicodeScript.HAN) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void clearError() {
@@ -2195,9 +2535,19 @@ public class MainController {
         if (!value.isBlank()) {
             return value;
         }
-        String fallback = I18n.isChinese() ? "玩家" : "Player";
+        String fallback = i18n("default.nickname");
         nicknameField.setText(fallback);
         return fallback;
+    }
+
+    private void syncDefaultNickname() {
+        if (nicknameField == null) {
+            return;
+        }
+        String value = nicknameField.getText() == null ? "" : nicknameField.getText().trim();
+        if (value.isBlank() || "玩家".equals(value) || "Player".equals(value)) {
+            nicknameField.setText(i18n("default.nickname"));
+        }
     }
 
     private static JsonObject payload(String raw) {

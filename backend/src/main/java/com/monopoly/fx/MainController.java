@@ -82,7 +82,6 @@ public class MainController {
     private int trafficLineCount;
     private boolean awaitingInitialState;
     private boolean infoVisible;
-    private boolean startCreatedRoomImmediately;
     private final List<PlayedEvent> playedEvents = new ArrayList<>();
 
     @FXML private StackPane root;
@@ -223,7 +222,7 @@ public class MainController {
         gameModeCombo.getItems().setAll("HVM", "PVP", "LLM", "CUSTOM");
         gameModeCombo.setConverter(localizedValueConverter("mode."));
         gameModeCombo.getSelectionModel().select("HVM");
-        aiDifficultyCombo.getItems().setAll("EASY", "NORMAL", "HARD", "STRONG");
+        aiDifficultyCombo.getItems().setAll("EASY", "NORMAL", "HARD", "STRONG", "LLM");
         aiDifficultyCombo.setConverter(aiDifficultyValueConverter());
         aiDifficultyCombo.getSelectionModel().select("NORMAL");
         customLineupCombo.getItems().setAll(
@@ -246,6 +245,8 @@ public class MainController {
             rebuildAllFromState();
         });
         gameModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> syncModeUi());
+        playerCountSpinner.valueProperty().addListener((obs, oldValue, newValue) -> updateAiCardSubtitle());
+        aiDifficultyCombo.valueProperty().addListener((obs, oldValue, newValue) -> syncModeUi());
         customLineupCombo.valueProperty().addListener((obs, oldValue, newValue) -> syncCustomLineupCount());
         if (customLineupCombo.getEditor() != null) {
             customLineupCombo.getEditor().textProperty().addListener((obs, oldValue, newValue) -> syncCustomLineupCount());
@@ -311,8 +312,7 @@ public class MainController {
 
     @FXML
     private void onStartAiGame() {
-        gameModeCombo.getSelectionModel().select("HVM");
-        playerCountSpinner.getValueFactory().setValue(2);
+        gameModeCombo.getSelectionModel().select("LLM".equals(selectedAiProfile()) ? "LLM" : "HVM");
         playerIdField.setText("human-1");
         onStartGame();
     }
@@ -378,7 +378,6 @@ public class MainController {
                     pendingOptionsResultHandler = null;
                     postConnectAction = null;
                     awaitingInitialState = false;
-                    startCreatedRoomImmediately = false;
                     currentLobbyRoom = null;
                     switchToStartView();
                     refreshButtons();
@@ -413,7 +412,6 @@ public class MainController {
         selectedCard = null;
         pendingOptionsResultHandler = null;
         awaitingInitialState = false;
-        startCreatedRoomImmediately = false;
         roomRowsByLabel.clear();
         roomListView.getItems().clear();
         switchToStartView();
@@ -441,7 +439,6 @@ public class MainController {
     @FXML
     private void onCreateRoom() {
         runWhenConnected(() -> {
-            startCreatedRoomImmediately = true;
             Map<String, Object> payload = scopedPayload();
             payload.put("nickname", nickname());
             sendEnvelope("CREATE_ROOM", payload);
@@ -454,11 +451,14 @@ public class MainController {
         JsonObject row = roomRowsByLabel.get(selected);
         if (row != null) {
             sessionIdField.setText(jsonString(row, "sessionId", sessionIdField.getText()));
+        } else if (sessionId().isBlank()) {
+            showError(i18n("lobby.selectRoomFirst"));
+            return;
         }
         runWhenConnected(() -> {
             Map<String, Object> payload = scopedPayload();
             payload.put("nickname", nickname());
-            sendEnvelope(row == null ? "CREATE_ROOM" : "JOIN_ROOM", payload);
+            sendEnvelope("JOIN_ROOM", payload);
         });
     }
 
@@ -472,7 +472,6 @@ public class MainController {
     @FXML
     private void onLeaveRoom() {
         sendEnvelope("LEAVE_ROOM", scopedPayload());
-        startCreatedRoomImmediately = false;
         currentLobbyRoom = null;
         rebuildRoomState(null);
         updateLobbyControls();
@@ -595,21 +594,28 @@ public class MainController {
     private void onStartSession() {
         Map<String, Object> payload = new LinkedHashMap<>();
         String mode = gameModeCombo.getSelectionModel().getSelectedItem();
+        String aiProfile = selectedAiProfile();
+        String requestMode = "HVM".equals(mode) && "LLM".equals(aiProfile) ? "LLM" : mode;
         List<String> customRoles = customLineupRoles();
         payload.put("sessionId", sessionId());
-        payload.put("playerCount", "CUSTOM".equals(mode) && !customRoles.isEmpty()
+        payload.put("playerCount", "CUSTOM".equals(requestMode) && !customRoles.isEmpty()
                 ? customRoles.size()
                 : playerCountSpinner.getValue());
-        payload.put("gameMode", mode);
+        payload.put("gameMode", requestMode);
         payload.put("randomizeFirstPlayer", randomizeFirstCheck.isSelected());
-        if ("HVM".equals(mode)) {
-            payload.put("aiDifficulty", aiDifficultyCombo.getSelectionModel().getSelectedItem());
+        if ("HVM".equals(requestMode)) {
+            payload.put("aiDifficulty", aiProfile);
         }
-        if ("CUSTOM".equals(mode) && !customRoles.isEmpty()) {
+        if ("CUSTOM".equals(requestMode) && !customRoles.isEmpty()) {
             payload.put("customLineup", String.join(",", customRoles));
             payload.put("playerRoles", customRoles);
         }
         sendEnvelope("START_SESSION", payload);
+    }
+
+    private String selectedAiProfile() {
+        String value = aiDifficultyCombo.getSelectionModel().getSelectedItem();
+        return value == null || value.isBlank() ? "NORMAL" : value.trim().toUpperCase(Locale.ROOT);
     }
 
     private void playSelected(String actionType) {
@@ -798,9 +804,11 @@ public class MainController {
                     return i18n("dialog.debtOption", targetName);
                 }
                 case "RENT", "RENT_DUAL" -> {
-                    return allOthers
+                    String label = allOthers
                             ? i18n("dialog.allRentOption", targetColorName)
                             : i18n("dialog.rentOption", targetName, targetColorName);
+                    String amountLabel = optionRentAmountLabel(row);
+                    return amountLabel.isBlank() ? label : label + " · " + amountLabel;
                 }
                 case "DOUBLE_RENT" -> {
                     return i18n("dialog.doubleRentOption");
@@ -837,6 +845,30 @@ public class MainController {
             pieces.add(i18n("dialog.actorCard") + ": " + actorCardName);
         }
         return pieces.isEmpty() ? i18n("dialog.directPlay") : String.join(" · ", pieces);
+    }
+
+    private String optionRentAmountLabel(JsonObject row) {
+        int amount = firstPositiveJsonInt(row, "displayRentAmountM", "rentAmountM", "amountDueM", "amountDue");
+        if (amount <= 0) {
+            return "";
+        }
+        int base = firstPositiveJsonInt(row, "baseRentAmountM", "baseAmountM");
+        return base > 0 && base != amount
+                ? i18n("dialog.rentPreviewDouble", amount, base)
+                : i18n("dialog.rentPreview", amount);
+    }
+
+    private static int firstPositiveJsonInt(JsonObject row, String... keys) {
+        if (row == null || keys == null) {
+            return 0;
+        }
+        for (String key : keys) {
+            int value = jsonInt(row, key, 0);
+            if (value > 0) {
+                return value;
+            }
+        }
+        return 0;
     }
 
     private String publicCardLabel(String ownerPlayerId, String cardId) {
@@ -1042,14 +1074,12 @@ public class MainController {
         }
         rebuildRoomState(currentLobbyRoom);
         updateLobbyControls();
-        maybeStartCreatedRoom();
         if (jsonBool(currentLobbyRoom, "started", false)) {
             switchToGameView();
         }
     }
 
     private void applyRoomError(String raw) {
-        startCreatedRoomImmediately = false;
         showError(localizedBackendMessage(jsonString(payload(raw), "error", ""), i18n("lobby.roomError")));
     }
 
@@ -1930,9 +1960,11 @@ public class MainController {
         createRoomButton.setDisable(inRoom);
         joinRoomButton.setDisable(inRoom);
         leaveRoomButton.setDisable(!inRoom);
-        startRoomButton.setDisable(!host || currentLobbyRoom == null
-                || activeSeatCount(currentLobbyRoom.has("seats") && currentLobbyRoom.get("seats").isJsonArray()
-                ? currentLobbyRoom.getAsJsonArray("seats") : new JsonArray()) < 2);
+        JsonArray seats = currentLobbyRoom != null && currentLobbyRoom.has("seats")
+                && currentLobbyRoom.get("seats").isJsonArray()
+                ? currentLobbyRoom.getAsJsonArray("seats")
+                : new JsonArray();
+        startRoomButton.setDisable(!host || !canStartLobbyRoom(seats));
         if (!inRoom) {
             roomStatusLabel.setText(i18n("lobby.noRoom"));
         }
@@ -2002,7 +2034,7 @@ public class MainController {
             case "PVP" -> i18n("hint.pvp");
             case "LLM" -> i18n("hint.llm");
             case "CUSTOM" -> i18n("hint.custom");
-            default -> i18n("hint.hvm");
+            default -> "LLM".equals(selectedAiProfile()) ? i18n("hint.llm") : i18n("hint.hvm");
         });
     }
 
@@ -2020,6 +2052,11 @@ public class MainController {
             capacity = Math.max(2, seats.size());
         }
         liveCardSubtitleLabel.setText(i18n("start.liveSubtitle", joined, capacity));
+    }
+
+    private void updateAiCardSubtitle() {
+        int count = playerCountSpinner.getValue() == null ? 2 : playerCountSpinner.getValue();
+        aiCardSubtitleLabel.setText(i18n("start.aiSubtitle", count, Math.max(1, count - 1)));
     }
 
     private void rebuildRoomListLabels() {
@@ -2041,22 +2078,6 @@ public class MainController {
         if (!roomListView.getItems().isEmpty() && roomListView.getSelectionModel().getSelectedItem() == null) {
             roomListView.getSelectionModel().selectFirst();
         }
-    }
-
-    private void maybeStartCreatedRoom() {
-        if (!startCreatedRoomImmediately || currentLobbyRoom == null) {
-            return;
-        }
-        JsonArray seats = currentLobbyRoom.has("seats") && currentLobbyRoom.get("seats").isJsonArray()
-                ? currentLobbyRoom.getAsJsonArray("seats")
-                : new JsonArray();
-        if (!isLobbyHost(currentLobbyRoom) || activeSeatCount(seats) < 2) {
-            return;
-        }
-        startCreatedRoomImmediately = false;
-        Map<String, Object> payload = scopedPayload();
-        payload.put("randomizeFirstPlayer", randomizeFirstCheck.isSelected());
-        sendEnvelope("START_ROOM", payload);
     }
 
     private StringConverter<String> localizedValueConverter(String prefix) {
@@ -2089,6 +2110,7 @@ public class MainController {
                     case "NORMAL" -> "Normal";
                     case "HARD" -> "Hard";
                     case "STRONG" -> "Strong Search";
+                    case "LLM" -> "LLM (DeepSeek)";
                     default -> value;
                 };
             }
@@ -2119,7 +2141,7 @@ public class MainController {
         languageLabel.setText(i18n("label.language"));
         aiCardKickerLabel.setText(i18n("start.aiKicker"));
         aiCardTitleLabel.setText(i18n("start.aiTitle"));
-        aiCardSubtitleLabel.setText(i18n("start.aiSubtitle"));
+        updateAiCardSubtitle();
         liveCardKickerLabel.setText(i18n("start.liveKicker"));
         liveCardTitleLabel.setText(i18n("start.liveTitle"));
         updateLiveCardSubtitle();
@@ -2348,6 +2370,23 @@ public class MainController {
         }
         for (JsonElement el : seats) {
             if (el.isJsonObject() && !"empty".equals(jsonString(el.getAsJsonObject(), "role", "empty"))) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private boolean canStartLobbyRoom(JsonArray seats) {
+        return activeSeatCount(seats) >= 2 && humanSeatCount(seats) >= 1;
+    }
+
+    private int humanSeatCount(JsonArray seats) {
+        int count = 0;
+        if (seats == null) {
+            return 0;
+        }
+        for (JsonElement el : seats) {
+            if (el.isJsonObject() && "human".equals(jsonString(el.getAsJsonObject(), "role", "empty"))) {
                 count++;
             }
         }

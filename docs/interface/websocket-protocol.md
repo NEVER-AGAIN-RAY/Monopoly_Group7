@@ -234,8 +234,8 @@ Legacy clients may ignore unknown fields and keep using `id` / `name` only.
 | `ok` | boolean | 是否成功生成列表 |
 | `error` | string | `ok == false` 时的说明 |
 | `effectCode` | string | 行动牌效果码（大写） |
-| `truncated` | boolean | 强制交易等组合过多时是否截断 |
-| `options` | array | 每元素为 `ActionOptionRow`：`labelZh`、`targetPlayerId`、`targetColorKey`、`targetCardId`、`actorCardId`、`targetZone`（与 `PLAY` / `PlayActionRequest` 字段对齐，空字段可省略） |
+| `truncated` | boolean | 是否截断（当前强制交易会完整返回所有合法组合，通常为 `false`） |
+| `options` | array | 每元素为 `ActionOptionRow`：`labelZh`、`targetPlayerId`、`targetColorKey`、`targetCardId`、`actorCardId`、`targetZone`（与 `PLAY` / `PlayActionRequest` 字段对齐，空字段可省略）；租金选项还会包含 `baseRentAmountM` 与 `displayRentAmountM`，后者是含待生效 `DOUBLE_RENT` 后的实际显示金额 |
 
 客户端展示 `labelZh` 供点选，再按所选行的非空字段构造 `PLAY`（`actionType`: `ACTION`，`cardId` 同查询所用）。
 

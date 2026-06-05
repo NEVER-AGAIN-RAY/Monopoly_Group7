@@ -28,8 +28,6 @@ import java.util.Locale;
  */
 public final class ActionOptionsService {
 
-    private static final int MAX_FORCED_DEAL = 72;
-
     private ActionOptionsService() {
     }
 
@@ -131,7 +129,7 @@ public final class ActionOptionsService {
             String label = "双色收租（" + paletteLabel + "）选色 " + color
                     + " — 其余每名玩家依次付约 " + rentAmountLabel(due, displayDue)
                     + "（每人单独可打免租）";
-            out.addOption(new ActionOptionRow(label, null, color, null, null, null, true));
+            out.addOption(rentOption(label, null, color, true, due, displayDue));
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
@@ -172,7 +170,7 @@ public final class ActionOptionsService {
                 int displayDue = displayedRentDue(actor, gameContext, due);
                 String label = "双色收租（" + paletteLabel + "）" + color + " → "
                         + tenant.getDisplayName() + "（应付约 " + rentAmountLabel(due, displayDue) + "）";
-                out.addOption(new ActionOptionRow(label, tenant.getPlayerId(), color, null, null, null, false));
+                out.addOption(rentOption(label, tenant.getPlayerId(), color, false, due, displayDue));
             }
         }
         if (out.getOptions().isEmpty()) {
@@ -206,13 +204,27 @@ public final class ActionOptionsService {
                 int displayDue = displayedRentDue(actor, gameContext, due);
                 String label = "收租 " + color + " → " + tenant.getDisplayName()
                         + "（应付约 " + rentAmountLabel(due, displayDue) + "）";
-                out.addOption(new ActionOptionRow(label, tenant.getPlayerId(), color, null, null, null));
+                out.addOption(rentOption(label, tenant.getPlayerId(), color, false, due, displayDue));
             }
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
             out.setError("当前没有可收租的颜色与对手组合。");
         }
+    }
+
+    private static ActionOptionRow rentOption(
+            String label,
+            String targetPlayerId,
+            String color,
+            boolean allOtherPlayers,
+            int baseDue,
+            int displayDue) {
+        ActionOptionRow row = new ActionOptionRow(
+                label, targetPlayerId, color, null, null, null, allOtherPlayers);
+        row.setBaseRentAmountM(baseDue);
+        row.setDisplayRentAmountM(displayDue);
+        return row;
     }
 
     private static int displayedRentDue(Player actor, GameContext gameContext, int baseDue) {
@@ -259,9 +271,6 @@ public final class ActionOptionsService {
 
     private static void buildForcedDealOptions(Player actor, List<Player> others, ActionOptionsResult out) {
         List<PropertyCard> mine = actor.getPropertyCardsView();
-        int count = 0;
-        boolean truncated = false;
-        outer:
         for (Player t : others) {
             for (PropertyCard tp : t.getPropertyCardsView()) {
                 if (tp == null || !PropertyStealRules.mayStealPropertyFromTarget(t, tp)) {
@@ -271,11 +280,6 @@ public final class ActionOptionsService {
                     if (ap == null || !PropertyStealRules.mayStealPropertyFromTarget(actor, ap)) {
                         continue;
                     }
-                    if (count >= MAX_FORCED_DEAL) {
-                        truncated = true;
-                        break outer;
-                    }
-                    count++;
                     String label = "换入 " + shortCardLabel(tp) + "（" + t.getDisplayName()
                             + "）↔ 交出 " + shortCardLabel(ap);
                     out.addOption(new ActionOptionRow(
@@ -283,7 +287,6 @@ public final class ActionOptionsService {
                 }
             }
         }
-        out.setTruncated(truncated);
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
             out.setError("没有可行的强制交换组合。");

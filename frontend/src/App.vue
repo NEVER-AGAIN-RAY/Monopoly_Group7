@@ -195,6 +195,8 @@ const I18N = {
     actionPlay: '出牌',
     deployAsColor: '作为{color}色部署',
     directPlay: '直接打出',
+    rentPreview: '可收 {amount}M',
+    rentPreviewDouble: '可收 {amount}M · 基础 {base}M',
     playerFallback: '玩家',
     cardFallback: '卡牌',
     money: '现金',
@@ -358,6 +360,8 @@ const I18N = {
     actionPlay: 'Play',
     deployAsColor: 'Deploy as {color}',
     directPlay: 'Play directly',
+    rentPreview: 'Collect {amount}M',
+    rentPreviewDouble: 'Collect {amount}M · base {base}M',
     playerFallback: 'Player',
     cardFallback: 'Card',
     money: 'Money',
@@ -1500,6 +1504,45 @@ function optionLabel(option = {}) {
   return (isEnglish() ? option.labelEn : option.labelZh) || option.targetPlayerId || option.targetCardId || t('directPlay')
 }
 
+function optionRentAmount(option = {}) {
+  const explicit = firstPositiveNumber(
+    option.displayRentAmountM,
+    option.rentAmountM,
+    option.amountDueM,
+    option.amountDue
+  )
+  if (explicit > 0) return explicit
+  if (!isPendingRentOption()) return 0
+  const matches = [...String(option.labelZh || option.labelEn || '').matchAll(/(\d+)\s*M/gi)]
+  if (!matches.length) return 0
+  return Number(matches[matches.length - 1][1] || 0)
+}
+
+function isPendingRentOption() {
+  const effect = String(pendingPlay.value?.card?.effectCode || '').toUpperCase()
+  return effect === 'RENT' || effect === 'RENT_DUAL'
+}
+
+function optionBaseRentAmount(option = {}) {
+  return firstPositiveNumber(option.baseRentAmountM, option.baseAmountM)
+}
+
+function optionRentAmountLabel(option = {}) {
+  const amount = optionRentAmount(option)
+  if (amount <= 0) return ''
+  const base = optionBaseRentAmount(option)
+  if (base > 0 && base !== amount) return t('rentPreviewDouble', { amount, base })
+  return t('rentPreview', { amount })
+}
+
+function firstPositiveNumber(...values) {
+  for (const value of values) {
+    const n = Number(value || 0)
+    if (n > 0) return n
+  }
+  return 0
+}
+
 function markBusy(cardId, text) {
   actionBusy.value = true
   busyCardId.value = cardId || ''
@@ -1912,7 +1955,7 @@ function isWildFlipped(card, stackKey) {
   const printed = (card?.printedColors || []).map(normalizeColorKey)
   if (card?.kind !== 'WILD' || printed.length !== 2) return false
   const assigned = normalizeColorKey(stackKey || effectivePropertyColor(card))
-  const imageTop = WILD_IMAGE_TOP_COLOR[pairKey(printed)] || printed[0]
+  const imageTop = normalizeColorKey(WILD_IMAGE_TOP_COLOR[pairKey(printed)] || printed[0])
   return assigned !== imageTop
 }
 
@@ -2473,7 +2516,10 @@ onBeforeUnmount(() => {
         <h2>{{ optionSheet.title }}</h2>
         <p>{{ t('chooseLegalOption') }}</p>
         <button v-for="(option, index) in optionSheet.options" :key="index" @click="playWithOption(option)">
-          {{ optionLabel(option) }}
+          <span>{{ optionLabel(option) }}</span>
+          <strong v-if="optionRentAmountLabel(option)" class="option-rent-badge">
+            {{ optionRentAmountLabel(option) }}
+          </strong>
         </button>
       </section>
     </div>

@@ -232,12 +232,22 @@
                 <VBox spacing="12.0" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="ai-card">
                     <Label fx:id="aiCardKickerLabel" text="HUMAN VS AI" styleClass="mode-kicker"/>
                     <Label fx:id="aiCardTitleLabel" text="人机对战" styleClass="mode-title"/>
-                    <Label fx:id="aiCardSubtitleLabel" text="2 players · 1 human · 1 AI" wrapText="true"
+                    <Label fx:id="aiCardSubtitleLabel" text="2 名玩家 · 1 真人 · 1 AI" wrapText="true"
                            styleClass="mode-subtitle"/>
-                    <VBox spacing="5.0">
-                        <Label fx:id="aiDifficultyLabel" text="AI 难度" styleClass="setup-label"/>
-                        <ComboBox fx:id="aiDifficultyCombo" maxWidth="Infinity"/>
-                    </VBox>
+                    <GridPane hgap="8.0" vgap="8.0">
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="72.0"/>
+                            <ColumnConstraints hgrow="ALWAYS"/>
+                        </columnConstraints>
+                        <Label fx:id="playerCountLabel" text="玩家人数" GridPane.columnIndex="0" GridPane.rowIndex="0"
+                               styleClass="setup-label"/>
+                        <Spinner fx:id="playerCountSpinner" editable="false" maxWidth="Infinity"
+                                 GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        <Label fx:id="aiDifficultyLabel" text="AI 难度" GridPane.columnIndex="0" GridPane.rowIndex="1"
+                               styleClass="setup-label"/>
+                        <ComboBox fx:id="aiDifficultyCombo" maxWidth="Infinity"
+                                  GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                    </GridPane>
                     <HBox spacing="8.0" alignment="CENTER_LEFT">
                         <CheckBox fx:id="randomizeFirstCheck" text="随机先手"/>
                         <Label fx:id="modeHintLabel" wrapText="true" HBox.hgrow="ALWAYS" styleClass="setup-hint"/>
@@ -250,7 +260,7 @@
                 <VBox spacing="12.0" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="live-card">
                     <Label fx:id="liveCardKickerLabel" text="LIVE MATCH" styleClass="mode-kicker"/>
                     <Label fx:id="liveCardTitleLabel" text="真人匹配" styleClass="mode-title"/>
-                    <Label fx:id="liveCardSubtitleLabel" text="0/5 在线队列 · 满 5 人自动开局" wrapText="true"
+                    <Label fx:id="liveCardSubtitleLabel" text="0/5 在线队列 · 席位就绪可开局" wrapText="true"
                            styleClass="mode-subtitle"/>
                     <GridPane hgap="8.0" vgap="8.0">
                         <columnConstraints>
@@ -268,7 +278,7 @@
                     <HBox spacing="10.0" alignment="CENTER_LEFT">
                         <Button fx:id="joinRoomButton" text="进入匹配" onAction="#onJoinRoom" mnemonicParsing="false"
                                 maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="btn-start-room"/>
-                        <Button fx:id="createRoomButton" text="立即开局" onAction="#onCreateRoom" mnemonicParsing="false"
+                        <Button fx:id="createRoomButton" text="创建房间" onAction="#onCreateRoom" mnemonicParsing="false"
                                 maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="btn-soft-green"/>
                     </HBox>
                     <HBox spacing="8.0" alignment="CENTER_LEFT">
@@ -319,7 +329,7 @@
                 </VBox>
                 <VBox spacing="3.0" HBox.hgrow="ALWAYS" styleClass="feature-pill">
                     <Label fx:id="featureDemoTitleLabel" text="DEMO" styleClass="feature-title"/>
-                    <Label fx:id="featureDemoTextLabel" text="2 到 4 人也可以点立即开局，适合课堂展示。" wrapText="true"
+                    <Label fx:id="featureDemoTextLabel" text="2 到 5 人都可以配置，适合课堂展示。" wrapText="true"
                            styleClass="feature-text"/>
                 </VBox>
             </HBox>
@@ -335,10 +345,6 @@
                 <VBox spacing="5.0" GridPane.columnIndex="0" GridPane.rowIndex="0">
                     <Label fx:id="gameModeLabel" text="模式" styleClass="setup-label"/>
                     <ComboBox fx:id="gameModeCombo" maxWidth="Infinity"/>
-                </VBox>
-                <VBox spacing="5.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
-                    <Label fx:id="playerCountLabel" text="人数" styleClass="setup-label"/>
-                    <Spinner fx:id="playerCountSpinner" editable="false" maxWidth="Infinity"/>
                 </VBox>
                 <VBox fx:id="aiDifficultyBox" spacing="5.0" GridPane.columnIndex="2" GridPane.rowIndex="0">
                     <Label fx:id="hiddenAiDifficultyLabel" text="AI 难度" styleClass="setup-label"/>

@@ -11,6 +11,10 @@ public final class ActionOptionRow {
     private String targetCardId;
     private String actorCardId;
     private String targetZone;
+    /** Base rent before Double The Rent, present only for rent options. */
+    private Integer baseRentAmountM;
+    /** Actual displayed/payable rent after pending modifiers, present only for rent options. */
+    private Integer displayRentAmountM;
     /** When true, the client should omit targetPlayerId and let the server walk opponents in turn order. */
     private boolean allOtherPlayers;
 
@@ -90,6 +94,22 @@ public final class ActionOptionRow {
 
     public void setTargetZone(String targetZone) {
         this.targetZone = targetZone;
+    }
+
+    public Integer getBaseRentAmountM() {
+        return baseRentAmountM;
+    }
+
+    public void setBaseRentAmountM(Integer baseRentAmountM) {
+        this.baseRentAmountM = baseRentAmountM;
+    }
+
+    public Integer getDisplayRentAmountM() {
+        return displayRentAmountM;
+    }
+
+    public void setDisplayRentAmountM(Integer displayRentAmountM) {
+        this.displayRentAmountM = displayRentAmountM;
     }
 
     public boolean isAllOtherPlayers() {

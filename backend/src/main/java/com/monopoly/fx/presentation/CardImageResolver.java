@@ -21,6 +21,29 @@ public final class CardImageResolver {
                 : CardImageResolver.class.getResource(BASE + file);
     }
 
+    public static boolean shouldRotateWildImage(CardDisplayData card, String effectiveColorKey) {
+        if (card == null || !"WILD".equals(safe(card.getKind()))) {
+            return false;
+        }
+        List<String> colors = card.getPrintedColors();
+        if (colors == null || colors.size() != 2) {
+            return false;
+        }
+        String assignedColor = safe(effectiveColorKey);
+        if (assignedColor.isBlank()) {
+            assignedColor = safe(card.getAssignedColorKey());
+        }
+        if (assignedColor.isBlank()) {
+            assignedColor = safe(card.getColorGroup());
+        }
+        String targetColor = assignedColor;
+        boolean assignedIsPrinted = colors.stream()
+                .map(CardImageResolver::safe)
+                .anyMatch(targetColor::equals);
+        String topColor = wildImageTopColor(pairKey(colors));
+        return assignedIsPrinted && !topColor.isBlank() && !targetColor.equals(topColor);
+    }
+
     private static String imageFile(CardDisplayData card) {
         List<String> files = imageFiles(card);
         if (files.isEmpty()) {
@@ -74,6 +97,19 @@ public final class CardImageResolver {
             case "GREEN|RAILROAD", "RAILROAD|GREEN" -> List.of("46-Property Wild Card - Green Railroad.jpg");
             case "RAILROAD|UTILITY", "UTILITY|RAILROAD" -> List.of("24-Property Wild Card - Railroad Utility.jpg");
             default -> List.of("53-Property Wild Card - Multi-Color.jpg", "54-Property Wild Card - Multi-Color.jpg");
+        };
+    }
+
+    private static String wildImageTopColor(String pair) {
+        return switch (pair) {
+            case "LIGHT_BLUE|BROWN", "BROWN|LIGHT_BLUE" -> "BROWN";
+            case "LIGHT_BLUE|RAILROAD", "RAILROAD|LIGHT_BLUE" -> "LIGHT_BLUE";
+            case "PINK|ORANGE", "ORANGE|PINK" -> "PINK";
+            case "RED|YELLOW", "YELLOW|RED" -> "RED";
+            case "DARK_BLUE|GREEN", "GREEN|DARK_BLUE" -> "GREEN";
+            case "GREEN|RAILROAD", "RAILROAD|GREEN" -> "GREEN";
+            case "RAILROAD|UTILITY", "UTILITY|RAILROAD" -> "RAILROAD";
+            default -> "";
         };
     }
 

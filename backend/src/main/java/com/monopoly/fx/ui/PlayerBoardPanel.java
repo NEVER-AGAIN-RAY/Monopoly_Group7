@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.monopoly.fx.I18n;
 import com.monopoly.fx.presentation.CardDisplayData;
 import com.monopoly.fx.presentation.CardImageCache;
+import com.monopoly.fx.presentation.CardImageResolver;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -127,6 +128,10 @@ public final class PlayerBoardPanel extends VBox {
     }
 
     public static StackPane smallCardNode(CardDisplayData data, String extraClass) {
+        return smallCardNode(data, extraClass, null);
+    }
+
+    public static StackPane smallCardNode(CardDisplayData data, String extraClass, String effectiveColorKey) {
         StackPane wrapper = new StackPane();
         wrapper.getStyleClass().add("small-card");
         if (extraClass != null && !extraClass.isBlank()) {
@@ -139,6 +144,9 @@ public final class PlayerBoardPanel extends VBox {
             image.setFitHeight(SMALL_CARD_H);
             image.setPreserveRatio(false);
             image.setSmooth(true);
+            if (CardImageResolver.shouldRotateWildImage(data, effectiveColorKey)) {
+                image.setRotate(180);
+            }
             wrapper.getChildren().add(image);
             Rectangle clip = new Rectangle(SMALL_CARD_W, SMALL_CARD_H);
             clip.setArcWidth(7);
@@ -184,7 +192,7 @@ public final class PlayerBoardPanel extends VBox {
         cards.setPrefSize(width, STACK_CARD_AREA_H);
         cards.setMaxSize(width, STACK_CARD_AREA_H);
         for (int i = 0; i < stack.cards().size(); i++) {
-            StackPane card = smallCardNode(stack.cards().get(i), "property-card");
+            StackPane card = smallCardNode(stack.cards().get(i), "property-card", stack.color());
             card.setLayoutX(i * STACK_CARD_STEP_X);
             card.setLayoutY(Math.max(0, STACK_CARD_AREA_H - SMALL_CARD_H - (i * STACK_CARD_STEP_Y)));
             cards.getChildren().add(card);

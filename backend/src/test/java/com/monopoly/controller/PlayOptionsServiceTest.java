@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlayOptionsServiceTest {
@@ -93,6 +94,24 @@ class PlayOptionsServiceTest {
     }
 
     @Test
+    void forcedDealOptionsIncludeAllLegalCombinationsWithoutTruncation() {
+        HumanPlayer actor = new HumanPlayer("p1", "P1");
+        HumanPlayer target = new HumanPlayer("p2", "P2");
+        ActionCard forcedDeal = new ActionCard("fd", "Forced Deal", "FORCED_DEAL");
+        for (int i = 0; i < 9; i++) {
+            actor.addToPropertyZone(new PropertyWildCard("actor-wild-" + i, "Actor Wild " + i));
+            target.addToPropertyZone(new PropertyWildCard("target-wild-" + i, "Target Wild " + i));
+        }
+
+        ActionOptionsResult r = PlayOptionsService.build(
+                actor, forcedDeal, "ACTION", List.of(actor, target), GameEngineSingleton.getInstance());
+
+        assertTrue(r.isOk());
+        assertEquals(81, r.getOptions().size());
+        assertFalse(r.isTruncated());
+    }
+
+    @Test
     void debtCollectorOptionsIncludeEveryOpponentInThreePlayerGame() {
         HumanPlayer actor = new HumanPlayer("p1", "P1");
         HumanPlayer targetA = new HumanPlayer("p2", "P2");
@@ -124,5 +143,8 @@ class PlayOptionsServiceTest {
         assertTrue(r.isOk());
         assertTrue(r.getOptions().stream()
                 .anyMatch(o -> o.getLabelZh().contains("双倍后 2M")));
+        assertTrue(r.getOptions().stream()
+                .anyMatch(o -> Integer.valueOf(1).equals(o.getBaseRentAmountM())
+                        && Integer.valueOf(2).equals(o.getDisplayRentAmountM())));
     }
 }

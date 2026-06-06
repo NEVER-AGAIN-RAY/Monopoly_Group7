@@ -19,6 +19,10 @@ Important current repo state:
   - Phase 2 deadline: 2026-06-09
   - Interview / demo: 2026-06-11 or 2026-06-12
   - GitHub repo to show in PDF: https://github.com/NEVER-AGAIN-RAY/Monopoly_Group7
+  - Latest backend refactor: GameController remains the Facade, while ClientCommandHandler
+    owns client command validation/dispatch, SnapshotBuilder owns broadcast/snapshot
+    assembly, SessionFactory owns new-session initialization, and SeatAssembler owns
+    player/AI seat construction.
 
 
 ================================================================================
@@ -398,6 +402,12 @@ Demo sequence:
 
 Best design talking points:
   - GameController is a Facade, not the whole game brain.
+  - ClientCommandHandler separates client command validation/dispatch from facade state.
+  - SnapshotBuilder separates JSON/state broadcast assembly from command handling.
+  - SessionFactory separates deck shuffling, opening deal, and session initialization
+    from request-facing controller methods.
+  - SeatAssembler separates HVM/PVP/LLM/CUSTOM player construction and AI strategy
+    selection from turn/gameplay logic.
   - TurnFlowService owns the turn phase state machine.
   - EffectStackOrchestrator owns rent/Just Say No response windows.
   - ActionEffect strategy classes avoid one giant action-card method.
@@ -437,7 +447,24 @@ Do not waste time on:
 
 
 ================================================================================
-10. One-paragraph essence for the team
+10. Recent engineering changelog
+================================================================================
+
+2026-06-06:
+  - Refactored backend controller structure for cleaner design evidence.
+  - Extracted SnapshotBuilder from GameController for state broadcasts, pending response
+    context, play-event sequencing, and per-player private hand payloads.
+  - Extracted SessionFactory from GameController for new-session setup, deck shuffling,
+    deterministic seeds, opening deal, and first-player selection.
+  - Extracted SeatAssembler from GameController for HVM/PVP/LLM/AI_VS_AI/CUSTOM seat
+    creation and AI strategy selection.
+  - Extracted ClientCommandHandler from GameController for client command validation,
+    play request dispatch, and play/action option queries.
+  - Verification after refactor: mvn -q test passed.
+
+
+================================================================================
+11. One-paragraph essence for the team
 ================================================================================
 
 For the final Phase 2 submission, the most important thing is to prove that the game is

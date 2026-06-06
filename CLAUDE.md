@@ -45,7 +45,7 @@ wscat -c ws://localhost:8025/ws
 
 ### Package roles
 
-- **`controller/`** — Facade layer. `GameController` is a thin Facade that delegates to single-responsibility services: `TurnFlowService` (draw/play/discard/end-turn lifecycle + turn phase state machine), `EffectStackOrchestrator` (rent response windows, Just Say No chains, 15s timeout), `RentSettlementService`, `AiTurnService`, `PauseVoteService`, `SaveLoadService`. `TurnManager` owns turn order.
+- **`controller/`** — Facade layer. `GameController` is a thin Facade that delegates to single-responsibility services: `ClientCommandHandler` (WebSocket/client command validation and dispatch), `TurnFlowService` (draw/play/discard/end-turn lifecycle + turn phase state machine), `EffectStackOrchestrator` (rent response windows, Just Say No chains, 15s timeout), `RentSettlementService`, `AiTurnService`, `PauseVoteService`, `SaveLoadService`. `SessionFactory` owns new-session deck/player setup, `SeatAssembler` owns mode/AI seat construction, `SnapshotBuilder` owns state/private-hand broadcast assembly, and `TurnManager` owns turn order.
 
 - **`model/card/`** — Card type hierarchy: `Card` → `PropertyCard`, `PropertyWildCard` (with `WildPropertyKind`: `ANY_COLOR`/`DUAL_COLOR`), `ActionCard` (with `effectCode`), `MoneyCard`. Key interfaces: `Playable.canPlay()` and `Payable.getPaymentValue()`.
 
@@ -77,7 +77,7 @@ wscat -c ws://localhost:8025/ws
 2. `MessageDispatcher` parses message type → routes to `GameController` method
 3. `GameController` delegates to service (e.g., `TurnFlowService.playActionCard`)
 4. Service runs domain logic, mutates `GameEngineSingleton`/`Player`/`GameContext`
-5. `GameController.pushSnapshot()` → `GameUpdateSubject.notifyAll(state)` → `GameServer.onGameStateUpdated` broadcasts `STATE_UPDATE` to all clients; private `MY_HAND` sent per-connection
+5. `GameController.pushSnapshot()` delegates to `SnapshotBuilder` → `GameUpdateSubject.notifyAll(state)` → `GameServer.onGameStateUpdated` broadcasts `STATE_UPDATE` to all clients; private `MY_HAND` sent per-connection
 
 ### Turn phase state machine
 

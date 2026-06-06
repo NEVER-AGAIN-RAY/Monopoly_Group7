@@ -64,8 +64,7 @@ Monopoly Deal: Java WebSocket server plus a **JavaFX + FXML** desktop client (`m
 - `backend/src/`: Java backend, simulation tools, JavaFX desktop client.
 - `backend/models/`: runtime local ranker checkpoints used by the backend.
 - `frontend/`: Vite/Vue web client.
-- `training/scripts/`: Python and shell training/evaluation utilities.
-- `training/data/`: local generated traces, datasets, reports, and old large experiment artifacts; ignored by Git.
+- `backend/models/distillation/`: distilled local-ranker model checkpoints loaded at runtime by the `student` AI role.
 
 ### JVM 参数
 
@@ -80,10 +79,11 @@ Monopoly Deal: Java WebSocket server plus a **JavaFX + FXML** desktop client (`m
 
 ## Documentation 导航
 
-- Requirements: [`docs/requirements/requirements.md`](docs/requirements/requirements.md)
-- UML Source: [`docs/architecture/uml_source.md`](docs/architecture/uml_source.md)
-- WebSocket Protocol: [`docs/interface/websocket-protocol.md`](docs/interface/websocket-protocol.md)
-- Requirement Trace and Deviations: [`docs/implementation/requirement-trace-and-deviations.md`](docs/implementation/requirement-trace-and-deviations.md)
+项目文档已统一浓缩到一份参考文件（规则、需求、架构、UML 源码、WebSocket 协议、局域网指南、
+AI 蒸馏研究、Phase 2 交付要点）：
+
+- 统一参考: [`PROJECT_NOTES.txt`](PROJECT_NOTES.txt)
+- Phase 2 交付报告（PDF）: [`docs/phase2-final-report-zh.pdf`](docs/phase2-final-report-zh.pdf)
 
 ## Notes
 

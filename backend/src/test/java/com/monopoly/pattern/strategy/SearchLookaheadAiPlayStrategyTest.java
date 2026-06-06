@@ -12,12 +12,8 @@ import com.monopoly.model.effects.EffectStackEntry;
 import com.monopoly.model.effects.StackResponseState;
 import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.settlement.PaymentSettlement;
-import com.monopoly.simulation.JsonlDecisionTraceSink;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,9 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SearchLookaheadAiPlayStrategyTest {
-
-    @TempDir
-    Path tempDir;
 
     @Test
     void defaultBuildingParametersUsePromotedNaturalWinRateCandidate() {
@@ -299,51 +292,6 @@ class SearchLookaheadAiPlayStrategyTest {
         PaymentSettlement.PaymentChoice chosen = strategy.choosePayment(bot, null, null, 1, fallback);
 
         assertEquals(fallback, chosen);
-    }
-
-    @Test
-    void paymentTraceIncludesAuxiliaryMementoWhenPresent() throws Exception {
-        Path trace = tempDir.resolve("payment-trace.jsonl");
-        try (JsonlDecisionTraceSink sink = new JsonlDecisionTraceSink(trace)) {
-            SearchLookaheadAiPlayStrategy strategy =
-                    new SearchLookaheadAiPlayStrategy(sink, "trace-session");
-            AIPlayer bot = new AIPlayer("ai-1", "AI", strategy);
-            MoneyCard fallbackCard = new MoneyCard("m1", "1M", 1);
-            bot.addToBank(fallbackCard);
-            GameContext context = new GameContext();
-            context.setAuxiliaryDecisionMementoJson("{\"sessionId\":\"s1\"}");
-            PaymentSettlement.PaymentChoice fallback =
-                    new PaymentSettlement.PaymentChoice(List.of(fallbackCard), 1);
-
-            strategy.choosePayment(bot, context, null, 1, fallback);
-        }
-
-        String row = Files.readString(trace);
-        assertTrue(row.contains("\"decisionKind\":\"PAYMENT\""));
-        assertTrue(row.contains("\"self\""));
-        assertTrue(row.contains("\"payableCards\""));
-        assertTrue(row.contains("\"mementoJson\":\"{\\\"sessionId\\\":\\\"s1\\\"}\""));
-    }
-
-    @Test
-    void responseTraceIncludesPlayableJustSayNoCandidateWhenChosenPasses() throws Exception {
-        Path trace = tempDir.resolve("response-trace.jsonl");
-        try (JsonlDecisionTraceSink sink = new JsonlDecisionTraceSink(trace)) {
-            SearchLookaheadAiPlayStrategy strategy =
-                    new SearchLookaheadAiPlayStrategy(sink, "trace-session");
-            AIPlayer tenant = new AIPlayer("tenant", "Tenant", strategy);
-            tenant.receiveCardToHand(new ActionCard("no-1", "Just Say No", "RENT_WAIVER"));
-            GameContext context = new GameContext();
-            context.pushEffect(EffectStackEntry.pendingRent("landlord", "tenant", "BROWN", 2));
-            context.setResponseState(new StackResponseState(StackResponseState.Role.TENANT, "tenant", 0L));
-
-            strategy.chooseResponse(tenant, context, false);
-        }
-
-        String row = Files.readString(trace);
-        assertTrue(row.contains("\"decisionKind\":\"JUST_SAY_NO\""));
-        assertTrue(row.contains("\"choiceId\":\"PASS\""));
-        assertTrue(row.contains("\"id\":\"PLAY_JSN\""));
     }
 
     @Test

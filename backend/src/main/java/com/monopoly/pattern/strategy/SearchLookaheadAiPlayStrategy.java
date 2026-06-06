@@ -23,10 +23,10 @@ import com.monopoly.model.settlement.PropertySetCalculator;
 import com.monopoly.pattern.observer.GameUpdateObserver;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 import com.monopoly.persistence.GameSessionMemento;
-import com.monopoly.simulation.DecisionTraceSink;
-import com.monopoly.simulation.SimulationDecisionCandidate;
-import com.monopoly.simulation.SimulationDecisionRequest;
-import com.monopoly.simulation.SimulationDecisionResult;
+import com.monopoly.pattern.strategy.decision.DecisionTraceSink;
+import com.monopoly.pattern.strategy.decision.SimulationDecisionCandidate;
+import com.monopoly.pattern.strategy.decision.SimulationDecisionRequest;
+import com.monopoly.pattern.strategy.decision.SimulationDecisionResult;
 
 import java.nio.file.Path;
 import java.util.ArrayList;

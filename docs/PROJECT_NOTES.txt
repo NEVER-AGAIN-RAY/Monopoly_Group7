@@ -1,0 +1,449 @@
+================================================================================
+Monopoly Deal Group 7 - PROJECT_NOTES
+================================================================================
+Last rewritten: 2026-06-06
+Purpose: This file is the compact working memory for the final Phase 2 submission.
+Phase 1 has already been submitted, so Phase 1 tasks are historical background only.
+
+Read sources in docs/:
+  - docs/Software Engineering Project - Game-26.pdf
+  - docs/大富翁游戏_老师详细要求.txt
+  - docs/Group 7.pdf
+  - docs/phase2-final-report-zh.pdf
+  - old docs/PROJECT_NOTES.txt
+Also incorporated the teacher email/screenshots supplied in chat.
+
+Important current repo state:
+  - Current branch for further work: main
+  - Backup branch created on current pulled version: befor_fix
+  - Phase 2 deadline: 2026-06-09
+  - Interview / demo: 2026-06-11 or 2026-06-12
+  - GitHub repo to show in PDF: https://github.com/NEVER-AGAIN-RAY/Monopoly_Group7
+
+
+================================================================================
+1. Highest-priority teacher requirements
+================================================================================
+
+The teacher's latest email adds a concrete requirement for the Phase 2 PDF:
+
+In the "Member Contributions" section, include a table for EVERY team member with:
+  1. Full Name
+  2. UCD Student Number
+  3. GitHub Account Name
+
+This is required so the teacher can identify each person's GitHub contribution during
+assessment. The current Phase 2 PDF contribution table has names, roles, descriptions,
+and 20% ratios, but it does NOT yet include UCD Student Number or GitHub Account Name.
+This must be fixed before final submission.
+
+Teacher GitHub access:
+  - If not already invited, invite GitHub account: HuanYe86
+  - This should be done on the GitHub repository before final submission/demo.
+
+Brightspace submission:
+  - Submit the Phase 2 PDF.
+  - Include the GitHub repository link inside the PDF.
+  - Do not upload source-code zip files to Brightspace unless the teacher separately asks.
+
+Phase 1:
+  - Already submitted as docs/Group 7.pdf.
+  - Do not spend time redoing Phase 1 deliverables unless needed as background for Phase 2.
+  - Phase 1 contained requirements, UML, timeline, and original contribution/work division.
+
+
+================================================================================
+2. Scoring rubric distilled for Phase 2 work
+================================================================================
+
+The whole project rubric totals 100%. Phase 1's 20% has already been submitted. For
+the remaining final work, focus on proving the Phase 2 scoring areas:
+
+Clean Design - 20%
+  The teacher wants clear OO design, not just a runnable game.
+  Must demonstrate:
+    - Different game components are implemented as separate classes.
+    - Project is well structured into classes and modules.
+    - Each class has a small, related responsibility.
+    - Avoid big classes and long methods.
+    - Interfaces are defined and used where similar behavior exists without common
+      inheritance.
+    - Correct data structures are used.
+    - Inheritance is used wisely, for example HumanPlayer and AIPlayer.
+    - At least five design pattern types are used.
+  Design patterns explicitly mentioned by teacher:
+    - Singleton
+    - Facade
+    - Observer
+    - Model-View-Controller
+  Our stronger evidence:
+    - MVC: model / controller / fx MainController + FXML
+    - Singleton: GameEngineSingleton
+    - Facade: GameController
+    - Observer: GameUpdateSubject, GameUpdateObserver, DefaultGameUpdateSubject
+    - Factory Method: CardFactory, MonopolyDealCardFactory
+    - Strategy: AiPlayStrategy, ActionEffect implementations
+    - Memento: GameSessionMemento, persistence memento classes
+
+Functionality - 40%
+  This is the largest scoring item. The functional requirements of the game must work.
+  GUI is expected/strongly recommended. Our JavaFX client is the main GUI evidence.
+  The final report/demo should show:
+    - 2-5 player setup
+    - Human vs AI and player vs player modes
+    - AI difficulty selection
+    - WebSocket server + JavaFX client
+    - Start game, draw cards, play/deploy/deposit cards
+    - Maximum 3 plays per turn
+    - Discard down to 7 cards
+    - Rent calculation and payment
+    - No payment from hand cards
+    - No change returned when overpaying
+    - Action cards: Pass Go, Rent, Double Rent, Debt Collector, Birthday, Sly Deal,
+      Forced Deal, Deal Breaker, House, Hotel, Just Say No/Rent Waiver
+    - Private hands and public board state
+    - Win detection after 3 complete property sets
+    - Save/load, autosave, optional save encryption
+    - Pause/vote behavior if demoing multiplayer
+
+Teamwork - 10%
+  The teacher will judge whether Git was used properly and whether work was fairly
+  distributed. They explicitly warn that one person doing all work while others ride along
+  is easy to detect.
+  Must demonstrate:
+    - GitHub repository used appropriately.
+    - Commit messages are self-explanatory.
+    - Team members commit frequently, or the report clearly explains non-code work.
+    - Contribution table and work division are included.
+    - If one member contributed much more, explicitly state it.
+  Current report says all five members contributed 20%. This is acceptable only if the
+  team agrees it is truthful across coding, UML, testing, documentation, GUI, and demo prep.
+  If Git commit evidence looks uneven, explain that contribution is measured across the
+  whole course project, not only raw commit count.
+
+Testing - 10%
+  Must include meaningful tests for main project functionality.
+  Teacher specifically says:
+    - Several meaningful test cases should test main functionalities.
+    - Test main methods of each class.
+    - No need to test getters and setters.
+    - Essential methods shown in sequence diagrams should be tested.
+  Latest local evidence after pulling teammate updates:
+    - mvn -q test passed.
+    - Surefire reports currently show 60 test classes, 262 tests, 0 failures, 0 errors,
+      0 skipped.
+  Update the Phase 2 report if it still says the older count of 50 classes / 259 tests.
+
+
+================================================================================
+3. Member contribution table that must be added/fixed
+================================================================================
+
+Teacher-required table columns:
+  - Full Name
+  - UCD Student Number
+  - GitHub Account Name
+  - Recommended extra columns: Main Responsibility, Contribution Description,
+    Contribution Percentage
+
+Current Phase 2 PDF members:
+  - Liu Zongrun
+  - Lei Yurun
+  - Wang Tingdong
+  - Qiu Siqi
+  - Liu Yuhao
+
+UCD student numbers:
+  - Not present in the docs read so far. Ask every teammate and fill them exactly.
+
+GitHub account names:
+  Confirm with each person before final PDF. Do not guess silently. From current Git
+  history, likely aliases/accounts include:
+    - Lei Yurun: likely NEVER-AGAIN-RAY / RAY
+    - Liu Zongrun: likely LiuZongrun7 / lzr / 刘宗润
+    - Wang Tingdong: likely Harry-magic / Tingdong Wang / Wang Tingdong
+    - Qiu Siqi: TODO confirm
+    - Liu Yuhao: TODO confirm
+
+Recommended final table shape:
+
+| Full Name | UCD Student Number | GitHub Account Name | Main Responsibility | Contribution | Percentage |
+| --- | --- | --- | --- | --- | --- |
+| Liu Zongrun | TODO | TODO | Architecture and core logic | Overall architecture, class structure, core control flow, refactoring, module responsibilities | 20% |
+| Lei Yurun | TODO | TODO | UML, GUI, project organization | UML organization, UI discussion, JavaFX improvements, document organization, demo preparation | 20% |
+| Wang Tingdong | TODO | TODO | Requirements and rule validation | User/system requirements, Monopoly Deal rule checking, requirement-to-implementation alignment | 20% |
+| Qiu Siqi | TODO | TODO | Testing and quality checks | Functional testing, rule boundary checks, UML-code consistency, runtime compatibility | 20% |
+| Liu Yuhao | TODO | TODO | Collaboration, documents, review | Requirements docs, submission materials, presentation content, final report review, multiplayer validation | 20% |
+
+Critical: replace every TODO before generating the final PDF.
+
+
+================================================================================
+4. Current Phase 2 PDF gaps and fixes
+================================================================================
+
+File read: docs/phase2-final-report-zh.pdf
+
+What is already good:
+  - It clearly explains project overview, requirements, architecture, clean design,
+    design patterns, functionality, testing, running commands, demo flow, and teamwork.
+  - It contains the GitHub repo link.
+  - It maps directly to the teacher's scoring criteria.
+  - It says the project uses Java 17, Maven, JavaFX + FXML, WebSocket + JSON.
+  - It lists seven design pattern categories, above the required five.
+
+Must fix before final submission:
+  1. Member Contributions table lacks UCD Student Number.
+  2. Member Contributions table lacks GitHub Account Name.
+  3. Test evidence should be updated from 50 classes / 259 tests to latest known
+     60 classes / 262 tests, if the test suite remains passing.
+  4. Invite teacher GitHub account HuanYe86, or confirm they already have access.
+  5. Confirm contribution ratios with teammates. If unequal, revise the table truthfully.
+  6. Current local docs folder has been consolidated/deleted heavily. The PDF still refers
+     to old docs paths such as docs/requirements/requirements.md and
+     docs/architecture/uml_source.md. If those files remain deleted in the final repo,
+     either restore them or change the PDF wording to say documentation was consolidated
+     into docs/PROJECT_NOTES.txt.
+
+Nice to improve if time allows:
+  - Add a small "Latest verification" block:
+      mvn -q test
+      npm run build --prefix frontend
+  - Add one sentence that the latest UI update improved JavaFX lobby/gameplay flow and
+    rent option display.
+  - Add explicit note that the backup branch befor_fix exists as a safety snapshot.
+
+
+================================================================================
+5. Functional requirements checklist
+================================================================================
+
+Core user requirements from teacher:
+  - Support 2-5 players.
+  - Allow AI opponents or real players.
+  - GUI allows drawing cards, playing cards, paying rent, and managing properties.
+  - Players can view public deck state, own assets, and opponents' public assets.
+  - Hand cards remain private.
+  - System automatically calculates rent, validates rules, and announces victory.
+  - Save progress and restore later.
+
+Startup and initialization:
+  - HVM and PVP entry points.
+  - HVM has Easy, Normal, Hard AI difficulty. Our project also has stronger/LLM modes;
+    present these as enhancements, not as replacement for the required three.
+  - 2-5 players for requirement compliance.
+  - Standard Monopoly Deal deck configuration.
+  - Initial deal of 5 cards per player.
+  - Show deck remaining count and discard pile.
+  - Rules panel available.
+
+Turn logic:
+  - At turn start, draw 2 cards.
+  - If hand is empty before drawing, draw 5.
+  - After drawing, player may perform up to 3 play actions.
+  - Play actions include bank deposit, property deployment, and action execution.
+  - End turn with hand <= 7; discard if above 7.
+
+Rent/payment:
+  - Rent calculated from property set progress, houses, hotels, and color rules.
+  - Payment uses bank cards and property cards already on table.
+  - Hand cards cannot directly pay.
+  - No change is returned on overpayment.
+  - If no payable table assets exist, current payment fails/no debt is carried.
+
+Card legality:
+  - Server validates illegal moves and invalid targets.
+  - Examples: no rent without property color, exceeding 3 plays, invalid steal target.
+  - Error messages should be clear in GUI.
+
+Deck replenishment:
+  - If draw pile is empty, reshuffle discard pile into draw pile.
+
+Status feedback:
+  - Current turn player.
+  - Draw pile count and discard pile count.
+  - Each player's hand count, properties, bank card count/value.
+  - Opponents' public zones visible; opponent hand details hidden.
+  - Text prompts and UI highlights for available actions.
+
+Win/end:
+  - Player wins after collecting 3 complete property sets.
+  - Force termination after all quit or session timeout.
+
+Save/pause:
+  - HVM pause, continue, save/exit, abandon/exit.
+  - Manual save and autosave every 3 full rounds.
+  - Load game from local save.
+  - PVP pause/load should use confirmation/vote behavior.
+
+
+================================================================================
+6. Non-functional requirements checklist
+================================================================================
+
+Usability:
+  - GUI should be understandable for children aged 8+.
+  - Legal/illegal actions should give feedback quickly, ideally within 0.5s.
+  - Color property cards should include text labels for color-blind accessibility.
+  - New-player guidance is desirable. If not fully implemented, use the rules/help panel
+    and guided demo script as the practical evidence.
+
+Performance:
+  - AI decision + UI rendering target <= 1.5s.
+  - Draw/shuffle/rent calculation target <= 0.3s.
+  - Multiplayer should support up to 5 online players without obvious delay.
+  - WebSocket sync target <= 200ms.
+  - Evidence: PerformanceSmokeTest and manual demo responsiveness.
+
+Reliability:
+  - Invalid input cannot crash the program.
+  - Autosave should remain valid through unexpected interruption.
+  - Card count consistency should be protected.
+
+Organizational requirements:
+  - Java 17 or later.
+  - JavaFX + FXML GUI.
+  - Frontend/backend separation.
+  - MVC architecture.
+  - At least 5 design patterns.
+  - Git collaboration with clear commit messages.
+  - Cross-platform target: Windows/macOS/Linux.
+
+Privacy/security:
+  - Multiplayer players cannot access other players' hand details.
+  - Save files can use optional AES-GCM via monopoly.saveKey.
+
+
+================================================================================
+7. Known implementation/report risks to handle carefully
+================================================================================
+
+Risk 1: Member identity table incomplete
+  This is the biggest immediate risk because it comes from the teacher's latest email.
+  Fix the Phase 2 PDF contribution section with Full Name, UCD Student Number, and GitHub
+  Account Name for all members.
+
+Risk 2: Teacher GitHub access
+  Invite HuanYe86 or confirm access. Without this, the teacher may not be able to inspect
+  contributions.
+
+Risk 3: Git contribution interpretation
+  Git history contains aliases:
+    - NEVER-AGAIN-RAY / RAY
+    - LiuZongrun7 / lzr / 刘宗润
+    - Harry-magic / Tingdong Wang / Wang Tingdong
+    - copilot-swe-agent bot
+  The report should not pretend aliases are separate people. Map GitHub account names
+  clearly in the contribution table.
+
+Risk 4: Docs consolidation vs PDF references
+  Current local status shows many old docs deleted and PROJECT_NOTES.txt newly created.
+  If the final repo no longer contains old docs paths, update the report references or
+  restore the docs. Avoid saying "see docs/requirements/requirements.md" if it is not in
+  the final repository.
+
+Risk 5: Standard deck wording
+  Teacher says standard 108-card configuration. Monopoly Deal includes 2 rule cards that
+  are not playable. The project notes historically say the playable draw deck is 106.
+  In report/demo, phrase carefully:
+    "We model the standard Monopoly Deal card set and exclude non-playable rule cards from
+    the actual draw pile."
+
+Risk 6: Wild property requirement
+  Teacher requirement says wild properties may be freely adjusted during a player's turn.
+  The older project notes say current implementation locks a wild property's color after
+  initial DEPLOY and treats REASSIGN_WILD as deprecated. If this is still true, decide:
+    - either fix implementation to support reassignment, or
+    - report it as a known deviation and avoid making it a demo centerpiece.
+
+Risk 7: Win timing
+  Requirement wording says immediate win on own turn, and if completed on opponent turn
+  announce on next turn. Existing notes mention win checks at draw/endTurn. Demo should
+  use an own-turn completion case so it looks correct.
+
+Risk 8: Advanced AI/research material
+  AI distillation, DeepSeek, training traces, and local ranker are interesting but not
+  required by the teacher rubric. Do not let these distract the final PDF. Mention only as
+  optional enhancement if it does not crowd out core software-engineering evidence.
+
+
+================================================================================
+8. Evidence to cite in final report/demo
+================================================================================
+
+Run commands:
+  - mvn -q test
+  - mvn -q exec:java
+  - mvn javafx:run
+  - npm run build --prefix frontend
+
+Latest verification already observed in this workspace:
+  - mvn -q test passed.
+  - npm run build --prefix frontend passed.
+  - Surefire reports: 60 test classes, 262 tests, 0 failures, 0 errors, 0 skipped.
+
+Demo sequence:
+  1. Start backend server: mvn -q exec:java
+  2. Start JavaFX client: mvn javafx:run
+  3. Start a 2-player HVM game.
+  4. Show draw phase.
+  5. Deposit money/action card to bank.
+  6. Deploy property.
+  7. Play an action card with target/option dialog.
+  8. Show rent calculation and payment/no-change rule.
+  9. Show Just Say No response window if available.
+ 10. Show public board vs private hand.
+ 11. Show save/load.
+ 12. End by showing tests passed and explaining design patterns.
+
+Best design talking points:
+  - GameController is a Facade, not the whole game brain.
+  - TurnFlowService owns the turn phase state machine.
+  - EffectStackOrchestrator owns rent/Just Say No response windows.
+  - ActionEffect strategy classes avoid one giant action-card method.
+  - GameUpdateSubject/Observer broadcasts state updates.
+  - GameSessionMemento captures save/load state.
+  - JavaFX GUI is a client; server remains the rule authority.
+
+
+================================================================================
+9. Final before-submission checklist
+================================================================================
+
+Must do:
+  [ ] Collect every member's UCD student number.
+  [ ] Confirm every member's GitHub account name.
+  [ ] Update Phase 2 PDF Member Contributions table.
+  [ ] Invite GitHub account HuanYe86 to the repository.
+  [ ] Confirm the PDF contains the GitHub repo link.
+  [ ] Update test counts if using latest test evidence.
+  [ ] Run mvn -q test one final time.
+  [ ] Run JavaFX demo once from clean start.
+  [ ] Confirm whether old docs are restored or PDF references are updated to PROJECT_NOTES.
+  [ ] Submit PDF to Brightspace before 2026-06-09.
+
+Should do:
+  [ ] Keep current backup branch befor_fix untouched.
+  [ ] Keep main for final changes.
+  [ ] Make commit messages clear, for example:
+      docs: update phase 2 member contribution table
+      docs: align final report with teacher GitHub account requirement
+      test: refresh phase 2 verification evidence
+
+Do not waste time on:
+  - Rebuilding Phase 1 deliverables.
+  - Overexplaining AI research if core functionality/report details are unfinished.
+  - Uploading code zip to Brightspace.
+
+
+================================================================================
+10. One-paragraph essence for the team
+================================================================================
+
+For the final Phase 2 submission, the most important thing is to prove that the game is
+functionally complete, cleanly designed, tested, and honestly collaborative. The PDF must
+map directly to the rubric: Clean Design, Functionality, Teamwork, and Testing. The latest
+teacher email makes the contribution table non-negotiable: every team member needs Full
+Name, UCD Student Number, and GitHub Account Name. Also invite HuanYe86 to GitHub.
+Phase 1 is already done; do not redo it. Use the remaining time to fix the Phase 2 report,
+verify tests/demo, and make sure the repository evidence matches what the PDF claims.

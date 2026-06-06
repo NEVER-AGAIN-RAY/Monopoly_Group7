@@ -17,10 +17,10 @@ import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.settlement.PaymentSettlement;
 import com.monopoly.dto.PlayActionRequest;
-import com.monopoly.simulation.DecisionTraceSink;
-import com.monopoly.simulation.SimulationDecisionCandidate;
-import com.monopoly.simulation.SimulationDecisionRequest;
-import com.monopoly.simulation.SimulationDecisionResult;
+import com.monopoly.pattern.strategy.decision.DecisionTraceSink;
+import com.monopoly.pattern.strategy.decision.SimulationDecisionCandidate;
+import com.monopoly.pattern.strategy.decision.SimulationDecisionRequest;
+import com.monopoly.pattern.strategy.decision.SimulationDecisionResult;
 
 import java.util.ArrayList;
 import java.util.Comparator;

@@ -34,12 +34,14 @@ wscat -c ws://localhost:8025/ws
 | `monopoly.autosave` | `false` | Auto-write to `~/.monopoly-deal/autosave.json` every 3 full rounds |
 | `monopoly.saveKey` | unset | AES-GCM encryption key for saves; plaintext JSON when unset |
 | `monopoly.sessionLimitMs` | `GameConstants.DEFAULT_SESSION_LIMIT_MS` | Session timeout override |
+| `monopoly.deck.seed` | unset | Fix initial deck shuffle order for reproducible experiments |
+| `monopoly.firstPlayer.seed` | unset | Fix random first-player selection when `randomizeFirstPlayer=true` |
 
 ## Architecture
 
 **Stack**: Java 17, Maven 3.9+, Gson, Tyrus (Jakarta WebSocket), JavaFX + FXML, JUnit 5.
 
-**Topology**: The server is a single-process WebSocket server (`WsServerMain` → Tyrus/Grizzly on port 8025). The JavaFX client (`MonopolyFxApp`) connects as a WebSocket client. Both can run on the same machine. The communication protocol is JSON envelopes over WebSocket text frames (see `docs/interface/websocket-protocol.md`).
+**Topology**: The server is a single-process WebSocket server (`WsServerMain` → Tyrus/Grizzly on port 8025). The JavaFX client (`MonopolyFxApp`) connects as a WebSocket client. Both can run on the same machine. The communication protocol is JSON envelopes over WebSocket text frames.
 
 ### Package roles
 
@@ -65,7 +67,7 @@ wscat -c ws://localhost:8025/ws
 
 - **`network/`** — Three sub-packages: `endpoint/` (Tyrus `@ServerEndpoint` + `WsServerMain`), `connection/` (`ClientConnection` abstraction + `SessionRegistry` bidirectional player-connection index), `protocol/` (`MessageDispatcher` for JSON parse/route).
 
-- **`pattern/`** — Explicit design patterns: `factory/` (`CardFactory` → 108-card standard deck), `observer/` (`GameUpdateSubject` → `GameUpdateObserver` for state broadcasts), `singleton/` (`GameEngineSingleton` — draw pile, discard pile, shuffle), `strategy/` (`AiPlayStrategy` with Easy/Normal/Hard implementations).
+- **`pattern/`** — Explicit design patterns: `factory/` (`CardFactory` → 106-card playable deck), `observer/` (`GameUpdateSubject` → `GameUpdateObserver` for state broadcasts), `singleton/` (`GameEngineSingleton` — draw pile, discard pile, shuffle), `strategy/` (`AiPlayStrategy` with Easy/Normal/Hard/`SearchLookaheadAiPlayStrategy` (STRONG)/`DeepSeekAiPlayStrategy` (LLM mode)/`LocalRankerAiPlayStrategy` (distilled student) implementations). `strategy/decision/` holds the runtime AI decision contracts (`DecisionTraceSink`, `SimulationDecision{Candidate,Request,Result}`) shared by those strategies.
 
 - **`fx/`** — JavaFX+FXML desktop client: `MonopolyFxApp` (entry), `MainController` (FXML controller), `FxWebSocketClient` (JDK HttpClient WebSocket), `ui/` (card views, player boards, target pickers).
 
@@ -84,16 +86,15 @@ wscat -c ws://localhost:8025/ws
 ### Rules authority
 
 When implementation and rules appear to conflict, the normative sources (in priority order) are:
-1. `rules.md` Appendix A + `MonopolyDealCardFactory.java` (deck composition)
+1. `MonopolyDealCardFactory.java` (deck composition) and its embedded Appendix A comments
 2. `MonopolyDealRulesSummary.java` (embedded rule summary)
-3. `docs/implementation/requirement-trace-and-deviations.md` (known deviations)
+3. Known deviations recorded in `PROJECT_NOTES.txt` (§3)
 
 ## Maintenance conventions
 
-- **Protocol changes**: When modifying `MessageDispatcher` / `GameServer` message branches, update `docs/interface/websocket-protocol.md` in the same commit.
-- **Architecture docs**: `docs/architecture/uml_source.md` is the single source for directory/module descriptions and UML. Do not create parallel architecture docs.
-- **Changelog**: Add entries to `docs/ENGINEERING.md` (newest first) when merging to main.
-- **Requirements**: Do not rewrite historical requirement semantics in `docs/requirements/requirements.md` without team review. Record deviations in `docs/implementation/requirement-trace-and-deviations.md`.
+- **Protocol changes**: When modifying `MessageDispatcher` / `GameServer` message branches, update the protocol section in `PROJECT_NOTES.txt` in the same commit.
+- **Architecture docs**: `PROJECT_NOTES.txt` is the single consolidated reference for rules, architecture, UML source, and protocol. Do not create parallel architecture docs.
+- **Changelog**: Add entries to `PROJECT_NOTES.txt` §10 (newest first) when merging to main.
 
 ## Project context
 

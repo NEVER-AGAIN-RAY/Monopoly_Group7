@@ -835,15 +835,6 @@ public class GameController implements AiGameBridge {
         this.suppressAiAutoContinuation = suppressAiAutoContinuation;
     }
 
-    /**
-     * Simulation hook: replay tools restore historical mementos long after the
-     * original session started, so their old wall-clock timestamp would trip the
-     * normal player-facing session timeout before a candidate can be evaluated.
-     */
-    public void resetSessionClockForSimulation() {
-        this.sessionStartEpochMs = System.currentTimeMillis();
-    }
-
     public void pause() {
         pauseVoteService.pause();
     }

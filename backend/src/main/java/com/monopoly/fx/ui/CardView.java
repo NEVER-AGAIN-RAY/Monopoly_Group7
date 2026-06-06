@@ -196,59 +196,35 @@ public class CardView extends ToggleButton {
         if ("PROPERTY".equals(kind)) {
             String color = colorName(data.getColorGroup());
             if (data.getSetNeed() != null && data.getSetNeed() > 0) {
-                return color + " · 套装需 " + data.getSetNeed() + " 张";
+                return I18n.get("card.metaSetNeed", color, data.getSetNeed());
             }
             return color;
         }
         if ("WILD".equals(kind)) {
-            return "可补齐多色地产";
+            return I18n.get("card.metaWild");
         }
         if ("ACTION".equals(kind)) {
             return actionName(data.getEffectCode());
         }
         if ("MONEY".equals(kind)) {
-            return "存入银行支付费用";
+            return I18n.get("card.metaMoney");
         }
         return "";
     }
 
     private static String colorName(String colorGroup) {
         if (colorGroup == null || colorGroup.isBlank()) {
-            return "地产";
+            return I18n.get("card.property");
         }
-        return switch (colorGroup) {
-            case "BROWN" -> "棕色";
-            case "LIGHT_BLUE" -> "浅蓝";
-            case "PINK" -> "粉色";
-            case "ORANGE" -> "橙色";
-            case "RED" -> "红色";
-            case "YELLOW" -> "黄色";
-            case "GREEN" -> "绿色";
-            case "DARK_BLUE" -> "深蓝";
-            case "RAILROAD" -> "铁路";
-            case "UTILITY" -> "公共事业";
-            default -> colorGroup;
-        };
+        String value = I18n.get("color." + colorGroup);
+        return value.startsWith("!color.") ? colorGroup : value;
     }
 
     private static String actionName(String effectCode) {
         if (effectCode == null || effectCode.isBlank()) {
-            return "行动效果";
+            return I18n.get("card.metaAction");
         }
-        return switch (effectCode) {
-            case "RENT" -> "向一名玩家收租";
-            case "RENT_DUAL" -> "按颜色收租";
-            case "DOUBLE_RENT" -> "租金翻倍";
-            case "STEAL_PROPERTY" -> "偷取房产";
-            case "FORCED_DEAL" -> "交换房产";
-            case "DEBT_COLLECTOR" -> "催债 5M";
-            case "RENT_WAIVER" -> "免租响应";
-            case "PASS_GO" -> "额外摸牌";
-            case "HOUSE" -> "房屋升级";
-            case "HOTEL" -> "酒店升级";
-            case "BIRTHDAY" -> "生日收礼";
-            case "DEAL_BREAKER" -> "夺取整套";
-            default -> "行动效果";
-        };
+        String value = I18n.get("action." + effectCode);
+        return value.startsWith("!action.") ? I18n.get("card.metaAction") : value;
     }
 }

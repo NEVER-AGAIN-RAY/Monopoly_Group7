@@ -2,6 +2,7 @@ package com.monopoly.fx.ui;
 
 import com.monopoly.fx.I18n;
 import javafx.geometry.Insets;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Dialog;
@@ -36,6 +37,7 @@ public final class TargetPickerDialog {
         d.initModality(Modality.WINDOW_MODAL);
         d.setTitle(title);
         d.setHeaderText(I18n.get("dialog.pickPlayer"));
+        localizeButtons(d);
         return d.showAndWait();
     }
 
@@ -48,6 +50,7 @@ public final class TargetPickerDialog {
         d.initModality(Modality.WINDOW_MODAL);
         d.setTitle(I18n.get("dialog.pickColorTitle"));
         d.setHeaderText(I18n.get("dialog.pickColorHint"));
+        localizeButtons(d);
         return d.showAndWait();
     }
 
@@ -59,7 +62,9 @@ public final class TargetPickerDialog {
         dialog.initOwner(owner);
         dialog.initModality(Modality.WINDOW_MODAL);
         dialog.setTitle(title);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        ButtonType cancelType = cancelType();
+        ButtonType confirmType = confirmType();
+        dialog.getDialogPane().getButtonTypes().addAll(cancelType, confirmType);
 
         ListView<String> list = new ListView<>();
         list.getItems().setAll(items);
@@ -73,11 +78,23 @@ public final class TargetPickerDialog {
         dialog.getDialogPane().setContent(box);
 
         dialog.setResultConverter(btn -> {
-            if (btn == ButtonType.OK) {
+            if (btn == confirmType) {
                 return list.getSelectionModel().getSelectedItem();
             }
             return null;
         });
         return dialog.showAndWait();
+    }
+
+    private static void localizeButtons(ChoiceDialog<?> dialog) {
+        dialog.getDialogPane().getButtonTypes().setAll(cancelType(), confirmType());
+    }
+
+    private static ButtonType confirmType() {
+        return new ButtonType(I18n.get("dialog.confirm"), ButtonBar.ButtonData.OK_DONE);
+    }
+
+    private static ButtonType cancelType() {
+        return new ButtonType(I18n.get("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
     }
 }

@@ -451,6 +451,8 @@ Do not waste time on:
 ================================================================================
 
 2026-06-06:
+  - refactor: split GameServer into SessionHub / MessageRouter / LobbyService /
+    SaveLoadVoteCoordinator（行为零变更，协议不变）.
   - Refactored backend controller structure for cleaner design evidence.
   - Extracted SnapshotBuilder from GameController for state broadcasts, pending response
     context, play-event sequencing, and per-player private hand payloads.

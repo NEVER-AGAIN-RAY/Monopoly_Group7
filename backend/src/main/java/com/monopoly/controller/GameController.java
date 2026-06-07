@@ -49,6 +49,16 @@ import java.util.logging.Logger;
  */
 public class GameController implements AiGameBridge {
 
+    /*
+     * Concurrency: a session is mutated by three threads — WebSocket worker threads
+     * (client commands), the effect-response timeout thread, and the AI decision thread.
+     * Each session owns exactly one GameController instance, so this instance doubles as
+     * the per-session monitor: all network-facing command entry points are synchronized
+     * on {@code this}, and the timeout/AI background tasks enter via {@code synchronized
+     * (controller)} (see EffectStackOrchestrator / AiTurnService). Intrinsic locks are
+     * reentrant, so nested service calls on the same thread are safe.
+     */
+
     private static final Logger LOG = Logger.getLogger(GameController.class.getName());
     private static final boolean VERIFY_DECK = Boolean.parseBoolean(
             System.getProperty("monopoly.verifyDeck", "false"));
@@ -141,7 +151,7 @@ public class GameController implements AiGameBridge {
      * Starts a session: builds the standard deck, shuffles it into the draw pile,
      * and deals opening hands. Loading restores deck order via GameSessionMemento.
      */
-    public void startNewSession(StartSessionRequest req) {
+    public synchronized void startNewSession(StartSessionRequest req) {
         sessionFactory.startNewSession(req);
     }
 
@@ -169,11 +179,11 @@ public class GameController implements AiGameBridge {
         turnFlowService.reassignWildProperty(player, wildPropertyCardId, newColorKey);
     }
 
-    public void handleReassignWildCommand(String wildPropertyCardId, String newColorKey) {
+    public synchronized void handleReassignWildCommand(String wildPropertyCardId, String newColorKey) {
         turnFlowService.reassignWildProperty(requireCurrentPlayer(), wildPropertyCardId, newColorKey);
     }
 
-    public void endTurn(Player player) {
+    public synchronized void endTurn(Player player) {
         if (player == null) {
             return;
         }
@@ -214,25 +224,25 @@ public class GameController implements AiGameBridge {
     //  WebSocket command handlers
     // ═══════════════════════════════════════════════════════
 
-    public void handleDrawCommand(int count) {
+    public synchronized void handleDrawCommand(int count) {
         clientCommandHandler.handleDrawCommand(count);
     }
 
-    public void handlePlayActionRequest(PlayActionRequest req) {
+    public synchronized void handlePlayActionRequest(PlayActionRequest req) {
         clientCommandHandler.handlePlayActionRequest(req);
     }
 
     /**
      * PLAY phase: legal targets/params for an action card (client sends PLAY after picking).
      */
-    public ActionOptionsResult queryActionOptionsForHandCard(String playerId, String cardId) {
+    public synchronized ActionOptionsResult queryActionOptionsForHandCard(String playerId, String cardId) {
         return clientCommandHandler.queryActionOptionsForHandCard(playerId, cardId);
     }
 
     /**
      * PLAY phase: options for DEPOSIT/DEPLOY/DISCARD/ACTION (PLAY_OPTIONS wizard).
      */
-    public ActionOptionsResult queryPlayOptions(String playerId, String cardId, String actionType) {
+    public synchronized ActionOptionsResult queryPlayOptions(String playerId, String cardId, String actionType) {
         return clientCommandHandler.queryPlayOptions(playerId, cardId, actionType);
     }
 
@@ -244,11 +254,11 @@ public class GameController implements AiGameBridge {
         clientCommandHandler.handlePlayCommand(handIndex, actionType);
     }
 
-    public void handleEndTurnCommand() {
+    public synchronized void handleEndTurnCommand() {
         clientCommandHandler.handleEndTurnCommand();
     }
 
-    public void handleQuitCommand(String playerId) {
+    public synchronized void handleQuitCommand(String playerId) {
         if (isSessionEnded()) {
             return;
         }
@@ -276,7 +286,7 @@ public class GameController implements AiGameBridge {
         }
     }
 
-    public void forceEndSession(String reason) {
+    public synchronized void forceEndSession(String reason) {
         if (sessionForceEnded || sessionEndedNaturally) {
             return;
         }
@@ -299,7 +309,7 @@ public class GameController implements AiGameBridge {
         effectStackOrchestrator.shutdown();
     }
 
-    public void handleResponsePass(String actingPlayerId) {
+    public synchronized void handleResponsePass(String actingPlayerId) {
         try {
             ensureSessionActive();
             clearLastError();
@@ -406,19 +416,19 @@ public class GameController implements AiGameBridge {
         }
     }
 
-    public void pause() {
+    public synchronized void pause() {
         pauseVoteService.pause();
     }
 
-    public void requestPause() {
+    public synchronized void requestPause() {
         pauseVoteService.requestPause();
     }
 
-    public void acknowledgePause(String playerId) {
+    public synchronized void acknowledgePause(String playerId) {
         pauseVoteService.acknowledgePause(playerId);
     }
 
-    public void resume() {
+    public synchronized void resume() {
         pauseVoteService.resume();
     }
 
@@ -426,15 +436,15 @@ public class GameController implements AiGameBridge {
     //  Save / load (SaveLoadService)
     // ═══════════════════════════════════════════════════════
 
-    public String exportSessionJson() {
+    public synchronized String exportSessionJson() {
         return saveLoadService.exportSessionJson();
     }
 
-    public void importSessionJson(String json) {
+    public synchronized void importSessionJson(String json) {
         saveLoadService.importSessionJson(json);
     }
 
-    public void pushCurrentState(String phase, String actionSummary) {
+    public synchronized void pushCurrentState(String phase, String actionSummary) {
         pushSnapshot(currentSessionId, phase, actionSummary);
     }
 

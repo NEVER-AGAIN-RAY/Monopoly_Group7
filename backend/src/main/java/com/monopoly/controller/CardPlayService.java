@@ -1,7 +1,6 @@
 package com.monopoly.controller;
 
 import com.monopoly.dto.ActionParamContext;
-import com.monopoly.model.card.ActionCard;
 import com.monopoly.model.card.Card;
 import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.card.PropertyWildCard;
@@ -61,11 +60,10 @@ final class CardPlayService {
             turnState.incrementAction();
             player.deployProperty((PropertyCard) card);
         } else if ("ACTION".equals(normalizedActionType)) {
-            if (!(card instanceof ActionCard)) {
-                throw new IllegalArgumentException("ACTION requires an ActionCard.");
-            }
-            turnState.incrementAction();
-            player.placeActionToCenter((ActionCard) card);
+            // ACTION cards must run their effect via ActionCardPlayService.handleActionCardCommand;
+            // routing one here would consume the card and an action without ever firing the effect.
+            throw new IllegalArgumentException(
+                    "ACTION cards must be played through handleActionCardCommand, not playCard.");
         } else {
             throw new IllegalArgumentException("Unknown actionType: " + actionType);
         }

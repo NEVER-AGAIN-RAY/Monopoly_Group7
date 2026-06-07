@@ -181,9 +181,9 @@
                                 <ColumnConstraints minWidth="58.0"/>
                                 <ColumnConstraints hgrow="ALWAYS" minWidth="260.0"/>
                             </columnConstraints>
-                            <Label fx:id="serverLabel" text="连接" visible="false" managed="false"
+                            <Label fx:id="serverLabel" text="连接"
                                    GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="setup-label"/>
-                            <TextField fx:id="wsUrlField" visible="false" managed="false"
+                            <TextField fx:id="wsUrlField"
                                        GridPane.columnIndex="1" GridPane.rowIndex="0"/>
                             <Label fx:id="languageLabel" text="语言" GridPane.columnIndex="0" GridPane.rowIndex="1"
                                    styleClass="setup-label"/>

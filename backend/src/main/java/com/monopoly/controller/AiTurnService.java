@@ -49,11 +49,15 @@ final class AiTurnService {
     }
 
     private void runScheduled(AIPlayer ai, boolean needsDraw, String sessionId) {
-        if (sessionId == null || !sessionId.equals(controller.getCurrentSessionId())
-                || controller.isSessionEnded()) {
-            return;
+        // Serialize with WebSocket worker threads and the response-timeout thread:
+        // all three share the per-session GameController monitor.
+        synchronized (controller) {
+            if (sessionId == null || !sessionId.equals(controller.getCurrentSessionId())
+                    || controller.isSessionEnded()) {
+                return;
+            }
+            runOne(ai, needsDraw);
         }
-        runOne(ai, needsDraw);
     }
 
     private void runOne(AIPlayer ai, boolean needsDraw) {

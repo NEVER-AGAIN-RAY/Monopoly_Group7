@@ -151,21 +151,48 @@ final class EffectStackOrchestrator {
 
     void scheduleResponseTimeout(long deadlineEpochMs) {
         timeoutScheduler.schedule(() -> {
-            StackResponseState st = controller.getGameContext().getResponseState();
-            if (st == null || st.getDeadlineEpochMs() != deadlineEpochMs) {
-                return;
-            }
-            try {
-                cancelPendingResponseTimeout();
-                if (pendingAction != null) {
-                    resolvePendingActionAndResume("RESPONSE_TIMEOUT");
-                } else {
-                    resolveEffectStackAndResume("RESPONSE_TIMEOUT", null, null);
+            // Serialize with WebSocket worker threads and the AI decision thread:
+            // all three share the per-session GameController monitor.
+            synchronized (controller) {
+                StackResponseState st = controller.getGameContext().getResponseState();
+                if (st == null || st.getDeadlineEpochMs() != deadlineEpochMs) {
+                    return;
                 }
-            } catch (RuntimeException ex) {
-                ex.printStackTrace();
+                try {
+                    cancelPendingResponseTimeout();
+                    if (pendingAction != null) {
+                        resolvePendingActionAndResume("RESPONSE_TIMEOUT");
+                    } else {
+                        resolveEffectStackAndResume("RESPONSE_TIMEOUT", null, null);
+                    }
+                } catch (RuntimeException ex) {
+                    recoverFromResolutionFailure(ex);
+                }
             }
         });
+    }
+
+    /**
+     * Last-resort recovery if resolving the effect stack throws: clearing the response
+     * window and resuming the turn so the session cannot brick in WAITING_FOR_RESPONSE
+     * (the timeout has already been cancelled, so no further timer would fire).
+     */
+    private void recoverFromResolutionFailure(RuntimeException ex) {
+        System.err.println("[EFFECT_STACK] RESPONSE_TIMEOUT resolution failed; resuming turn: "
+                + ex.getMessage());
+        try {
+            GameContext ctx = controller.getGameContext();
+            ctx.clearEffectStack();
+            ctx.clearRentChargeSequence();
+            pendingAction = null;
+            turnFlow.resumeToPlayOrEnd(turnFlow.actionCount());
+            controller.pushSnapshot(controller.getCurrentSessionId(), "RESPONSE_TIMEOUT_ERROR",
+                    "Response resolution failed; turn resumed.");
+            controller.resumeAiTurnIfNeeded();
+        } catch (RuntimeException recoveryFailure) {
+            System.err.println("[EFFECT_STACK] recovery after timeout failure also failed: "
+                    + recoveryFailure.getMessage());
+        }
     }
 
     void scheduleResponseTimeoutIfNeeded(long deadlineEpochMs) {

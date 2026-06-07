@@ -3,20 +3,11 @@ package com.monopoly.fx;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.monopoly.fx.presentation.CardDisplayData;
-import com.monopoly.fx.ui.CardView;
 import com.monopoly.fx.ui.PlayerBoardPanel;
-import javafx.animation.KeyFrame;
-import javafx.animation.PauseTransition;
-import javafx.animation.Timeline;
-import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -24,7 +15,6 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
@@ -35,19 +25,22 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
-import javafx.util.Duration;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Consumer;
+
+import static com.monopoly.fx.FxJson.jsonBool;
+import static com.monopoly.fx.FxJson.jsonInt;
+import static com.monopoly.fx.FxJson.jsonLong;
+import static com.monopoly.fx.FxJson.jsonString;
+import static com.monopoly.fx.FxJson.payload;
+import static com.monopoly.fx.FxJson.safeUpper;
 
 /**
  * JavaFX table client rebuilt around the same state model as the web client.
@@ -59,30 +52,19 @@ public class MainController {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final int MAX_TRAFFIC_LINES = 120;
     private final FxWebSocketClient ws = new FxWebSocketClient();
+    private final FxClientState state = new FxClientState();
     private final ToggleGroup handToggleGroup = new ToggleGroup();
-    private final Map<String, JsonObject> roomRowsByLabel = new LinkedHashMap<>();
-    private final Set<String> selectedPaymentIds = new HashSet<>();
-
-    private JsonObject lastStatePayload;
-    private JsonArray latestHandCards = new JsonArray();
-    private String latestHandSignature = "";
-    private CardDisplayData selectedCard;
-    private Consumer<JsonObject> pendingOptionsResultHandler;
-    private Runnable postConnectAction;
-    private PauseTransition connectionTimeout;
-    private Timeline responseCountdownTimer;
-    private JsonObject currentLobbyRoom;
+    private ClientCommandGateway commandGateway;
+    private ConnectionController connectionController;
+    private ActionOptionDialogService actionOptionDialogService;
+    private HandPanelController handPanelController;
+    private RentPaymentPanelController rentPaymentPanelController;
+    private PlayActionController playActionController;
+    private ResponsePanelController responsePanelController;
     private String infoPanel = "intro";
     private boolean infoDetailExpanded;
-    private int pendingRentPaymentM;
-    private String lastAutoDrawKey = "";
-    private String playedSessionKey = "";
-    private String playedTurnKey = "";
-    private long lastRecordedPlayedSequence;
     private int trafficLineCount;
-    private boolean awaitingInitialState;
     private boolean infoVisible;
-    private final List<PlayedEvent> playedEvents = new ArrayList<>();
 
     @FXML private StackPane root;
     @FXML private BorderPane gamePane;
@@ -213,6 +195,83 @@ public class MainController {
 
     @FXML
     private void initialize() {
+        connectionController = new ConnectionController(
+                ws,
+                state,
+                new ConnectionController.Refs(wsUrlField, statusLabel, connectionLabel, connectButton, disconnectButton),
+                this::i18n,
+                this::appendTraffic,
+                this::handleInbound,
+                this::showError,
+                this::clearError,
+                this::switchToStartView,
+                this::updateLobbyControls,
+                this::clearPlayedEvents);
+        commandGateway = new ClientCommandGateway(
+                ws,
+                state,
+                this::sessionId,
+                this::onConnect,
+                this::showError,
+                this::appendTraffic,
+                this::i18n);
+        actionOptionDialogService = new ActionOptionDialogService(
+                root,
+                state,
+                this::playerId,
+                this::publicCardLabel,
+                this::displayNameForPlayer,
+                this::colorName,
+                this::i18n,
+                this::sendPlay);
+        handPanelController = new HandPanelController(
+                state,
+                new HandPanelController.Refs(handScroll, handStrip, selectedCardLabel, selectedPreviewPane),
+                this::cardKindClass,
+                this::i18n);
+        rentPaymentPanelController = new RentPaymentPanelController(
+                state,
+                new RentPaymentPanelController.Refs(
+                        rentPaymentBox,
+                        rentPaymentHint,
+                        rentPaymentSumLabel,
+                        rentPaymentPickPane,
+                        rentPaymentGreedyButton,
+                        rentPaymentSubmitButton,
+                        rentPaymentClearButton),
+                this::playerId,
+                this::findPlayerInState,
+                this::cardTitle,
+                this::showError,
+                paymentIds -> sendEnvelope("PLAY", WsJson.playResponsePass(playerId(), paymentIds)),
+                this::i18n);
+        playActionController = new PlayActionController(
+                state,
+                this::playerId,
+                this::needsOverflowDiscard,
+                this::showError,
+                message -> localizedBackendMessage(message, i18n("error.noOptions")),
+                commandGateway,
+                actionOptionDialogService,
+                this::i18n);
+        responsePanelController = new ResponsePanelController(
+                state,
+                new ResponsePanelController.Refs(
+                        responseBox,
+                        responseTitleLabel,
+                        responseCountdownLabel,
+                        responseContextLabel,
+                        responseJsnButton,
+                        responsePassButton,
+                        eventLineLabel),
+                this::playerId,
+                this::displayNameForPlayer,
+                this::colorName,
+                this::actionEffectLabel,
+                payload -> sendEnvelope("PLAY", payload),
+                this::showError,
+                this::i18n);
+
         wsUrlField.setText("ws://localhost:8025/ws");
         sessionIdField.setText("web-demo");
         playerIdField.setText("human-1");
@@ -252,26 +311,12 @@ public class MainController {
             customLineupCombo.getEditor().textProperty().addListener((obs, oldValue, newValue) -> syncCustomLineupCount());
         }
         roomListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, label) -> {
-            JsonObject row = roomRowsByLabel.get(label);
+            JsonObject row = state.roomRowsByLabel.get(label);
             if (row != null) {
                 sessionIdField.setText(jsonString(row, "sessionId", sessionIdField.getText()));
             }
         });
-        handToggleGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
-            if (newToggle instanceof CardView cardView) {
-                selectedCard = cardView.getCardData();
-                selectedCardLabel.setText(i18n("label.selected", selectedCard.getTitle()));
-            } else {
-                selectedCard = null;
-                selectedCardLabel.setText(i18n("label.selectCardHint"));
-            }
-            updateSelectedPreview();
-            syncActionButtons();
-        });
-
-        if (handScroll != null) {
-            handScroll.viewportBoundsProperty().addListener((obs, oldB, newB) -> recomputeHandSpacing());
-        }
+        handPanelController.installSelectionHandling(handToggleGroup, this::quickPlay, this::syncActionButtons);
 
         trafficArea.setEditable(false);
         randomizeFirstCheck.setSelected(false);
@@ -325,104 +370,20 @@ public class MainController {
 
     @FXML
     private void onConnect() {
-        clearError();
-        statusLabel.setText(i18n("status.connecting"));
-        connectionLabel.setText(i18n("status.connecting"));
-        cancelConnectionTimeout();
-        ws.connect(wsUrlField.getText().trim(), new FxWebSocketClient.Listener() {
-            @Override
-            public void onOpen() {
-                Platform.runLater(() -> {
-                    cancelConnectionTimeout();
-                    statusLabel.setText(i18n("status.connected"));
-                    connectionLabel.setText(i18n("status.connected"));
-                    appendTraffic("« " + i18n("log.wsOpened") + " »");
-                    refreshButtons();
-                    if (postConnectAction != null) {
-                        Runnable action = postConnectAction;
-                        postConnectAction = null;
-                        action.run();
-                    } else {
-                        onRefreshRooms();
-                    }
-                });
-            }
-
-            @Override
-            public void onMessage(String text) {
-                Platform.runLater(() -> handleInbound(text));
-            }
-
-            @Override
-            public void onError(Throwable error) {
-                Platform.runLater(() -> {
-                    cancelConnectionTimeout();
-                    postConnectAction = null;
-                    statusLabel.setText(i18n("status.connectFailed", error.getMessage()));
-                    connectionLabel.setText(i18n("status.disconnected"));
-                    showError(i18n("error.connectHint", wsUrlField.getText().trim()));
-                    appendTraffic("« " + i18n("log.error") + " » " + error);
-                    refreshButtons();
-                });
-            }
-
-            @Override
-            public void onClose(int code, String reason) {
-                Platform.runLater(() -> {
-                    cancelConnectionTimeout();
-                    statusLabel.setText(i18n("status.closed", code));
-                    connectionLabel.setText(i18n("status.disconnected"));
-                    appendTraffic("« " + i18n("log.closed", code, reason) + " »");
-                    lastStatePayload = null;
-                    clearPlayedEvents();
-                    pendingOptionsResultHandler = null;
-                    postConnectAction = null;
-                    awaitingInitialState = false;
-                    currentLobbyRoom = null;
-                    switchToStartView();
-                    refreshButtons();
-                    updateLobbyControls();
-                });
-            }
-        });
-        connectionTimeout = new PauseTransition(Duration.seconds(8));
-        connectionTimeout.setOnFinished(e -> {
-            if (!ws.isConnected()) {
-                postConnectAction = null;
-                statusLabel.setText(i18n("status.timeout"));
-                connectionLabel.setText(i18n("status.disconnected"));
-                showError(i18n("error.connectHint", wsUrlField.getText().trim()));
-                refreshButtons();
-            }
-        });
-        connectionTimeout.play();
+        connectionController.connect(this::onRefreshRooms);
     }
 
     @FXML
     private void onDisconnect() {
         stopResponseCountdown();
-        ws.closeQuietly();
-        statusLabel.setText(i18n("status.disconnected"));
-        connectionLabel.setText(i18n("status.disconnected"));
-        lastStatePayload = null;
-        latestHandCards = new JsonArray();
-        latestHandSignature = "";
-        clearPlayedEvents();
-        currentLobbyRoom = null;
-        selectedCard = null;
-        pendingOptionsResultHandler = null;
-        awaitingInitialState = false;
-        roomRowsByLabel.clear();
+        connectionController.disconnect(this::switchToStartView, this::updateLobbyControls);
         roomListView.getItems().clear();
-        switchToStartView();
-        refreshButtons();
-        updateLobbyControls();
     }
 
     @FXML
     private void onStartGame() {
         runWhenConnected(() -> {
-            awaitingInitialState = true;
+            state.awaitingInitialState = true;
             setupErrorLabel.setVisible(true);
             setupErrorLabel.setManaged(true);
             setupErrorLabel.setText(i18n("msg.startingSession"));
@@ -448,7 +409,7 @@ public class MainController {
     @FXML
     private void onJoinRoom() {
         String selected = roomListView.getSelectionModel().getSelectedItem();
-        JsonObject row = roomRowsByLabel.get(selected);
+        JsonObject row = state.roomRowsByLabel.get(selected);
         if (row != null) {
             sessionIdField.setText(jsonString(row, "sessionId", sessionIdField.getText()));
         } else if (sessionId().isBlank()) {
@@ -472,7 +433,7 @@ public class MainController {
     @FXML
     private void onLeaveRoom() {
         sendEnvelope("LEAVE_ROOM", scopedPayload());
-        currentLobbyRoom = null;
+        state.currentLobbyRoom = null;
         rebuildRoomState(null);
         updateLobbyControls();
     }
@@ -490,7 +451,7 @@ public class MainController {
     @FXML
     private void onEndTurn() {
         if (needsOverflowDiscard()) {
-            showError(i18n("needDiscard", jsonInt(lastStatePayload, "overflowDiscardCount", 0)));
+            showError(i18n("needDiscard", jsonInt(state.lastStatePayload, "overflowDiscardCount", 0)));
             return;
         }
         sendEnvelope("END_TURN", Map.of());
@@ -518,71 +479,32 @@ public class MainController {
 
     @FXML
     private void onResponsePass() {
-        sendEnvelope("PLAY", WsJson.playResponsePass(playerId(), null));
+        responsePanelController.pass();
     }
 
     @FXML
     private void onPlayJustSayNo() {
-        JsonObject card = findJustSayNoCard();
-        if (card == null) {
-            showError(i18n("error.noJsn"));
-            return;
-        }
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("actionType", "ACTION");
-        payload.put("actingPlayerId", playerId());
-        payload.put("cardId", jsonString(card, "id", ""));
-        sendEnvelope("PLAY", payload);
+        responsePanelController.playJustSayNo();
     }
 
     @FXML
     private void onRentPaymentGreedy() {
-        List<String> recommended = recommendedPaymentIds();
-        selectedPaymentIds.clear();
-        selectedPaymentIds.addAll(recommended);
-        for (Node node : rentPaymentPickPane.getChildren()) {
-            if (node instanceof CheckBox cb) {
-                Object id = cb.getUserData();
-                cb.setSelected(id instanceof String s && selectedPaymentIds.contains(s));
-            }
-        }
-        if (!recommended.isEmpty()) {
-            refreshRentPaymentSumLabel();
-            sendEnvelope("PLAY", WsJson.playResponsePass(playerId(), recommended));
-        } else {
-            sendEnvelope("PLAY", WsJson.playResponsePass(playerId(), null));
-        }
+        rentPaymentPanelController.selectRecommendedAndSubmit();
     }
 
     @FXML
     private void onRentPaymentSubmit() {
-        if (selectedPaymentIds.isEmpty()) {
-            showError(i18n("error.selectAtLeast"));
-            return;
-        }
-        int selected = computeSelectedPaymentSum();
-        int total = totalPayableValue();
-        if (selected < pendingRentPaymentM && selected < total) {
-            showError(i18n("error.insufficientValue", pendingRentPaymentM));
-            return;
-        }
-        sendEnvelope("PLAY", WsJson.playResponsePass(playerId(), new ArrayList<>(selectedPaymentIds)));
+        rentPaymentPanelController.submitSelection();
     }
 
     @FXML
     private void onRentPaymentClear() {
-        selectedPaymentIds.clear();
-        for (Node node : rentPaymentPickPane.getChildren()) {
-            if (node instanceof CheckBox cb) {
-                cb.setSelected(false);
-            }
-        }
-        refreshRentPaymentSumLabel();
+        rentPaymentPanelController.clearSelection();
     }
 
     void shutdown() {
         stopResponseCountdown();
-        ws.closeQuietly();
+        connectionController.shutdown();
     }
 
     private void onAuth() {
@@ -619,256 +541,11 @@ public class MainController {
     }
 
     private void playSelected(String actionType) {
-        if (selectedCard == null) {
-            showError(i18n("selectCardFirst"));
-            return;
-        }
-        if (needsOverflowDiscard() && !"DISCARD".equals(actionType)) {
-            showError(i18n("needDiscard", jsonInt(lastStatePayload, "overflowDiscardCount", 0)));
-            return;
-        }
-        Map<String, Object> direct = directPlayPayload(selectedCard, actionType);
-        if (direct != null) {
-            sendEnvelope("PLAY", direct);
-            return;
-        }
-        requestPlayOptionsThenPlay(selectedCard.getId(), actionType, shouldAutoChooseOption(selectedCard, actionType));
+        playActionController.playSelected(actionType);
     }
 
     private void quickPlay(CardDisplayData card) {
-        if (card == null) {
-            return;
-        }
-        selectedCard = card;
-        String actionType = defaultActionForCard(card);
-        if (needsOverflowDiscard() && !"DISCARD".equals(actionType)) {
-            showError(i18n("needDiscard", jsonInt(lastStatePayload, "overflowDiscardCount", 0)));
-            return;
-        }
-        Map<String, Object> direct = directPlayPayload(card, actionType);
-        if (direct != null) {
-            sendEnvelope("PLAY", direct);
-            return;
-        }
-        requestPlayOptionsThenPlay(card.getId(), actionType, shouldAutoChooseOption(card, actionType));
-    }
-
-    private Map<String, Object> directPlayPayload(CardDisplayData card, String actionType) {
-        if (card == null || card.getId().isBlank()) {
-            return null;
-        }
-        if ("DEPOSIT".equals(actionType) || "DISCARD".equals(actionType)) {
-            return WsJson.playPayload(actionType, card.getId(), null, null, null, null, null, null);
-        }
-        if ("DEPLOY".equals(actionType) && "PROPERTY".equals(card.getKind())) {
-            return WsJson.playPayload(actionType, card.getId(), null, null, null, null, null, null);
-        }
-        return null;
-    }
-
-    private boolean shouldAutoChooseOption(CardDisplayData card, String actionType) {
-        if ("DEPLOY".equals(actionType) && "WILD".equals(card.getKind())) {
-            return false;
-        }
-        if (!"ACTION".equals(actionType)) {
-            return true;
-        }
-        String effect = safeUpper(card.getEffectCode());
-        return !"RENT".equals(effect)
-                && !"RENT_DUAL".equals(effect)
-                && !"DEBT_COLLECTOR".equals(effect)
-                && !"STEAL_PROPERTY".equals(effect)
-                && !"FORCED_DEAL".equals(effect)
-                && !"DEAL_BREAKER".equals(effect);
-    }
-
-    private void requestPlayOptionsThenPlay(String cardId, String actionType, boolean autoDefault) {
-        if (pendingOptionsResultHandler != null) {
-            showError(i18n("error.waitOption"));
-            return;
-        }
-        pendingOptionsResultHandler = payload -> handlePlayOptions(payload, cardId, actionType, autoDefault);
-        Map<String, Object> request = new LinkedHashMap<>();
-        request.put("playerId", playerId());
-        request.put("cardId", cardId);
-        request.put("actionType", actionType);
-        sendEnvelope("PLAY_OPTIONS", request);
-    }
-
-    private void handlePlayOptions(JsonObject payload, String cardId, String actionType, boolean autoDefault) {
-        if (payload == null || !jsonBool(payload, "ok", false)) {
-            showError(localizedBackendMessage(jsonString(payload, "error", ""), i18n("error.noOptions")));
-            return;
-        }
-        JsonArray options = payload.has("options") && payload.get("options").isJsonArray()
-                ? payload.getAsJsonArray("options")
-                : new JsonArray();
-        boolean mustChoose = mustChooseOption(selectedCard, actionType, options);
-        if (!mustChoose && (autoDefault || options.size() <= 1)) {
-            JsonObject row = options.size() == 0 ? new JsonObject() : options.get(0).getAsJsonObject();
-            sendPlayFromOptionRow(actionType, cardId, row);
-            return;
-        }
-        showOptionDialog(actionType, cardId, options);
-    }
-
-    private boolean mustChooseOption(CardDisplayData card, String actionType, JsonArray options) {
-        if ("DEPLOY".equals(actionType) && card != null && "WILD".equals(card.getKind())) {
-            return true;
-        }
-        if (!"ACTION".equals(actionType) || card == null) {
-            return false;
-        }
-        String effect = safeUpper(card.getEffectCode());
-        if ("RENT".equals(effect) || "RENT_DUAL".equals(effect)) {
-            return true;
-        }
-        return ("DEBT_COLLECTOR".equals(effect)
-                || "STEAL_PROPERTY".equals(effect)
-                || "FORCED_DEAL".equals(effect)
-                || "DEAL_BREAKER".equals(effect))
-                && options != null && options.size() > 1;
-    }
-
-    private void showOptionDialog(String actionType, String cardId, JsonArray options) {
-        if (options == null || options.size() == 0) {
-            sendPlay(cardId, actionType, null, null, null, null, null);
-            return;
-        }
-        javafx.scene.control.Dialog<JsonObject> dialog = new javafx.scene.control.Dialog<>();
-        dialog.setTitle(i18n("dialog.chooseParam"));
-        dialog.setHeaderText(i18n("dialog.playOptionHeader"));
-        ButtonType cancelType = new ButtonType(i18n("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        ButtonType confirmType = new ButtonType(i18n("dialog.confirm"), ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(cancelType, confirmType);
-        ListView<JsonObject> list = new ListView<>();
-        list.setPrefSize(640, Math.min(420, Math.max(180, options.size() * 54)));
-        for (JsonElement el : options) {
-            if (el.isJsonObject()) {
-                list.getItems().add(el.getAsJsonObject());
-            }
-        }
-        list.setCellFactory(view -> new javafx.scene.control.ListCell<>() {
-            @Override
-            protected void updateItem(JsonObject item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? "" : optionLabel(item, actionType));
-            }
-        });
-        if (!list.getItems().isEmpty()) {
-            list.getSelectionModel().selectFirst();
-        }
-        dialog.getDialogPane().setContent(list);
-        dialog.setResultConverter(button -> button == confirmType
-                ? list.getSelectionModel().getSelectedItem()
-                : null);
-        if (root != null && root.getScene() != null) {
-            dialog.initOwner(root.getScene().getWindow());
-        }
-        dialog.showAndWait().ifPresent(row -> sendPlayFromOptionRow(actionType, cardId, row));
-    }
-
-    private String optionLabel(JsonObject row, String actionType) {
-        if (row == null) {
-            return i18n("dialog.directPlay");
-        }
-        if ("DEPLOY".equals(actionType)) {
-            String color = jsonString(row, "targetColorKey", "");
-            if (!color.isBlank()) {
-                return i18n("deployAsColor", colorName(color));
-            }
-        }
-        String effect = selectedCard == null ? "" : safeUpper(selectedCard.getEffectCode());
-        String targetPlayer = jsonString(row, "targetPlayerId", "");
-        String targetColor = jsonString(row, "targetColorKey", "");
-        String targetCard = jsonString(row, "targetCardId", "");
-        String actorCard = jsonString(row, "actorCardId", "");
-        boolean allOthers = jsonBool(row, "allOtherPlayers", false);
-        String targetName = targetPlayer.isBlank() ? i18n("player.fallback") : displayNameForPlayer(targetPlayer);
-        String targetColorName = targetColor.isBlank() ? "" : colorName(targetColor);
-        String targetCardName = targetCard.isBlank() ? i18n("dialog.unknownCard") : publicCardLabel(targetPlayer, targetCard);
-        String actorCardName = actorCard.isBlank() ? i18n("dialog.unknownCard") : publicCardLabel(playerId(), actorCard);
-
-        if ("ACTION".equals(actionType)) {
-            switch (effect) {
-                case "STEAL_PROPERTY" -> {
-                    return i18n("dialog.stealOption", targetName, targetCardName);
-                }
-                case "FORCED_DEAL" -> {
-                    return i18n("dialog.forcedDealOption", actorCardName, targetName, targetCardName);
-                }
-                case "DEAL_BREAKER" -> {
-                    return i18n("dialog.dealBreakerOption", targetName, targetColorName);
-                }
-                case "DEBT_COLLECTOR" -> {
-                    return i18n("dialog.debtOption", targetName);
-                }
-                case "RENT", "RENT_DUAL" -> {
-                    String label = allOthers
-                            ? i18n("dialog.allRentOption", targetColorName)
-                            : i18n("dialog.rentOption", targetName, targetColorName);
-                    String amountLabel = optionRentAmountLabel(row);
-                    return amountLabel.isBlank() ? label : label + " · " + amountLabel;
-                }
-                case "DOUBLE_RENT" -> {
-                    return i18n("dialog.doubleRentOption");
-                }
-                case "HOUSE" -> {
-                    return i18n("dialog.houseOption", targetCardName);
-                }
-                case "HOTEL" -> {
-                    return i18n("dialog.hotelOption", targetCardName);
-                }
-                default -> {
-                    if (targetPlayer.isBlank() && targetColor.isBlank() && targetCard.isBlank() && actorCard.isBlank()) {
-                        return i18n("dialog.directPlay");
-                    }
-                }
-            }
-        }
-
-        String label = jsonString(row, I18n.isChinese() ? "labelZh" : "labelEn", "");
-        if (I18n.isChinese() && !label.isBlank()) {
-            return label;
-        }
-        List<String> pieces = new ArrayList<>();
-        if (!targetPlayer.isBlank()) {
-            pieces.add(i18n("dialog.targetPlayer") + ": " + targetName);
-        }
-        if (!targetColor.isBlank()) {
-            pieces.add(i18n("dialog.targetColor") + ": " + targetColorName);
-        }
-        if (!targetCard.isBlank()) {
-            pieces.add(i18n("dialog.targetCard") + ": " + targetCardName);
-        }
-        if (!actorCard.isBlank()) {
-            pieces.add(i18n("dialog.actorCard") + ": " + actorCardName);
-        }
-        return pieces.isEmpty() ? i18n("dialog.directPlay") : String.join(" · ", pieces);
-    }
-
-    private String optionRentAmountLabel(JsonObject row) {
-        int amount = firstPositiveJsonInt(row, "displayRentAmountM", "rentAmountM", "amountDueM", "amountDue");
-        if (amount <= 0) {
-            return "";
-        }
-        int base = firstPositiveJsonInt(row, "baseRentAmountM", "baseAmountM");
-        return base > 0 && base != amount
-                ? i18n("dialog.rentPreviewDouble", amount, base)
-                : i18n("dialog.rentPreview", amount);
-    }
-
-    private static int firstPositiveJsonInt(JsonObject row, String... keys) {
-        if (row == null || keys == null) {
-            return 0;
-        }
-        for (String key : keys) {
-            int value = jsonInt(row, key, 0);
-            if (value > 0) {
-                return value;
-            }
-        }
-        return 0;
+        playActionController.quickPlay(card);
     }
 
     private String publicCardLabel(String ownerPlayerId, String cardId) {
@@ -898,21 +575,21 @@ public class MainController {
     }
 
     private JsonObject findPublicCard(String ownerPlayerId, String cardId) {
-        JsonObject fromHand = findCardInArray(latestHandCards, cardId);
+        JsonObject fromHand = findCardInArray(state.latestHandCards, cardId);
         if (fromHand != null) {
             return fromHand;
         }
-        if (lastStatePayload == null || !lastStatePayload.has("players") || !lastStatePayload.get("players").isJsonArray()) {
+        if (state.lastStatePayload == null || !state.lastStatePayload.has("players") || !state.lastStatePayload.get("players").isJsonArray()) {
             return null;
         }
         JsonObject exactOwner = ownerPlayerId == null || ownerPlayerId.isBlank()
                 ? null
-                : findPlayerInState(lastStatePayload, ownerPlayerId);
+                : findPlayerInState(state.lastStatePayload, ownerPlayerId);
         JsonObject found = findPublicCardInPlayer(exactOwner, cardId);
         if (found != null) {
             return found;
         }
-        for (JsonElement el : lastStatePayload.getAsJsonArray("players")) {
+        for (JsonElement el : state.lastStatePayload.getAsJsonArray("players")) {
             if (el.isJsonObject()) {
                 found = findPublicCardInPlayer(el.getAsJsonObject(), cardId);
                 if (found != null) {
@@ -949,19 +626,6 @@ public class MainController {
             }
         }
         return null;
-    }
-
-    private void sendPlayFromOptionRow(String actionType, String cardId, JsonObject row) {
-        boolean allOthers = row != null && jsonBool(row, "allOtherPlayers", false);
-        sendPlay(
-                cardId,
-                actionType,
-                allOthers ? null : blankToNull(jsonString(row, "targetPlayerId", "")),
-                blankToNull(jsonString(row, "targetColorKey", "")),
-                blankToNull(jsonString(row, "targetCardId", "")),
-                blankToNull(jsonString(row, "actorCardId", "")),
-                blankToNull(jsonString(row, "targetZone", ""))
-        );
     }
 
     private void sendPlay(
@@ -1015,9 +679,9 @@ public class MainController {
     }
 
     private void applyStateUpdate(String raw) {
-        lastStatePayload = payload(raw);
-        awaitingInitialState = false;
-        updatePlayedEvents(lastStatePayload);
+        state.lastStatePayload = payload(raw);
+        state.awaitingInitialState = false;
+        updatePlayedEvents(state.lastStatePayload);
         switchToGameView();
         clearError();
         rebuildAllFromState();
@@ -1029,10 +693,10 @@ public class MainController {
         JsonArray cards = payload.has("cards") && payload.get("cards").isJsonArray()
                 ? payload.getAsJsonArray("cards")
                 : new JsonArray();
-        String signature = handSignature(cards);
-        latestHandCards = cards;
-        if (!signature.equals(latestHandSignature)) {
-            latestHandSignature = signature;
+        String signature = HandPanelController.handSignature(cards);
+        state.latestHandCards = cards;
+        if (!signature.equals(state.latestHandSignature)) {
+            state.latestHandSignature = signature;
             rebuildHand();
         }
         updateResponsePanel();
@@ -1041,7 +705,7 @@ public class MainController {
 
     private void applyRoomListResult(String raw) {
         JsonObject payload = payload(raw);
-        roomRowsByLabel.clear();
+        state.roomRowsByLabel.clear();
         roomListView.getItems().clear();
         if (payload.has("rooms") && payload.get("rooms").isJsonArray()) {
             for (JsonElement el : payload.getAsJsonArray("rooms")) {
@@ -1050,7 +714,7 @@ public class MainController {
                 }
                 JsonObject room = el.getAsJsonObject();
                 String label = roomListLabel(room);
-                roomRowsByLabel.put(label, room);
+                state.roomRowsByLabel.put(label, room);
                 roomListView.getItems().add(label);
             }
         }
@@ -1060,21 +724,21 @@ public class MainController {
     }
 
     private void applyRoomState(String raw) {
-        currentLobbyRoom = payload(raw);
-        String sid = jsonString(currentLobbyRoom, "sessionId", "");
+        state.currentLobbyRoom = payload(raw);
+        String sid = jsonString(state.currentLobbyRoom, "sessionId", "");
         if (!sid.isBlank()) {
             sessionIdField.setText(sid);
         }
-        JsonObject mySeat = findMyLobbySeat(currentLobbyRoom);
+        JsonObject mySeat = findMyLobbySeat(state.currentLobbyRoom);
         if (mySeat != null) {
             String id = jsonString(mySeat, "playerId", "");
             if (!id.isBlank()) {
                 playerIdField.setText(id);
             }
         }
-        rebuildRoomState(currentLobbyRoom);
+        rebuildRoomState(state.currentLobbyRoom);
         updateLobbyControls();
-        if (jsonBool(currentLobbyRoom, "started", false)) {
+        if (jsonBool(state.currentLobbyRoom, "started", false)) {
             switchToGameView();
         }
     }
@@ -1084,16 +748,12 @@ public class MainController {
     }
 
     private void applyPendingOptionsResult(String raw) {
-        Consumer<JsonObject> handler = pendingOptionsResultHandler;
-        pendingOptionsResultHandler = null;
-        if (handler != null) {
-            handler.accept(payload(raw));
-        }
+        playActionController.applyPendingOptionsResult(payload(raw));
     }
 
     private void applyInboundError(String raw) {
-        pendingOptionsResultHandler = null;
-        awaitingInitialState = false;
+        state.pendingOptionsResultHandler = null;
+        state.awaitingInitialState = false;
         JsonObject payload = payload(raw);
         String message = jsonString(payload, "message", jsonString(payload, "error", ""));
         showError(localizedBackendMessage(message, i18n("log.error")));
@@ -1109,7 +769,7 @@ public class MainController {
     }
 
     private void updateStatusTexts() {
-        JsonObject p = lastStatePayload;
+        JsonObject p = state.lastStatePayload;
         if (p == null) {
             tableStatusLabel.setText(i18n("ready"));
             eventLineLabel.setText(i18n("brandIntro"));
@@ -1242,9 +902,9 @@ public class MainController {
         if (lowerTableBox == null) {
             return;
         }
-        boolean focusedResponse = lastStatePayload != null
-                && "WAITING_FOR_RESPONSE".equals(jsonString(lastStatePayload, "turnPhase", ""))
-                && playerId().equals(jsonString(lastStatePayload, "pendingResponsePlayerId", ""));
+        boolean focusedResponse = state.lastStatePayload != null
+                && "WAITING_FOR_RESPONSE".equals(jsonString(state.lastStatePayload, "turnPhase", ""))
+                && playerId().equals(jsonString(state.lastStatePayload, "pendingResponsePlayerId", ""));
         lowerTableBox.setVisible(!focusedResponse);
         lowerTableBox.setManaged(!focusedResponse);
     }
@@ -1276,27 +936,34 @@ public class MainController {
         return line;
     }
 
+    private String responseActionTitle(JsonObject ctx, String prefix) {
+        String nameKey = prefix == null || prefix.isBlank() ? "actionCardName" : prefix + "ActionCardName";
+        String codeKey = prefix == null || prefix.isBlank() ? "actionEffectCode" : prefix + "ActionEffectCode";
+        String code = jsonString(ctx, codeKey, "");
+        String localized = actionEffectLabel(code);
+        if (!localized.isBlank() && !localized.startsWith("!action.")) {
+            return localized;
+        }
+        String name = jsonString(ctx, nameKey, "");
+        return name.isBlank() ? localized : name;
+    }
+
+    private String responsePlayerName(String name, String id) {
+        if (name != null && !name.isBlank()) {
+            return name;
+        }
+        return id == null || id.isBlank() ? "" : displayNameForPlayer(id);
+    }
+
     private String waitingResponseText() {
-        JsonObject p = lastStatePayload;
-        if (p == null || !"WAITING_FOR_RESPONSE".equals(jsonString(p, "turnPhase", ""))) {
-            return "";
-        }
-        String pending = jsonString(p, "pendingResponsePlayerId", "");
-        if (pending.isBlank()) {
-            return "";
-        }
-        long deadline = jsonLong(p, "responseDeadlineEpochMs", 0L);
-        String suffix = deadline > 0 ? " · " + Math.max(0L, (deadline - System.currentTimeMillis() + 999L) / 1000L) + "s" : "";
-        return playerId().equals(pending)
-                ? i18n("waitingYouResponse", suffix)
-                : i18n("waitingResponse", displayNameForPlayer(pending), suffix);
+        return responsePanelController.waitingResponseText();
     }
 
     private void rebuildPlayerBoards() {
         opponentsBox.getChildren().clear();
         myBoardBox.getChildren().clear();
         playedCardsPane.getChildren().clear();
-        JsonObject p = lastStatePayload;
+        JsonObject p = state.lastStatePayload;
         if (p == null || !p.has("players") || !p.get("players").isJsonArray()) {
             showEmptyTableState();
             return;
@@ -1358,45 +1025,45 @@ public class MainController {
         }
         String phase = jsonString(p, "phase", "");
         String sessionKey = jsonString(p, "sessionId", sessionId());
-        if (!sessionKey.equals(playedSessionKey)) {
+        if (!sessionKey.equals(state.playedSessionKey)) {
             clearPlayedEvents();
-            playedSessionKey = sessionKey;
+            state.playedSessionKey = sessionKey;
         }
         if ("INIT".equals(phase)) {
             clearPlayedEvents();
-            playedSessionKey = sessionKey;
+            state.playedSessionKey = sessionKey;
             return;
         }
         if (jsonBool(p, "gameOver", false)) {
-            playedEvents.clear();
+            state.playedEvents.clear();
             return;
         }
         if ("TURN_END".equals(phase)) {
-            playedEvents.clear();
-            playedTurnKey = playedTurnKey(p);
-            lastRecordedPlayedSequence = Math.max(lastRecordedPlayedSequence, jsonLong(p, "lastPlayedSequence", 0L));
+            state.playedEvents.clear();
+            state.playedTurnKey = playedTurnKey(p);
+            state.lastRecordedPlayedSequence = Math.max(state.lastRecordedPlayedSequence, jsonLong(p, "lastPlayedSequence", 0L));
             return;
         }
         String turnKey = playedTurnKey(p);
-        if (!turnKey.equals(playedTurnKey)) {
-            playedTurnKey = turnKey;
-            playedEvents.clear();
+        if (!turnKey.equals(state.playedTurnKey)) {
+            state.playedTurnKey = turnKey;
+            state.playedEvents.clear();
         }
         long sequence = jsonLong(p, "lastPlayedSequence", 0L);
         if (sequence <= 0 || !p.has("lastPlayedCard") || !p.get("lastPlayedCard").isJsonObject()) {
             return;
         }
-        if (sequence <= lastRecordedPlayedSequence) {
+        if (sequence <= state.lastRecordedPlayedSequence) {
             return;
         }
         JsonObject cardJson = p.getAsJsonObject("lastPlayedCard").deepCopy();
         String playerId = jsonString(p, "lastPlayedPlayerId", jsonString(p, "currentPlayerId", ""));
         String actionType = jsonString(p, "lastPlayedActionType", "");
         String summary = jsonString(p, "lastActionSummary", "");
-        playedEvents.add(new PlayedEvent(sequence, playerId, actionType, cardJson, summary));
-        lastRecordedPlayedSequence = sequence;
-        if (playedEvents.size() > 6) {
-            playedEvents.remove(0);
+        state.playedEvents.add(new FxClientState.PlayedEvent(sequence, playerId, actionType, cardJson, summary));
+        state.lastRecordedPlayedSequence = sequence;
+        if (state.playedEvents.size() > 6) {
+            state.playedEvents.remove(0);
         }
     }
 
@@ -1407,20 +1074,20 @@ public class MainController {
     }
 
     private void clearPlayedEvents() {
-        playedEvents.clear();
-        playedSessionKey = "";
-        playedTurnKey = "";
-        lastRecordedPlayedSequence = 0L;
+        state.playedEvents.clear();
+        state.playedSessionKey = "";
+        state.playedTurnKey = "";
+        state.lastRecordedPlayedSequence = 0L;
     }
 
     private void rebuildPlayedCards() {
-        if (playedEvents.isEmpty()) {
+        if (state.playedEvents.isEmpty()) {
             Label empty = new Label(i18n("playedEmpty"));
             empty.getStyleClass().add("played-empty");
             playedCardsPane.getChildren().add(empty);
             return;
         }
-        for (PlayedEvent event : playedEvents) {
+        for (FxClientState.PlayedEvent event : state.playedEvents) {
             CardDisplayData data = CardDisplayData.fromHandCardJson(event.card());
             StackPane node = PlayerBoardPanel.smallCardNode(data, "played-card");
             VBox wrap = new VBox(4);
@@ -1435,433 +1102,33 @@ public class MainController {
     }
 
     private void rebuildHand() {
-        handStrip.getChildren().clear();
-        for (Toggle toggle : new ArrayList<>(handToggleGroup.getToggles())) {
-            handToggleGroup.getToggles().remove(toggle);
-        }
-        selectedCard = null;
-        if (latestHandCards == null || latestHandCards.isEmpty()) {
-            selectedCardLabel.setText(i18n("emptyHand"));
-            updateSelectedPreview();
-            syncActionButtons();
-            return;
-        }
-        int index = 0;
-        int total = latestHandCards.size();
-        for (JsonElement el : latestHandCards) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
-            CardDisplayData data = CardDisplayData.fromHandCardJson(el.getAsJsonObject());
-            CardView view = new CardView(data, cardKindClass(data));
-            view.setToggleGroup(handToggleGroup);
-            view.setRotate(Math.max(-6.0, Math.min(6.0, (index - (total - 1) / 2.0) * 1.2)));
-            view.setOnMouseClicked(event -> {
-                if (event.getClickCount() >= 2) {
-                    quickPlay(data);
-                }
-            });
-            handStrip.getChildren().add(view);
-            index++;
-        }
-        recomputeHandSpacing();
-        selectedCardLabel.setText(i18n("label.selectCardHint"));
-        updateSelectedPreview();
-        syncActionButtons();
+        handPanelController.rebuildHand();
     }
 
-    /**
-     * Pick the hand-strip overlap so every card fits the visible width: spread out
-     * when there are few cards, tighten the fan when there are many, so the right
-     * edge never spills under the action pad.
-     */
     private void recomputeHandSpacing() {
-        int n = handStrip.getChildren().size();
-        if (n <= 1) {
-            handStrip.setSpacing(-32);
-            return;
-        }
-        double cardW = CardView.CARD_WIDTH;
-        double padding = 96; // hand-strip left + right insets
-        double spacing = -32;
-        double avail = handScroll != null && handScroll.getViewportBounds() != null
-                ? handScroll.getViewportBounds().getWidth()
-                : 0;
-        if (avail > cardW + padding) {
-            double step = (avail - padding - cardW) / (n - 1);
-            spacing = step - cardW;
-        }
-        // Always keep a slight overlap (fan look); never overlap into illegibility.
-        spacing = Math.max(-86, Math.min(-12, spacing));
-        handStrip.setSpacing(spacing);
-    }
-
-    private static String handSignature(JsonArray cards) {
-        if (cards == null || cards.isEmpty()) {
-            return "";
-        }
-        List<String> ids = new ArrayList<>();
-        for (JsonElement el : cards) {
-            if (el.isJsonObject()) {
-                ids.add(jsonString(el.getAsJsonObject(), "id", ""));
-            }
-        }
-        return String.join("|", ids);
+        handPanelController.recomputeHandSpacing();
     }
 
     private void updateSelectedPreview() {
-        selectedPreviewPane.getChildren().clear();
-        if (selectedCard == null) {
-            Label placeholder = new Label(i18n("preview.selectCard"));
-            placeholder.setWrapText(true);
-            placeholder.getStyleClass().add("selected-preview-empty");
-            selectedPreviewPane.getChildren().add(placeholder);
-            return;
-        }
-        CardView preview = new CardView(selectedCard, cardKindClass(selectedCard));
-        preview.getStyleClass().add("selected-preview-card");
-        preview.setMouseTransparent(true);
-        selectedPreviewPane.getChildren().add(preview);
+        handPanelController.updateSelectedPreview();
     }
 
     private void updateResponsePanel() {
-        JsonObject p = lastStatePayload;
-        boolean show = p != null
-                && "WAITING_FOR_RESPONSE".equals(jsonString(p, "turnPhase", ""))
-                && playerId().equals(jsonString(p, "pendingResponsePlayerId", ""));
-        responseBox.setVisible(show);
-        responseBox.setManaged(show);
-        if (!show) {
-            stopResponseCountdown();
-            return;
-        }
-        int due = jsonInt(p, "pendingPaymentAmountM", 0);
-        String role = jsonString(p, "pendingResponseRole", "");
-        if ("LANDLORD_COUNTER".equals(role)) {
-            responseTitleLabel.setText(i18n("response.counterTitle"));
-        } else if (due > 0) {
-            responseTitleLabel.setText(i18n("response.paymentTitle", due));
-        } else {
-            responseTitleLabel.setText(i18n("response.targetedTitle"));
-        }
-        responseContextLabel.setText(responseContextText(p, due));
-        responseJsnButton.setDisable(findJustSayNoCard() == null);
-        responsePassButton.setText(due > 0 ? i18n("btn.autoPay") : i18n("btn.passResponse"));
-        startResponseCountdown(jsonLong(p, "responseDeadlineEpochMs", 0L));
-    }
-
-    private void updateRentPaymentPanel() {
-        JsonObject p = lastStatePayload;
-        boolean show = p != null
-                && "WAITING_FOR_RESPONSE".equals(jsonString(p, "turnPhase", ""))
-                && playerId().equals(jsonString(p, "pendingResponsePlayerId", ""))
-                && "TENANT".equals(jsonString(p, "pendingResponseRole", ""))
-                && jsonInt(p, "pendingPaymentAmountM", 0) > 0;
-        rentPaymentBox.setVisible(show);
-        rentPaymentBox.setManaged(show);
-        if (!show) {
-            selectedPaymentIds.clear();
-            rentPaymentPickPane.getChildren().clear();
-            pendingRentPaymentM = 0;
-            return;
-        }
-        pendingRentPaymentM = jsonInt(p, "pendingPaymentAmountM", 0);
-        rentPaymentHint.setText(i18n("rent.hint", pendingRentPaymentM));
-        selectedPaymentIds.clear();
-        rentPaymentPickPane.getChildren().clear();
-        JsonObject self = findPlayerInState(p, playerId());
-        if (self != null) {
-            addRentPaymentChoices(self.getAsJsonArray("bankCards"), i18n("rent.zoneBank"));
-            addRentPaymentChoices(self.getAsJsonArray("propertyZoneCards"), i18n("rent.zoneProperty"));
-        }
-        selectedPaymentIds.addAll(recommendedPaymentIds());
-        for (Node node : rentPaymentPickPane.getChildren()) {
-            if (node instanceof CheckBox cb) {
-                Object id = cb.getUserData();
-                cb.setSelected(id instanceof String s && selectedPaymentIds.contains(s));
-            }
-        }
-        refreshRentPaymentSumLabel();
-    }
-
-    private void addRentPaymentChoices(JsonArray cards, String zone) {
-        if (cards == null) {
-            return;
-        }
-        for (JsonElement el : cards) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
-            JsonObject card = el.getAsJsonObject();
-            String id = jsonString(card, "id", "");
-            if (id.isBlank()) {
-                continue;
-            }
-            CardDisplayData data = CardDisplayData.fromHandCardJson(card);
-            CheckBox checkBox = new CheckBox(zone + " · " + cardTitle(data) + " · " + jsonInt(card, "valueM", 0) + "M");
-            checkBox.setUserData(id);
-            checkBox.getStyleClass().add("payment-check");
-            checkBox.selectedProperty().addListener((obs, oldValue, selected) -> {
-                if (selected) {
-                    selectedPaymentIds.add(id);
-                } else {
-                    selectedPaymentIds.remove(id);
-                }
-                refreshRentPaymentSumLabel();
-            });
-            rentPaymentPickPane.getChildren().add(checkBox);
-        }
-    }
-
-    private void refreshRentPaymentSumLabel() {
-        rentPaymentSumLabel.setText(i18n("rent.sumLabel", computeSelectedPaymentSum(), pendingRentPaymentM));
-    }
-
-    private int computeSelectedPaymentSum() {
-        JsonObject self = findPlayerInState(lastStatePayload, playerId());
-        if (self == null) {
-            return 0;
-        }
-        Map<String, Integer> values = new HashMap<>();
-        accumulateValues(self.getAsJsonArray("bankCards"), values);
-        accumulateValues(self.getAsJsonArray("propertyZoneCards"), values);
-        int total = 0;
-        for (String id : selectedPaymentIds) {
-            total += values.getOrDefault(id, 0);
-        }
-        return total;
-    }
-
-    private int totalPayableValue() {
-        JsonObject self = findPlayerInState(lastStatePayload, playerId());
-        if (self == null) {
-            return 0;
-        }
-        Map<String, Integer> values = new HashMap<>();
-        accumulateValues(self.getAsJsonArray("bankCards"), values);
-        accumulateValues(self.getAsJsonArray("propertyZoneCards"), values);
-        return values.values().stream().mapToInt(Integer::intValue).sum();
-    }
-
-    private List<String> recommendedPaymentIds() {
-        if (pendingRentPaymentM <= 0) {
-            return List.of();
-        }
-        JsonObject self = findPlayerInState(lastStatePayload, playerId());
-        if (self == null) {
-            return List.of();
-        }
-        List<PaymentOption> options = new ArrayList<>();
-        collectPaymentOptions(self.getAsJsonArray("bankCards"), "BANK", options);
-        collectPaymentOptions(self.getAsJsonArray("propertyZoneCards"), "PROPERTY", options);
-        return bestPaymentCardIds(options, pendingRentPaymentM);
-    }
-
-    private static void collectPaymentOptions(JsonArray cards, String zoneKey, List<PaymentOption> out) {
-        if (cards == null) {
-            return;
-        }
-        for (JsonElement el : cards) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
-            JsonObject card = el.getAsJsonObject();
-            String id = jsonString(card, "id", "");
-            int value = jsonInt(card, "valueM", 0);
-            if (!id.isBlank() && value > 0) {
-                out.add(new PaymentOption(id, value, zoneKey));
-            }
-        }
-    }
-
-    private static List<String> bestPaymentCardIds(List<PaymentOption> cards, int amountDue) {
-        int due = Math.max(0, amountDue);
-        if (due <= 0 || cards == null || cards.isEmpty()) {
-            return List.of();
-        }
-        List<PaymentOption> positive = cards.stream()
-                .filter(option -> option.value() > 0)
-                .toList();
-        if (positive.isEmpty()) {
-            return List.of();
-        }
-        List<PaymentOption> bankOnly = positive.stream()
-                .filter(option -> !"PROPERTY".equals(option.zoneKey()))
-                .toList();
-        int bankTotal = bankOnly.stream().mapToInt(PaymentOption::value).sum();
-        List<PaymentOption> eligible = bankTotal >= due ? bankOnly : positive;
-        int total = eligible.stream().mapToInt(PaymentOption::value).sum();
-        if (total < due) {
-            return eligible.stream().map(PaymentOption::id).toList();
-        }
-
-        List<PaymentChoice> dp = new ArrayList<>();
-        for (int i = 0; i <= total; i++) {
-            dp.add(null);
-        }
-        dp.set(0, new PaymentChoice(List.of(), 0, 0, 0, 0));
-        for (PaymentOption option : eligible) {
-            for (int sum = total - option.value(); sum >= 0; sum--) {
-                PaymentChoice prev = dp.get(sum);
-                if (prev == null) {
-                    continue;
-                }
-                int nextSum = sum + option.value();
-                PaymentChoice next = prev.with(option);
-                PaymentChoice current = dp.get(nextSum);
-                if (current == null || comparePaymentChoice(nextSum, next, nextSum, current) < 0) {
-                    dp.set(nextSum, next);
-                }
-            }
-        }
-
-        int bestSum = -1;
-        PaymentChoice best = null;
-        for (int sum = due; sum <= total; sum++) {
-            PaymentChoice candidate = dp.get(sum);
-            if (candidate == null) {
-                continue;
-            }
-            if (best == null || comparePaymentChoice(sum, candidate, bestSum, best) < 0) {
-                bestSum = sum;
-                best = candidate;
-            }
-        }
-        return best == null ? List.of() : best.ids();
-    }
-
-    private static int comparePaymentChoice(int amountA, PaymentChoice a, int amountB, PaymentChoice b) {
-        int amount = Integer.compare(amountA, amountB);
-        if (amount != 0) {
-            return amount;
-        }
-        int propertyCount = Integer.compare(a.propertyCount(), b.propertyCount());
-        if (propertyCount != 0) {
-            return propertyCount;
-        }
-        int propertyValue = Integer.compare(a.propertyValue(), b.propertyValue());
-        if (propertyValue != 0) {
-            return propertyValue;
-        }
-        int cardCount = Integer.compare(a.cardCount(), b.cardCount());
-        if (cardCount != 0) {
-            return cardCount;
-        }
-        return Integer.compare(a.bankValue(), b.bankValue());
-    }
-
-    private static void accumulateValues(JsonArray cards, Map<String, Integer> values) {
-        if (cards == null) {
-            return;
-        }
-        for (JsonElement el : cards) {
-            if (el.isJsonObject()) {
-                JsonObject card = el.getAsJsonObject();
-                values.put(jsonString(card, "id", ""), jsonInt(card, "valueM", 0));
-            }
-        }
-    }
-
-    private String responseContextText(JsonObject state, int due) {
-        JsonObject ctx = state.has("pendingResponseContext") && state.get("pendingResponseContext").isJsonObject()
-                ? state.getAsJsonObject("pendingResponseContext")
-                : null;
-        if (ctx == null) {
-            return due > 0 ? i18n("response.paymentBody") : i18n("response.defaultBody");
-        }
-        StringBuilder out = new StringBuilder();
-        out.append(i18n("response.actionLine", responseActionTitle(ctx, "")));
-        String actor = responsePlayerName(jsonString(ctx, "actorName", ""), jsonString(ctx, "actorPlayerId", ""));
-        String target = responsePlayerName(jsonString(ctx, "targetName", ""), jsonString(ctx, "targetPlayerId", ""));
-        if (!actor.isBlank() || !target.isBlank()) {
-            out.append("\n").append(i18n("response.fromTo",
-                    actor.isBlank() ? i18n("player.fallback") : actor,
-                    target.isBlank() ? i18n("player.fallback") : target));
-        }
-        String color = jsonString(ctx, "colorKey", "");
-        if (!color.isBlank()) {
-            out.append(" · ").append(colorName(color));
-        }
-        int amount = jsonInt(ctx, "amountDueM", due);
-        if (amount > 0) {
-            out.append(" · ").append(amount).append("M");
-        }
-        String original = responseActionTitle(ctx, "original");
-        if (!original.isBlank()) {
-            out.append("\n").append(i18n("response.originalLine", original));
-        }
-        return out.toString();
-    }
-
-    private String responseActionTitle(JsonObject ctx, String prefix) {
-        String nameKey = prefix == null || prefix.isBlank() ? "actionCardName" : prefix + "ActionCardName";
-        String codeKey = prefix == null || prefix.isBlank() ? "actionEffectCode" : prefix + "ActionEffectCode";
-        String code = jsonString(ctx, codeKey, "");
-        String localized = actionEffectLabel(code);
-        if (!localized.isBlank() && !localized.startsWith("!action.")) {
-            return localized;
-        }
-        String name = jsonString(ctx, nameKey, "");
-        return name.isBlank() ? localized : name;
-    }
-
-    private String responsePlayerName(String name, String id) {
-        if (name != null && !name.isBlank()) {
-            return name;
-        }
-        return id == null || id.isBlank() ? "" : displayNameForPlayer(id);
-    }
-
-    private void startResponseCountdown(long deadlineMs) {
-        stopResponseCountdown();
-        if (deadlineMs <= 0) {
-            responseCountdownLabel.setText("");
-            return;
-        }
-        updateResponseCountdownLabel(deadlineMs);
-        responseCountdownTimer = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
-            updateResponseCountdownLabel(deadlineMs);
-            eventLineLabel.setText(waitingResponseText());
-        }));
-        responseCountdownTimer.setCycleCount(Timeline.INDEFINITE);
-        responseCountdownTimer.play();
-    }
-
-    private void updateResponseCountdownLabel(long deadlineMs) {
-        long left = Math.max(0L, (deadlineMs - System.currentTimeMillis() + 999L) / 1000L);
-        responseCountdownLabel.setText(i18n("response.countdown", left));
+        responsePanelController.updatePanel();
     }
 
     private void stopResponseCountdown() {
-        if (responseCountdownTimer != null) {
-            responseCountdownTimer.stop();
-            responseCountdownTimer = null;
-        }
-        if (responseCountdownLabel != null) {
-            responseCountdownLabel.setText("");
-        }
+        responsePanelController.stopCountdown();
     }
 
-    private JsonObject findJustSayNoCard() {
-        if (latestHandCards == null) {
-            return null;
-        }
-        for (JsonElement el : latestHandCards) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
-            JsonObject card = el.getAsJsonObject();
-            if ("RENT_WAIVER".equalsIgnoreCase(jsonString(card, "effectCode", ""))) {
-                return card;
-            }
-        }
-        return null;
+    private void updateRentPaymentPanel() {
+        rentPaymentPanelController.updatePanel();
     }
 
     private void rebuildRoomState(JsonObject room) {
         roomMembersPane.getChildren().clear();
         roomSeatsGrid.getChildren().clear();
-        currentLobbyRoom = room;
+        state.currentLobbyRoom = room;
         updateLiveCardSubtitle();
         if (room == null) {
             roomStatusLabel.setText(i18n("lobby.noRoom"));
@@ -1953,16 +1220,16 @@ public class MainController {
     }
 
     private void updateLobbyControls() {
-        boolean inRoom = currentLobbyRoom != null;
-        boolean host = isLobbyHost(currentLobbyRoom);
+        boolean inRoom = state.currentLobbyRoom != null;
+        boolean host = isLobbyHost(state.currentLobbyRoom);
         lobbyPanel.setVisible(inRoom);
         lobbyPanel.setManaged(inRoom);
         createRoomButton.setDisable(inRoom);
         joinRoomButton.setDisable(inRoom);
         leaveRoomButton.setDisable(!inRoom);
-        JsonArray seats = currentLobbyRoom != null && currentLobbyRoom.has("seats")
-                && currentLobbyRoom.get("seats").isJsonArray()
-                ? currentLobbyRoom.getAsJsonArray("seats")
+        JsonArray seats = state.currentLobbyRoom != null && state.currentLobbyRoom.has("seats")
+                && state.currentLobbyRoom.get("seats").isJsonArray()
+                ? state.currentLobbyRoom.getAsJsonArray("seats")
                 : new JsonArray();
         startRoomButton.setDisable(!host || !canStartLobbyRoom(seats));
         if (!inRoom) {
@@ -1972,16 +1239,16 @@ public class MainController {
 
     private void syncActionButtons() {
         boolean connected = ws.isConnected();
-        boolean responsePending = lastStatePayload != null
-                && "WAITING_FOR_RESPONSE".equals(jsonString(lastStatePayload, "turnPhase", ""));
-        boolean myTurn = lastStatePayload != null
-                && playerId().equals(jsonString(lastStatePayload, "currentPlayerId", ""))
-                && playerId().equals(jsonString(lastStatePayload, "decisionPlayerId", jsonString(lastStatePayload, "currentPlayerId", "")));
-        String turnPhase = lastStatePayload == null ? "" : jsonString(lastStatePayload, "turnPhase", "");
-        boolean hasCard = selectedCard != null;
-        boolean money = hasCard && "MONEY".equals(selectedCard.getKind());
-        boolean action = hasCard && "ACTION".equals(selectedCard.getKind());
-        boolean property = hasCard && ("PROPERTY".equals(selectedCard.getKind()) || "WILD".equals(selectedCard.getKind()));
+        boolean responsePending = state.lastStatePayload != null
+                && "WAITING_FOR_RESPONSE".equals(jsonString(state.lastStatePayload, "turnPhase", ""));
+        boolean myTurn = state.lastStatePayload != null
+                && playerId().equals(jsonString(state.lastStatePayload, "currentPlayerId", ""))
+                && playerId().equals(jsonString(state.lastStatePayload, "decisionPlayerId", jsonString(state.lastStatePayload, "currentPlayerId", "")));
+        String turnPhase = state.lastStatePayload == null ? "" : jsonString(state.lastStatePayload, "turnPhase", "");
+        boolean hasCard = state.selectedCard != null;
+        boolean money = hasCard && "MONEY".equals(state.selectedCard.getKind());
+        boolean action = hasCard && "ACTION".equals(state.selectedCard.getKind());
+        boolean property = hasCard && ("PROPERTY".equals(state.selectedCard.getKind()) || "WILD".equals(state.selectedCard.getKind()));
         boolean showDraw = connected && !responsePending && myTurn && "DRAW".equals(turnPhase);
         drawButton.setVisible(showDraw);
         drawButton.setManaged(showDraw);
@@ -1994,22 +1261,22 @@ public class MainController {
     }
 
     private void maybeAutoDraw() {
-        if (!ws.isConnected() || lastStatePayload == null || jsonBool(lastStatePayload, "gameOver", false)) {
+        if (!ws.isConnected() || state.lastStatePayload == null || jsonBool(state.lastStatePayload, "gameOver", false)) {
             return;
         }
-        String turnPhase = jsonString(lastStatePayload, "turnPhase", "");
-        String current = jsonString(lastStatePayload, "currentPlayerId", "");
-        String decision = jsonString(lastStatePayload, "decisionPlayerId", current);
+        String turnPhase = jsonString(state.lastStatePayload, "turnPhase", "");
+        String current = jsonString(state.lastStatePayload, "currentPlayerId", "");
+        String decision = jsonString(state.lastStatePayload, "decisionPlayerId", current);
         if (!"DRAW".equals(turnPhase) || !playerId().equals(current) || !playerId().equals(decision)) {
             return;
         }
-        String key = jsonString(lastStatePayload, "sessionId", sessionId()) + ":"
-                + jsonLong(lastStatePayload, "stateSequence", 0L) + ":"
+        String key = jsonString(state.lastStatePayload, "sessionId", sessionId()) + ":"
+                + jsonLong(state.lastStatePayload, "stateSequence", 0L) + ":"
                 + current + ":" + turnPhase;
-        if (key.equals(lastAutoDrawKey)) {
+        if (key.equals(state.lastAutoDrawKey)) {
             return;
         }
-        lastAutoDrawKey = key;
+        state.lastAutoDrawKey = key;
         eventLineLabel.setText(i18n("autoDrawing"));
         sendEnvelope("DRAW", Map.of("count", 2));
     }
@@ -2041,12 +1308,12 @@ public class MainController {
     private void updateLiveCardSubtitle() {
         int joined = 0;
         int capacity = 5;
-        if (currentLobbyRoom != null) {
-            JsonArray members = currentLobbyRoom.has("members") && currentLobbyRoom.get("members").isJsonArray()
-                    ? currentLobbyRoom.getAsJsonArray("members")
+        if (state.currentLobbyRoom != null) {
+            JsonArray members = state.currentLobbyRoom.has("members") && state.currentLobbyRoom.get("members").isJsonArray()
+                    ? state.currentLobbyRoom.getAsJsonArray("members")
                     : new JsonArray();
-            JsonArray seats = currentLobbyRoom.has("seats") && currentLobbyRoom.get("seats").isJsonArray()
-                    ? currentLobbyRoom.getAsJsonArray("seats")
+            JsonArray seats = state.currentLobbyRoom.has("seats") && state.currentLobbyRoom.get("seats").isJsonArray()
+                    ? state.currentLobbyRoom.getAsJsonArray("seats")
                     : new JsonArray();
             joined = members.size();
             capacity = Math.max(2, seats.size());
@@ -2060,16 +1327,16 @@ public class MainController {
     }
 
     private void rebuildRoomListLabels() {
-        if (roomRowsByLabel.isEmpty()) {
+        if (state.roomRowsByLabel.isEmpty()) {
             return;
         }
-        JsonObject selectedRoom = roomRowsByLabel.get(roomListView.getSelectionModel().getSelectedItem());
-        List<JsonObject> rooms = new ArrayList<>(roomRowsByLabel.values());
-        roomRowsByLabel.clear();
+        JsonObject selectedRoom = state.roomRowsByLabel.get(roomListView.getSelectionModel().getSelectedItem());
+        List<JsonObject> rooms = new ArrayList<>(state.roomRowsByLabel.values());
+        state.roomRowsByLabel.clear();
         roomListView.getItems().clear();
         for (JsonObject room : rooms) {
             String label = roomListLabel(room);
-            roomRowsByLabel.put(label, room);
+            state.roomRowsByLabel.put(label, room);
             roomListView.getItems().add(label);
             if (selectedRoom == room) {
                 roomListView.getSelectionModel().select(label);
@@ -2182,8 +1449,8 @@ public class MainController {
         startRoomButton.setText(i18n("btn.startRoom"));
         leaveRoomButton.setText(i18n("btn.leaveRoom"));
         rebuildRoomListLabels();
-        if (currentLobbyRoom != null) {
-            rebuildRoomState(currentLobbyRoom);
+        if (state.currentLobbyRoom != null) {
+            rebuildRoomState(state.currentLobbyRoom);
         }
 
         disconnectButton.setText(i18n("btn.disconnect"));
@@ -2205,7 +1472,7 @@ public class MainController {
         rentPaymentClearButton.setText(i18n("btn.clearSelection"));
         responseJsnButton.setText(i18n("btn.playJsn"));
         responsePassButton.setText(i18n("btn.passResponse"));
-        if (selectedCard == null) {
+        if (state.selectedCard == null) {
             selectedCardLabel.setText(i18n("label.selectCardHint"));
         }
         syncModeUi();
@@ -2265,42 +1532,19 @@ public class MainController {
     }
 
     private void refreshButtons() {
-        boolean connected = ws.isConnected();
-        connectButton.setDisable(connected);
-        disconnectButton.setDisable(!connected);
+        connectionController.refreshButtons();
     }
 
     private void runWhenConnected(Runnable action) {
-        if (ws.isConnected()) {
-            action.run();
-            return;
-        }
-        postConnectAction = action;
-        onConnect();
+        commandGateway.runWhenConnected(action);
     }
 
     private void sendEnvelope(String type, Map<String, Object> payload) {
-        try {
-            Map<String, Object> scoped = new LinkedHashMap<>();
-            if (sessionId() != null && !sessionId().isBlank()) {
-                scoped.put("sessionId", sessionId());
-            }
-            if (payload != null) {
-                scoped.putAll(payload);
-            }
-            String json = WsJson.envelope(type, scoped);
-            ws.sendRaw(json);
-            appendTraffic("← " + type);
-        } catch (Exception ex) {
-            showError(i18n("log.sendFailed", ex.getMessage()));
-            appendTraffic("« " + i18n("log.sendFailed", ex.getMessage()) + " »");
-        }
+        commandGateway.sendEnvelope(type, payload);
     }
 
     private Map<String, Object> scopedPayload() {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("sessionId", sessionId());
-        return payload;
+        return commandGateway.scopedPayload();
     }
 
     private String roomListLabel(JsonObject room) {
@@ -2430,14 +1674,14 @@ public class MainController {
     }
 
     private String displayNameForPlayer(String id) {
-        JsonObject player = findPlayerInState(lastStatePayload, id);
+        JsonObject player = findPlayerInState(state.lastStatePayload, id);
         return player == null ? id : jsonString(player, "displayName", id);
     }
 
     private boolean needsOverflowDiscard() {
-        return lastStatePayload != null
-                && playerId().equals(jsonString(lastStatePayload, "currentPlayerId", ""))
-                && jsonInt(lastStatePayload, "overflowDiscardCount", 0) > 0;
+        return state.lastStatePayload != null
+                && playerId().equals(jsonString(state.lastStatePayload, "currentPlayerId", ""))
+                && jsonInt(state.lastStatePayload, "overflowDiscardCount", 0) > 0;
     }
 
     private List<String> customLineupRoles() {
@@ -2454,19 +1698,6 @@ public class MainController {
             }
         }
         return roles;
-    }
-
-    private String defaultActionForCard(CardDisplayData card) {
-        if ("MONEY".equals(card.getKind())) {
-            return "DEPOSIT";
-        }
-        if ("PROPERTY".equals(card.getKind()) || "WILD".equals(card.getKind())) {
-            return "DEPLOY";
-        }
-        if ("ACTION".equals(card.getKind())) {
-            return "ACTION";
-        }
-        return "DISCARD";
     }
 
     private String cardKindClass(CardDisplayData data) {
@@ -2491,26 +1722,6 @@ public class MainController {
             case "DISCARD", "FORCE_DISCARD" -> i18n("btn.discard");
             default -> i18n("directPlay");
         };
-    }
-
-    private record PlayedEvent(long sequence, String playerId, String actionType, JsonObject card, String summary) {
-    }
-
-    private record PaymentOption(String id, int value, String zoneKey) {
-    }
-
-    private record PaymentChoice(List<String> ids, int cardCount, int bankValue, int propertyCount, int propertyValue) {
-        PaymentChoice with(PaymentOption option) {
-            List<String> nextIds = new ArrayList<>(ids);
-            nextIds.add(option.id());
-            boolean property = "PROPERTY".equals(option.zoneKey());
-            return new PaymentChoice(
-                    List.copyOf(nextIds),
-                    cardCount + 1,
-                    bankValue + (property ? 0 : option.value()),
-                    propertyCount + (property ? 1 : 0),
-                    propertyValue + (property ? option.value() : 0));
-        }
     }
 
     private String actionEffectLabel(String code) {
@@ -2562,13 +1773,6 @@ public class MainController {
         gameErrorLabel.setText("");
         gameErrorLabel.setVisible(false);
         gameErrorLabel.setManaged(false);
-    }
-
-    private void cancelConnectionTimeout() {
-        if (connectionTimeout != null) {
-            connectionTimeout.stop();
-            connectionTimeout = null;
-        }
     }
 
     private void appendTraffic(String line) {
@@ -2629,65 +1833,6 @@ public class MainController {
         if (value.isBlank() || "玩家".equals(value) || "Player".equals(value)) {
             nicknameField.setText(i18n("default.nickname"));
         }
-    }
-
-    private static JsonObject payload(String raw) {
-        JsonObject root = JsonParser.parseString(raw).getAsJsonObject();
-        return root.has("payload") && root.get("payload").isJsonObject()
-                ? root.getAsJsonObject("payload")
-                : new JsonObject();
-    }
-
-    private static String jsonString(JsonObject obj, String key, String defaultValue) {
-        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
-            return defaultValue == null ? "" : defaultValue;
-        }
-        try {
-            return obj.get(key).getAsString();
-        } catch (RuntimeException ex) {
-            return defaultValue == null ? "" : defaultValue;
-        }
-    }
-
-    private static int jsonInt(JsonObject obj, String key, int defaultValue) {
-        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
-            return defaultValue;
-        }
-        try {
-            return obj.get(key).getAsInt();
-        } catch (RuntimeException ex) {
-            return defaultValue;
-        }
-    }
-
-    private static long jsonLong(JsonObject obj, String key, long defaultValue) {
-        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
-            return defaultValue;
-        }
-        try {
-            return obj.get(key).getAsLong();
-        } catch (RuntimeException ex) {
-            return defaultValue;
-        }
-    }
-
-    private static boolean jsonBool(JsonObject obj, String key, boolean defaultValue) {
-        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
-            return defaultValue;
-        }
-        try {
-            return obj.get(key).getAsBoolean();
-        } catch (RuntimeException ex) {
-            return defaultValue;
-        }
-    }
-
-    private static String safeUpper(String value) {
-        return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 
     private String i18n(String key, Object... args) {

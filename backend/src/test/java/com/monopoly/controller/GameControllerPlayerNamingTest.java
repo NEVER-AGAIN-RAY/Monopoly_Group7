@@ -9,7 +9,6 @@ import com.monopoly.pattern.strategy.DeepSeekAiPlayStrategy;
 import com.monopoly.pattern.strategy.HardAiPlayStrategy;
 import com.monopoly.pattern.strategy.LocalRankerAiPlayStrategy;
 import com.monopoly.pattern.strategy.SearchLookaheadAiPlayStrategy;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -22,10 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GameControllerPlayerNamingTest {
 
-    @AfterEach
-    void tearDown() {
-        GameSessionMemento.resetSingletonEngineForTests();
-    }
 
     @Test
     void hvmAiDisplayNamesIncludePlayerIndex() {
@@ -67,7 +62,6 @@ class GameControllerPlayerNamingTest {
     void randomFirstPlayerCanSelectDifferentStartingSeatsAcrossSessions() {
         Set<String> starters = IntStream.range(0, 40)
                 .mapToObj(i -> {
-                    GameSessionMemento.resetSingletonEngineForTests();
                     GameController controller = new GameController(new DefaultGameUpdateSubject());
                     StartSessionRequest req = new StartSessionRequest();
                     req.setSessionId("random-first-" + i);

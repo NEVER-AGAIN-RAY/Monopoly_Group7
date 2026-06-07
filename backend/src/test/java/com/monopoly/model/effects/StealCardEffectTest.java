@@ -29,7 +29,7 @@ class StealCardEffectTest {
         target.addToPropertyZone(wild);
 
         ActionEffectContext ctx = ActionEffectContext
-                .builder(actor, GameEngineSingleton.getInstance(), List.of(actor, target))
+                .builder(actor, GameEngineSingleton.createIsolated(), List.of(actor, target))
                 .target(target)
                 .targetProperty(wild)
                 .build();
@@ -53,7 +53,7 @@ class StealCardEffectTest {
         target.addToPropertyZone(brown2);
 
         ActionEffectContext ctx = ActionEffectContext
-                .builder(actor, GameEngineSingleton.getInstance(), List.of(actor, target))
+                .builder(actor, GameEngineSingleton.createIsolated(), List.of(actor, target))
                 .target(target)
                 .targetProperty(brown1)
                 .build();

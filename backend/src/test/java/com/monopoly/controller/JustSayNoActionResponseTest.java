@@ -34,9 +34,9 @@ class JustSayNoActionResponseTest {
         PropertyCard targetProperty = new PropertyCard("target-brown", "Target Brown", "BROWN");
         ActionCard steal = new ActionCard("steal-action", "Sly Deal", "STEAL_PROPERTY");
         ActionCard targetNo = new ActionCard("target-no", "Just Say No", "RENT_WAIVER");
-        target.addToPropertyZone(targetProperty);
-        actor.receiveCardToHand(steal);
-        target.receiveCardToHand(targetNo);
+        ControllerTestCards.addToPropertyZone(controller, target, targetProperty);
+        ControllerTestCards.receiveToHand(controller, actor, steal);
+        ControllerTestCards.receiveToHand(controller, target, targetNo);
 
         playStealProperty(controller, actor, target, steal, targetProperty);
 
@@ -63,10 +63,10 @@ class JustSayNoActionResponseTest {
         ActionCard steal = new ActionCard("steal-action", "Sly Deal", "STEAL_PROPERTY");
         ActionCard targetNo = new ActionCard("target-no", "Just Say No", "RENT_WAIVER");
         ActionCard actorNo = new ActionCard("actor-no", "Just Say No", "RENT_WAIVER");
-        target.addToPropertyZone(targetProperty);
-        actor.receiveCardToHand(steal);
-        target.receiveCardToHand(targetNo);
-        actor.receiveCardToHand(actorNo);
+        ControllerTestCards.addToPropertyZone(controller, target, targetProperty);
+        ControllerTestCards.receiveToHand(controller, actor, steal);
+        ControllerTestCards.receiveToHand(controller, target, targetNo);
+        ControllerTestCards.receiveToHand(controller, actor, actorNo);
 
         playStealProperty(controller, actor, target, steal, targetProperty);
         playJustSayNo(controller, target, targetNo);
@@ -86,9 +86,9 @@ class JustSayNoActionResponseTest {
         PropertyCard targetProperty = new PropertyCard("target-brown", "Target Brown", "BROWN");
         ActionCard steal = new ActionCard("steal-action", "Sly Deal", "STEAL_PROPERTY");
         ActionCard targetNo = new ActionCard("target-no", "Just Say No", "RENT_WAIVER");
-        target.addToPropertyZone(targetProperty);
-        actor.receiveCardToHand(steal);
-        target.receiveCardToHand(targetNo);
+        ControllerTestCards.addToPropertyZone(controller, target, targetProperty);
+        ControllerTestCards.receiveToHand(controller, actor, steal);
+        ControllerTestCards.receiveToHand(controller, target, targetNo);
 
         playStealProperty(controller, actor, target, steal, targetProperty);
         playJustSayNo(controller, target, targetNo);
@@ -115,9 +115,9 @@ class JustSayNoActionResponseTest {
         ActionCard birthday = new ActionCard("birthday-action", "Birthday", "BIRTHDAY");
         ActionCard targetNo = new ActionCard("target-no", "Just Say No", "RENT_WAIVER");
         MoneyCard targetMoney = new MoneyCard("target-2m", "2M", 2);
-        actor.receiveCardToHand(birthday);
-        target.receiveCardToHand(targetNo);
-        target.addToBank(targetMoney);
+        ControllerTestCards.receiveToHand(controller, actor, birthday);
+        ControllerTestCards.receiveToHand(controller, target, targetNo);
+        ControllerTestCards.addToBank(controller, target, targetMoney);
 
         PlayActionRequest req = new PlayActionRequest();
         req.setActionType("ACTION");
@@ -143,8 +143,8 @@ class JustSayNoActionResponseTest {
         Player target = controller.getSessionPlayersView().get(1);
         ActionCard birthday = new ActionCard("birthday-action", "Birthday", "BIRTHDAY");
         MoneyCard targetMoney = new MoneyCard("target-2m", "2M", 2);
-        actor.receiveCardToHand(birthday);
-        target.addToBank(targetMoney);
+        ControllerTestCards.receiveToHand(controller, actor, birthday);
+        ControllerTestCards.addToBank(controller, target, targetMoney);
 
         PlayActionRequest req = new PlayActionRequest();
         req.setActionType("ACTION");
@@ -166,9 +166,8 @@ class JustSayNoActionResponseTest {
         ActionCard debt = new ActionCard("debt-action", "Debt Collector", "DEBT_COLLECTOR");
         MoneyCard one = new MoneyCard("target-1m", "1M", 1);
         MoneyCard five = new MoneyCard("target-5m", "5M", 5);
-        actor.receiveCardToHand(debt);
-        target.addToBank(one);
-        target.addToBank(five);
+        ControllerTestCards.receiveToHand(controller, actor, debt);
+        ControllerTestCards.addToBank(controller, target, one, five);
 
         PlayActionRequest req = new PlayActionRequest();
         req.setActionType("ACTION");
@@ -200,9 +199,9 @@ class JustSayNoActionResponseTest {
         ActionCard debt = new ActionCard("debt-action", "Debt Collector", "DEBT_COLLECTOR");
         ActionCard targetNo = new ActionCard("target-no", "Just Say No", "RENT_WAIVER");
         MoneyCard targetMoney = new MoneyCard("target-5m", "5M", 5);
-        actor.receiveCardToHand(debt);
-        target.receiveCardToHand(targetNo);
-        target.addToBank(targetMoney);
+        ControllerTestCards.receiveToHand(controller, actor, debt);
+        ControllerTestCards.receiveToHand(controller, target, targetNo);
+        ControllerTestCards.addToBank(controller, target, targetMoney);
 
         PlayActionRequest req = new PlayActionRequest();
         req.setActionType("ACTION");
@@ -224,8 +223,7 @@ class JustSayNoActionResponseTest {
         Player target = controller.getSessionPlayersView().get(1);
         MoneyCard one = new MoneyCard("target-1m", "1M", 1);
         MoneyCard five = new MoneyCard("target-5m", "5M", 5);
-        target.addToBank(one);
-        target.addToBank(five);
+        ControllerTestCards.addToBank(controller, target, one, five);
 
         EffectStackEntry rent = EffectStackEntry.pendingRent(
                 actor.getPlayerId(), target.getPlayerId(), "DEBT_COLLECTOR", 5);
@@ -254,8 +252,8 @@ class JustSayNoActionResponseTest {
         Player ai = controller.getSessionPlayersView().get(1);
         ActionCard birthday = new ActionCard("birthday-action", "Birthday", "BIRTHDAY");
         MoneyCard aiMoney = new MoneyCard("ai-2m", "2M", 2);
-        actor.receiveCardToHand(birthday);
-        ai.addToBank(aiMoney);
+        ControllerTestCards.receiveToHand(controller, actor, birthday);
+        ControllerTestCards.addToBank(controller, ai, aiMoney);
 
         PlayActionRequest req = new PlayActionRequest();
         req.setActionType("ACTION");
@@ -275,8 +273,8 @@ class JustSayNoActionResponseTest {
         Player target = controller.getSessionPlayersView().get(1);
         ActionCard birthday = new ActionCard("birthday-action", "Birthday", "BIRTHDAY");
         MoneyCard targetMoney = new MoneyCard("target-2m", "2M", 2);
-        actor.receiveCardToHand(birthday);
-        target.addToBank(targetMoney);
+        ControllerTestCards.receiveToHand(controller, actor, birthday);
+        ControllerTestCards.addToBank(controller, target, targetMoney);
 
         PlayActionRequest req = new PlayActionRequest();
         req.setActionType("ACTION");
@@ -299,8 +297,8 @@ class JustSayNoActionResponseTest {
         Player target = controller.getSessionPlayersView().get(1);
         ActionCard debt = new ActionCard("debt-action", "Debt Collector", "DEBT_COLLECTOR");
         MoneyCard targetMoney = new MoneyCard("target-5m", "5M", 5);
-        actor.receiveCardToHand(debt);
-        target.addToBank(targetMoney);
+        ControllerTestCards.receiveToHand(controller, actor, debt);
+        ControllerTestCards.addToBank(controller, target, targetMoney);
 
         PlayActionRequest req = new PlayActionRequest();
         req.setActionType("ACTION");
@@ -328,9 +326,9 @@ class JustSayNoActionResponseTest {
         PropertyCard targetProperty = new PropertyCard("target-brown", "Target Brown", "BROWN");
         ActionCard steal = new ActionCard("steal-action", "Sly Deal", "STEAL_PROPERTY");
         ActionCard targetNo = new ActionCard("target-no", "Just Say No", "RENT_WAIVER");
-        target.addToPropertyZone(targetProperty);
-        actor.receiveCardToHand(steal);
-        target.receiveCardToHand(targetNo);
+        ControllerTestCards.addToPropertyZone(controller, target, targetProperty);
+        ControllerTestCards.receiveToHand(controller, actor, steal);
+        ControllerTestCards.receiveToHand(controller, target, targetNo);
 
         playStealProperty(controller, actor, target, steal, targetProperty);
         playJustSayNo(controller, target, targetNo);

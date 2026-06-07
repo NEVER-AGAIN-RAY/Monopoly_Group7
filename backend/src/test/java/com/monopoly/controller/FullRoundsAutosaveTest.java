@@ -2,7 +2,6 @@ package com.monopoly.controller;
 
 import com.monopoly.model.core.GameConstants;
 import com.monopoly.dto.PlayActionRequest;
-import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 
@@ -46,7 +45,6 @@ class FullRoundsAutosaveTest {
         } else {
             System.setProperty(GameConstants.AUTOSAVE_PROPERTY, prevAutosave);
         }
-        GameSessionMemento.resetSingletonEngineForTests();
     }
 
     @Test

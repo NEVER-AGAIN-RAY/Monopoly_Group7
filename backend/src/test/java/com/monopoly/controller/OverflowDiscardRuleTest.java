@@ -6,8 +6,6 @@ import com.monopoly.model.card.MoneyCard;
 import com.monopoly.model.player.Player;
 import com.monopoly.pattern.observer.GameUpdateObserver;
 import com.monopoly.pattern.observer.GameUpdateSubject;
-import com.monopoly.persistence.GameSessionMemento;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -19,10 +17,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class OverflowDiscardRuleTest {
 
-    @AfterEach
-    void tearDown() {
-        GameSessionMemento.resetSingletonEngineForTests();
-    }
 
     @Test
     void overflowDiscardAfterFailedEndTurnDoesNotConsumeActionLimit() {
@@ -37,11 +31,14 @@ class OverflowDiscardRuleTest {
         controller.handleDrawCommand(2);
 
         Player current = controller.getCurrentPlayer();
-        current.receiveCardToHand(new MoneyCard("deposit-1", "1M", 1));
-        current.receiveCardToHand(new MoneyCard("deposit-2", "1M", 1));
-        current.receiveCardToHand(new MoneyCard("deposit-3", "1M", 1));
-        current.receiveCardToHand(new MoneyCard("overflow-1", "1M", 1));
-        current.receiveCardToHand(new MoneyCard("overflow-2", "1M", 1));
+        ControllerTestCards.receiveToHand(
+                controller,
+                current,
+                new MoneyCard("deposit-1", "1M", 1),
+                new MoneyCard("deposit-2", "1M", 1),
+                new MoneyCard("deposit-3", "1M", 1),
+                new MoneyCard("overflow-1", "1M", 1),
+                new MoneyCard("overflow-2", "1M", 1));
 
         play(controller, "DEPOSIT", "deposit-1");
         play(controller, "DEPOSIT", "deposit-2");
@@ -74,8 +71,11 @@ class OverflowDiscardRuleTest {
 
         Player current = controller.getCurrentPlayer();
         String currentId = current.getPlayerId();
-        current.receiveCardToHand(new MoneyCard("overflow-1", "1M", 1));
-        current.receiveCardToHand(new MoneyCard("overflow-2", "1M", 1));
+        ControllerTestCards.receiveToHand(
+                controller,
+                current,
+                new MoneyCard("overflow-1", "1M", 1),
+                new MoneyCard("overflow-2", "1M", 1));
 
         controller.handleEndTurnCommand();
 
@@ -102,10 +102,13 @@ class OverflowDiscardRuleTest {
         controller.handleDrawCommand(2);
 
         Player current = controller.getCurrentPlayer();
-        current.receiveCardToHand(new MoneyCard("deposit-1", "1M", 1));
-        current.receiveCardToHand(new MoneyCard("deposit-2", "1M", 1));
-        current.receiveCardToHand(new MoneyCard("deposit-3", "1M", 1));
-        current.receiveCardToHand(new MoneyCard("deposit-4", "1M", 1));
+        ControllerTestCards.receiveToHand(
+                controller,
+                current,
+                new MoneyCard("deposit-1", "1M", 1),
+                new MoneyCard("deposit-2", "1M", 1),
+                new MoneyCard("deposit-3", "1M", 1),
+                new MoneyCard("deposit-4", "1M", 1));
 
         play(controller, "DEPOSIT", "deposit-1");
         play(controller, "DEPOSIT", "deposit-2");

@@ -25,7 +25,7 @@ class DealBreakerEffectTest {
         target.addToPropertyZone(brown1);
         target.addToPropertyZone(wild);
 
-        ActionEffectContext ctx = ActionEffectContext.builder(actor, GameEngineSingleton.getInstance(), List.of(actor, target))
+        ActionEffectContext ctx = ActionEffectContext.builder(actor, GameEngineSingleton.createIsolated(), List.of(actor, target))
                 .target(target)
                 .colorKey("BROWN")
                 .build();
@@ -43,7 +43,7 @@ class DealBreakerEffectTest {
     @Test
     void execute_shouldFail_whenTargetMissingOrNoCompleteSet() {
         Player actor = new HumanPlayer("a1", "actor");
-        ActionEffectContext noTargetCtx = ActionEffectContext.builder(actor, GameEngineSingleton.getInstance(), List.of(actor))
+        ActionEffectContext noTargetCtx = ActionEffectContext.builder(actor, GameEngineSingleton.createIsolated(), List.of(actor))
                 .colorKey("BROWN")
                 .build();
         ActionEffectResult noTargetResult = new DealBreakerEffect().execute(noTargetCtx);
@@ -53,7 +53,7 @@ class DealBreakerEffectTest {
         target.addToPropertyZone(new PropertyCard("b1", "Brown-1", "BROWN"));
         PropertyWildCard unassignedWild = new PropertyWildCard("w1", "Wild");
         target.addToPropertyZone(unassignedWild);
-        ActionEffectContext incompleteCtx = ActionEffectContext.builder(actor, GameEngineSingleton.getInstance(), List.of(actor, target))
+        ActionEffectContext incompleteCtx = ActionEffectContext.builder(actor, GameEngineSingleton.createIsolated(), List.of(actor, target))
                 .target(target)
                 .colorKey("BROWN")
                 .build();

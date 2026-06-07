@@ -4,11 +4,9 @@ import com.monopoly.model.card.Card;
 import com.monopoly.model.card.MoneyCard;
 import com.monopoly.dto.GameStateSnapshot;
 import com.monopoly.dto.PlayActionRequest;
-import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.observer.GameUpdateObserver;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -23,10 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class LastActionSummaryTest {
 
-    @AfterEach
-    void tearDown() {
-        GameSessionMemento.resetSingletonEngineForTests();
-    }
 
     @Test
     void afterDraw_play_endTurn_snapshotsContainNonBlankSummary() {

@@ -6,7 +6,6 @@ import com.google.gson.JsonParser;
 import com.monopoly.controller.GameController;
 import com.monopoly.network.connection.ClientConnection;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
-import com.monopoly.persistence.GameSessionMemento;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,14 +37,12 @@ class GameServerEndToEndSmokeTest {
         prevAiTrace = System.getProperty("monopoly.ai.trace");
         System.setProperty("monopoly.ai.seed", "4242424242");
         System.setProperty("monopoly.ai.trace", "true");
-        GameSessionMemento.resetSingletonEngineForTests();
     }
 
     @AfterEach
     void tearDown() {
         restoreProperty("monopoly.ai.seed", prevAiSeed);
         restoreProperty("monopoly.ai.trace", prevAiTrace);
-        GameSessionMemento.resetSingletonEngineForTests();
     }
 
     private static void restoreProperty(String key, String previous) {

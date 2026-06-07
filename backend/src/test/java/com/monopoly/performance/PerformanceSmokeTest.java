@@ -4,11 +4,9 @@ import com.monopoly.model.card.Card;
 import com.monopoly.model.player.HumanPlayer;
 import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.settlement.RentCalculator;
-import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.factory.MonopolyDealCardFactory;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -23,14 +21,10 @@ class PerformanceSmokeTest {
     private static final long AVG_THRESHOLD_MS = 5;
     private static final long P99_THRESHOLD_MS = 50;
 
-    @AfterEach
-    void tearDown() {
-        GameSessionMemento.resetSingletonEngineForTests();
-    }
 
     @Test
     void drawAndDiscard_shouldMeetLocalThreshold() {
-        GameEngineSingleton engine = GameEngineSingleton.getInstance();
+        GameEngineSingleton engine = GameEngineSingleton.createIsolated();
         engine.attachDrawPile(new MonopolyDealCardFactory().createStandardDeck108());
 
         long[] elapsedNs = new long[ITERATIONS];

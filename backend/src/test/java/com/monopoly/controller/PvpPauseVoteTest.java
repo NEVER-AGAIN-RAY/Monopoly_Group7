@@ -1,10 +1,8 @@
 package com.monopoly.controller;
 
-import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -16,10 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PvpPauseVoteTest {
 
-    @AfterEach
-    void tearDown() {
-        GameSessionMemento.resetSingletonEngineForTests();
-    }
 
     @Test
     void threePlayerPvp_requiresThreeAcksBeforePaused() {

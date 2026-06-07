@@ -12,7 +12,6 @@ import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -32,10 +31,6 @@ class GameServerSaveLoadIntegrationTest {
 
     private static final Gson GSON = new Gson();
 
-    @AfterEach
-    void tearDown() {
-        GameSessionMemento.resetSingletonEngineForTests();
-    }
 
     @Test
     void saveThenLoad_inMemoryJson_preservesDeckTotal() {
@@ -67,7 +62,6 @@ class GameServerSaveLoadIntegrationTest {
         assertTrue(root.getAsJsonObject("payload").get("ok").getAsBoolean());
         String mementoJson = root.getAsJsonObject("payload").get("mementoJson").getAsString();
 
-        GameSessionMemento.resetSingletonEngineForTests();
         GameController loaded = new GameController(subject);
         server.wireController(loaded);
 
@@ -124,7 +118,6 @@ class GameServerSaveLoadIntegrationTest {
 
         String fileJson = Files.readString(tmp, StandardCharsets.UTF_8);
 
-        GameSessionMemento.resetSingletonEngineForTests();
         GameController loaded = new GameController(subject);
         server.wireController(loaded);
 

@@ -6,7 +6,6 @@ import com.monopoly.model.player.Player;
 import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 import com.monopoly.pattern.strategy.SearchLookaheadAiPlayStrategy;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,10 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class GameSessionMementoTest {
 
-    @AfterEach
-    void tearDown() {
-        GameSessionMemento.resetSingletonEngineForTests();
-    }
 
     @Test
     void roundTrip_preservesDeckAndHandCounts() {
@@ -42,7 +37,6 @@ class GameSessionMementoTest {
         GameSessionMemento memento = GameSessionMemento.capture(c1);
         String json = memento.toJson();
 
-        GameSessionMemento.resetSingletonEngineForTests();
         GameController c2 = GameSessionMemento.restoreFromJson(subject, json);
 
         assertEquals(draw1, c2.getEngine().remainingCount(), "抽牌堆张数应一致");

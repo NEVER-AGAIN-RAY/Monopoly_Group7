@@ -1,7 +1,6 @@
 package com.monopoly.pattern.singleton;
 
 import com.monopoly.model.card.Card;
-import com.monopoly.model.core.GameConstants;
 import com.monopoly.model.player.Player;
 
 import java.util.ArrayList;
@@ -11,17 +10,13 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * [Singleton]
- * Process-wide holder for draw pile and discard pile (Singleton).
+ * Holder for one game session's draw pile and discard pile.
  * <p>
- * Deck size: GameConstants.STANDARD_DECK_SIZE.
+ * Each live session owns its own instance (see {@link #createIsolated()}) so that
+ * multiple games in one JVM never share a deck. The legacy class name is retained
+ * to avoid churn across callers and persistence; it is no longer a true singleton.
  */
 public final class GameEngineSingleton {
-
-    /** Standard deck size. */
-    public static final int STANDARD_DECK_SIZE = GameConstants.STANDARD_DECK_SIZE;
-
-    private static volatile GameEngineSingleton instance;
 
     private final List<Card> drawPile = new ArrayList<>();
     private final List<Card> discardPile = new ArrayList<>();
@@ -31,33 +26,10 @@ public final class GameEngineSingleton {
     }
 
     /**
-     * Double-checked locking for lazy init.
-     */
-    public static GameEngineSingleton getInstance() {
-        if (instance == null) {
-            synchronized (GameEngineSingleton.class) {
-                if (instance == null) {
-                    instance = new GameEngineSingleton();
-                }
-            }
-        }
-        return instance;
-    }
-
-    /**
-     * Creates an isolated engine for one live game session. The singleton accessors
-     * stay for legacy tests/tools, but production sessions should use per-controller
-     * instances so multiple games in one JVM cannot share a deck.
+     * Creates an isolated engine for one game session.
      */
     public static GameEngineSingleton createIsolated() {
         return new GameEngineSingleton();
-    }
-
-    /** Test-only singleton reset */
-    static void resetForTests() {
-        synchronized (GameEngineSingleton.class) {
-            instance = null;
-        }
     }
 
     public List<Card> getDrawPileView() {

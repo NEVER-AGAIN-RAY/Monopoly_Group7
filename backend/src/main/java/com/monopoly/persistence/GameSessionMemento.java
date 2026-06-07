@@ -25,7 +25,6 @@ import com.monopoly.pattern.singleton.GameEngineSingleton;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -287,19 +286,6 @@ public final class GameSessionMemento {
             return m;
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("Failed to capture session snapshot", e);
-        }
-    }
-
-    /**
-     * Resets GameEngineSingleton (reflection wrapper around resetForTests).
-     */
-    public static void resetSingletonEngineForTests() {
-        try {
-            Method m = GameEngineSingleton.class.getDeclaredMethod("resetForTests");
-            m.setAccessible(true);
-            m.invoke(null);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Failed to reset GameEngineSingleton", e);
         }
     }
 

@@ -4,8 +4,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.monopoly.network.connection.ClientConnection;
-import com.monopoly.persistence.GameSessionMemento;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -17,10 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GameServerRoomListTest {
 
-    @AfterEach
-    void tearDown() {
-        GameSessionMemento.resetSingletonEngineForTests();
-    }
 
     @Test
     void roomListReportsStartedSessionsAndConnectionCounts() {

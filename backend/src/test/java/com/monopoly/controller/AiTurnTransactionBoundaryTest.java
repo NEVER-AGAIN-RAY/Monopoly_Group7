@@ -61,7 +61,7 @@ class AiTurnTransactionBoundaryTest {
                 && ai.getPlayerId().equals(s.getCurrentPlayerId()));
         assertNotNull(aiDraw);
 
-        prepareScenario(human, ai);
+        prepareScenario(controller, human, ai);
         ai.setPlayStrategy(new ScriptedAiStrategy());
 
         GameStateSnapshot awaitingSteal = subject.await(s -> "ACTION_AWAITING_RESPONSE".equals(s.getPhase()));
@@ -81,15 +81,21 @@ class AiTurnTransactionBoundaryTest {
         assertTrue(rentAwaiting.getStateSequence() > actionResolved.getStateSequence());
     }
 
-    private static void prepareScenario(Player human, AIPlayer ai) {
-        human.addToPropertyZone(new PropertyCard("human-p1", "Human property 1", "GREEN"));
-        human.addToPropertyZone(new PropertyCard("human-p2", "Human property 2", "YELLOW"));
-        human.addToPropertyZone(new PropertyCard("human-p3", "Human property 3", "RAILROAD"));
-        human.addToPropertyZone(new PropertyCard("human-p4", "Human property 4", "UTILITY"));
-        human.addToBank(new MoneyCard("human-money", "1M", 1));
-        ai.addToPropertyZone(new PropertyCard("ai-brown", "AI Brown", "BROWN"));
-        ai.receiveCardToHand(new ActionCard("ai-steal", "Sly Deal", "STEAL_PROPERTY"));
-        ai.receiveCardToHand(new ActionCard("ai-rent", "Rent", "RENT"));
+    private static void prepareScenario(GameController controller, Player human, AIPlayer ai) {
+        ControllerTestCards.addToPropertyZone(
+                controller,
+                human,
+                new PropertyCard("human-p1", "Human property 1", "GREEN"),
+                new PropertyCard("human-p2", "Human property 2", "YELLOW"),
+                new PropertyCard("human-p3", "Human property 3", "RAILROAD"),
+                new PropertyCard("human-p4", "Human property 4", "UTILITY"));
+        ControllerTestCards.addToBank(controller, human, new MoneyCard("human-money", "1M", 1));
+        ControllerTestCards.addToPropertyZone(controller, ai, new PropertyCard("ai-brown", "AI Brown", "BROWN"));
+        ControllerTestCards.receiveToHand(
+                controller,
+                ai,
+                new ActionCard("ai-steal", "Sly Deal", "STEAL_PROPERTY"),
+                new ActionCard("ai-rent", "Rent", "RENT"));
     }
 
     private static void passResponse(GameController controller, Player actor) {

@@ -8,9 +8,7 @@ import com.monopoly.model.card.PropertyWildCard;
 import com.monopoly.model.card.PropertyWildCard.WildPropertyKind;
 import com.monopoly.model.core.GameContext;
 import com.monopoly.model.player.HumanPlayer;
-import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -21,17 +19,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlayOptionsServiceTest {
 
-    @AfterEach
-    void tearDown() {
-        GameSessionMemento.resetSingletonEngineForTests();
-    }
 
     @Test
     void deposit_money_returnsSingleRow() {
         HumanPlayer p = new HumanPlayer("p1", "P1");
         MoneyCard m = new MoneyCard("m1", "1M", 1);
         ActionOptionsResult r = PlayOptionsService.build(
-                p, m, "DEPOSIT", List.of(p), GameEngineSingleton.getInstance());
+                p, m, "DEPOSIT", List.of(p), GameEngineSingleton.createIsolated());
         assertTrue(r.isOk());
         assertEquals(1, r.getOptions().size());
     }
@@ -41,7 +35,7 @@ class PlayOptionsServiceTest {
         HumanPlayer p = new HumanPlayer("p1", "P1");
         PropertyWildCard w = new PropertyWildCard("w1", "wild");
         ActionOptionsResult r = PlayOptionsService.build(
-                p, w, "DEPLOY", List.of(p), GameEngineSingleton.getInstance());
+                p, w, "DEPLOY", List.of(p), GameEngineSingleton.createIsolated());
         assertTrue(r.isOk());
         assertEquals(10, r.getOptions().size());
     }
@@ -52,7 +46,7 @@ class PlayOptionsServiceTest {
         PropertyWildCard w = new PropertyWildCard(
                 "w1", "wild", WildPropertyKind.DUAL_COLOR, List.of("RED", "YELLOW"));
         ActionOptionsResult r = PlayOptionsService.build(
-                p, w, "DEPLOY", List.of(p), GameEngineSingleton.getInstance());
+                p, w, "DEPLOY", List.of(p), GameEngineSingleton.createIsolated());
         assertTrue(r.isOk());
         assertEquals(2, r.getOptions().size());
     }
@@ -65,7 +59,7 @@ class PlayOptionsServiceTest {
         w.setAssignedColorKey("YELLOW");
 
         ActionOptionsResult r = PlayOptionsService.build(
-                p, w, "DEPLOY", List.of(p), GameEngineSingleton.getInstance());
+                p, w, "DEPLOY", List.of(p), GameEngineSingleton.createIsolated());
 
         assertTrue(r.isOk());
         assertEquals(1, r.getOptions().size());
@@ -85,7 +79,7 @@ class PlayOptionsServiceTest {
         target.addToPropertyZone(new PropertyCard("target-blue-2", "Target Blue 2", "DARK_BLUE"));
 
         ActionOptionsResult r = PlayOptionsService.build(
-                actor, forcedDeal, "ACTION", List.of(actor, target), GameEngineSingleton.getInstance());
+                actor, forcedDeal, "ACTION", List.of(actor, target), GameEngineSingleton.createIsolated());
 
         assertTrue(r.isOk());
         assertEquals(1, r.getOptions().size());
@@ -104,7 +98,7 @@ class PlayOptionsServiceTest {
         }
 
         ActionOptionsResult r = PlayOptionsService.build(
-                actor, forcedDeal, "ACTION", List.of(actor, target), GameEngineSingleton.getInstance());
+                actor, forcedDeal, "ACTION", List.of(actor, target), GameEngineSingleton.createIsolated());
 
         assertTrue(r.isOk());
         assertEquals(81, r.getOptions().size());
@@ -119,7 +113,7 @@ class PlayOptionsServiceTest {
         ActionCard debt = new ActionCard("debt", "Debt Collector", "DEBT_COLLECTOR");
 
         ActionOptionsResult r = PlayOptionsService.build(
-                actor, debt, "ACTION", List.of(actor, targetA, targetB), GameEngineSingleton.getInstance());
+                actor, debt, "ACTION", List.of(actor, targetA, targetB), GameEngineSingleton.createIsolated());
 
         assertTrue(r.isOk());
         assertEquals(2, r.getOptions().size());
@@ -138,7 +132,7 @@ class PlayOptionsServiceTest {
         context.setPendingDoubleRentFor(actor.getPlayerId());
 
         ActionOptionsResult r = PlayOptionsService.build(
-                actor, rent, "ACTION", List.of(actor, target), GameEngineSingleton.getInstance(), context);
+                actor, rent, "ACTION", List.of(actor, target), GameEngineSingleton.createIsolated(), context);
 
         assertTrue(r.isOk());
         assertTrue(r.getOptions().stream()

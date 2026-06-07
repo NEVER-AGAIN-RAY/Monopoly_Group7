@@ -5,7 +5,6 @@ import com.monopoly.network.connection.ClientConnection;
 import com.monopoly.dto.StartSessionRequest;
 import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -16,10 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GameServerPvpLoadVoteTest {
 
-    @AfterEach
-    void tearDown() {
-        GameSessionMemento.resetSingletonEngineForTests();
-    }
 
     @Test
     void loadVote_allAck_shouldCommit() {

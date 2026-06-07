@@ -24,7 +24,7 @@ class ForcedDealEffectTest {
         target.addToPropertyZone(targetProperty);
 
         ActionEffectContext ctx = ActionEffectContext
-                .builder(actor, GameEngineSingleton.getInstance(), List.of(actor, target))
+                .builder(actor, GameEngineSingleton.createIsolated(), List.of(actor, target))
                 .target(target)
                 .actorProperty(actorProperty)
                 .targetProperty(targetProperty)
@@ -53,7 +53,7 @@ class ForcedDealEffectTest {
         target.addToPropertyZone(targetBrown2);
 
         ActionEffectContext ctx = ActionEffectContext
-                .builder(actor, GameEngineSingleton.getInstance(), List.of(actor, target))
+                .builder(actor, GameEngineSingleton.createIsolated(), List.of(actor, target))
                 .target(target)
                 .actorProperty(actorProperty)
                 .targetProperty(targetBrown1)

@@ -16,7 +16,6 @@ class SaveEncryptionTest {
     @AfterEach
     void tearDown() {
         System.clearProperty(GameConstants.SAVE_KEY_PROPERTY);
-        GameSessionMemento.resetSingletonEngineForTests();
     }
 
     @Test
@@ -55,7 +54,6 @@ class SaveEncryptionTest {
 
         String enc = SaveEncryption.encodeForStorage(c1.exportSessionJson());
 
-        GameSessionMemento.resetSingletonEngineForTests();
         GameController c2 = new GameController(subject);
         c2.importSessionJson(enc);
 

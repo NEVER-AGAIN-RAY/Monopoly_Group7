@@ -10,7 +10,6 @@ import com.monopoly.model.core.AiGameBridge;
 import com.monopoly.model.core.GameContext;
 import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.player.Player;
-import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 import com.monopoly.pattern.strategy.AiPlayStrategy;
 import org.junit.jupiter.api.AfterEach;
@@ -42,7 +41,6 @@ class AiTurnResponseResumeTest {
         } else {
             System.setProperty("monopoly.ai.decisionDelayMs", previousDelay);
         }
-        GameSessionMemento.resetSingletonEngineForTests();
     }
 
     @Test
@@ -60,10 +58,10 @@ class AiTurnResponseResumeTest {
         Player human = controller.getSessionPlayersView().get(0);
         AIPlayer ai = (AIPlayer) controller.getSessionPlayersView().get(1);
         ActionCard rent = new ActionCard("ai-rent", "Rent", "RENT");
-        ai.addToPropertyZone(new PropertyCard("ai-brown", "AI Brown", "BROWN"));
-        ai.receiveCardToHand(rent);
+        ControllerTestCards.addToPropertyZone(controller, ai, new PropertyCard("ai-brown", "AI Brown", "BROWN"));
+        ControllerTestCards.receiveToHand(controller, ai, rent);
         ai.setPlayStrategy(new RentThenStopStrategy(rent.getId(), human.getPlayerId()));
-        human.addToBank(new MoneyCard("human-1m", "1M", 1));
+        ControllerTestCards.addToBank(controller, human, new MoneyCard("human-1m", "1M", 1));
 
         controller.handleDrawCommand(2);
         controller.handleEndTurnCommand();
@@ -93,9 +91,9 @@ class AiTurnResponseResumeTest {
         Player human = controller.getSessionPlayersView().get(0);
         AIPlayer ai = (AIPlayer) controller.getSessionPlayersView().get(1);
         ActionCard debtCollector = new ActionCard("ai-debt", "Debt Collector", "DEBT_COLLECTOR");
-        ai.receiveCardToHand(debtCollector);
+        ControllerTestCards.receiveToHand(controller, ai, debtCollector);
         ai.setPlayStrategy(new SingleActionThenStopStrategy(debtCollector.getId(), human.getPlayerId()));
-        human.addToBank(new MoneyCard("human-5m", "5M", 5));
+        ControllerTestCards.addToBank(controller, human, new MoneyCard("human-5m", "5M", 5));
 
         controller.handleDrawCommand(2);
         controller.handleEndTurnCommand();
@@ -126,10 +124,10 @@ class AiTurnResponseResumeTest {
         Player human = controller.getSessionPlayersView().get(0);
         AIPlayer ai = (AIPlayer) controller.getSessionPlayersView().get(1);
         ActionCard rent = new ActionCard("custom-ai-rent", "Rent", "RENT");
-        ai.addToPropertyZone(new PropertyCard("custom-ai-brown", "AI Brown", "BROWN"));
-        ai.receiveCardToHand(rent);
+        ControllerTestCards.addToPropertyZone(controller, ai, new PropertyCard("custom-ai-brown", "AI Brown", "BROWN"));
+        ControllerTestCards.receiveToHand(controller, ai, rent);
         ai.setPlayStrategy(new RentThenStopStrategy(rent.getId(), human.getPlayerId()));
-        human.addToBank(new MoneyCard("custom-human-1m", "1M", 1));
+        ControllerTestCards.addToBank(controller, human, new MoneyCard("custom-human-1m", "1M", 1));
 
         controller.handleDrawCommand(2);
         controller.handleEndTurnCommand();

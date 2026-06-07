@@ -42,7 +42,7 @@ class HouseHotelEffectTest {
     }
 
     private static ActionEffectContext ctx(Player actor, PropertyCard property) {
-        return ActionEffectContext.builder(actor, GameEngineSingleton.getInstance(), List.of(actor))
+        return ActionEffectContext.builder(actor, GameEngineSingleton.createIsolated(), List.of(actor))
                 .actorProperty(property)
                 .build();
     }

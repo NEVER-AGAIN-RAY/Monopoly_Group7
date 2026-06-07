@@ -24,7 +24,7 @@ class PaymentSettlementExplicitTest {
         MoneyCard m5 = new MoneyCard("m5", "5", 5);
         debtor.addToBank(m1);
         debtor.addToBank(m5);
-        GameEngineSingleton engine = GameEngineSingleton.getInstance();
+        GameEngineSingleton engine = GameEngineSingleton.createIsolated();
 
         PaymentSettlement.Result r = PaymentSettlement.settleWithExplicitCards(
                 debtor, creditor, 3, List.of("m5"), engine);
@@ -44,7 +44,7 @@ class PaymentSettlementExplicitTest {
         MoneyCard m1 = new MoneyCard("m1", "1", 1);
         debtor.addToBank(m1);
         debtor.addToBank(new MoneyCard("m2", "2", 2));
-        GameEngineSingleton engine = GameEngineSingleton.getInstance();
+        GameEngineSingleton engine = GameEngineSingleton.createIsolated();
 
         PaymentSettlement.Result r = PaymentSettlement.settleWithExplicitCards(
                 debtor, creditor, 5, List.of("m1"), engine);
@@ -61,7 +61,7 @@ class PaymentSettlementExplicitTest {
         debtor.addToBank(m5);
 
         PaymentSettlement.Result r = PaymentSettlement.settleWithExplicitCards(
-                debtor, creditor, 5, List.of("m5", "m5"), GameEngineSingleton.getInstance());
+                debtor, creditor, 5, List.of("m5", "m5"), GameEngineSingleton.createIsolated());
 
         assertFalse(r.isSuccess());
         assertEquals(1, debtor.getBankCardCount());
@@ -76,7 +76,7 @@ class PaymentSettlementExplicitTest {
         debtor.receiveCardToHand(handMoney);
 
         PaymentSettlement.Result r = PaymentSettlement.settleWithExplicitCards(
-                debtor, creditor, 5, List.of("hand-money"), GameEngineSingleton.getInstance());
+                debtor, creditor, 5, List.of("hand-money"), GameEngineSingleton.createIsolated());
 
         assertFalse(r.isSuccess());
         assertEquals(1, debtor.getHandCardCount());
@@ -100,7 +100,7 @@ class PaymentSettlementExplicitTest {
         debtor.addToBank(m1);
         PropertyCard p = new PropertyCard("p1", "p", "GREEN");
         debtor.addToPropertyZone(p);
-        GameEngineSingleton engine = GameEngineSingleton.getInstance();
+        GameEngineSingleton engine = GameEngineSingleton.createIsolated();
 
         PaymentSettlement.Result r = PaymentSettlement.settleWithExplicitCards(
                 debtor, creditor, 3, List.of("m1", "p1"), engine);
@@ -125,7 +125,7 @@ class PaymentSettlementExplicitTest {
         debtor.addToPropertyZone(p);
 
         PaymentSettlement.Result r = PaymentSettlement.settle(
-                debtor, creditor, 1, GameEngineSingleton.getInstance());
+                debtor, creditor, 1, GameEngineSingleton.createIsolated());
 
         assertTrue(r.isSuccess());
         assertEquals(0, debtor.getBankCardCount());
@@ -194,7 +194,7 @@ class PaymentSettlementExplicitTest {
         debtor.addToPropertyZone(p);
 
         PaymentSettlement.Result r = PaymentSettlement.settle(
-                debtor, creditor, 5, GameEngineSingleton.getInstance());
+                debtor, creditor, 5, GameEngineSingleton.createIsolated());
 
         assertTrue(r.isSuccess());
         assertEquals(3, r.getAmountPaid());
@@ -215,7 +215,7 @@ class PaymentSettlementExplicitTest {
         debtor.addToPropertyZone(p);
 
         PaymentSettlement.Result r = PaymentSettlement.settleWithExplicitCards(
-                debtor, creditor, 5, List.of("m1", "p1"), GameEngineSingleton.getInstance());
+                debtor, creditor, 5, List.of("m1", "p1"), GameEngineSingleton.createIsolated());
 
         assertTrue(r.isSuccess());
         assertEquals(3, r.getAmountPaid());
@@ -238,7 +238,7 @@ class PaymentSettlementExplicitTest {
         debtor.addToPropertyZone(wild);
 
         PaymentSettlement.Result r = PaymentSettlement.settleWithExplicitCards(
-                debtor, creditor, 3, List.of("wild-r-y"), GameEngineSingleton.getInstance());
+                debtor, creditor, 3, List.of("wild-r-y"), GameEngineSingleton.createIsolated());
 
         assertTrue(r.isSuccess());
         assertFalse(debtor.getPropertyCardsView().contains(wild));

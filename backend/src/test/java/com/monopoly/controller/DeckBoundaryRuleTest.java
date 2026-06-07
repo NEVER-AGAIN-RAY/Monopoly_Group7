@@ -13,8 +13,6 @@ import com.monopoly.model.effects.PassGoEffect;
 import com.monopoly.model.player.Player;
 import com.monopoly.pattern.observer.DefaultGameUpdateSubject;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
-import com.monopoly.persistence.GameSessionMemento;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -25,10 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DeckBoundaryRuleTest {
 
-    @AfterEach
-    void tearDown() {
-        GameSessionMemento.resetSingletonEngineForTests();
-    }
 
     @Test
     void startSessionDealsFiveCardsToEachPlayerAndLeavesTheRestInDrawPile() {
@@ -59,7 +53,7 @@ class DeckBoundaryRuleTest {
     void drawCommandDrawsFiveWhenCurrentPlayerHandIsEmpty() {
         GameController controller = newPvpController(2);
         Player current = controller.getCurrentPlayer();
-        current.discardSpecificFromHand(List.copyOf(current.getHandCardsView()));
+        ControllerTestCards.discardEntireHandToEngine(controller, current);
         int drawBefore = controller.getEngine().remainingCount();
 
         controller.handleDrawCommand(2);
@@ -70,7 +64,7 @@ class DeckBoundaryRuleTest {
 
     @Test
     void drawReplenishesFromDiscardPileWhenDrawPileIsEmpty() {
-        GameEngineSingleton engine = GameEngineSingleton.getInstance();
+        GameEngineSingleton engine = GameEngineSingleton.createIsolated();
         Card first = new MoneyCard("draw-1", "1M", 1);
         Card discardA = new MoneyCard("discard-1", "1M", 1);
         Card discardB = new MoneyCard("discard-2", "2M", 2);
@@ -88,7 +82,7 @@ class DeckBoundaryRuleTest {
 
     @Test
     void drawReturnsNullWhenDrawAndDiscardPilesAreBothEmpty() {
-        GameEngineSingleton engine = GameEngineSingleton.getInstance();
+        GameEngineSingleton engine = GameEngineSingleton.createIsolated();
         engine.attachDrawPile(List.of());
 
         assertNull(engine.drawOne());
@@ -99,7 +93,7 @@ class DeckBoundaryRuleTest {
     @Test
     void passGoDrawsOnlyAvailableCardsWhenPilesRunOut() {
         Player actor = new com.monopoly.model.player.HumanPlayer("p1", "P1");
-        GameEngineSingleton engine = GameEngineSingleton.getInstance();
+        GameEngineSingleton engine = GameEngineSingleton.createIsolated();
         engine.attachDrawPile(List.of(new MoneyCard("only", "1M", 1)));
         ActionEffectContext ctx = ActionEffectContext.builder(actor, engine, List.of(actor)).build();
 
@@ -116,9 +110,9 @@ class DeckBoundaryRuleTest {
         GameController controller = newPvpController(2);
         Player current = controller.getCurrentPlayer();
         controller.handleDrawCommand(2);
-        current.addToPropertyZone(new PropertyCard("rentable", "Rentable", "BROWN"));
+        ControllerTestCards.addToPropertyZone(controller, current, new PropertyCard("rentable", "Rentable", "BROWN"));
         ActionCard doubleRent = new ActionCard("test-double", "Double Rent", "DOUBLE_RENT");
-        current.receiveCardToHand(doubleRent);
+        ControllerTestCards.receiveToHand(controller, current, doubleRent);
 
         PlayActionRequest play = new PlayActionRequest();
         play.setActionType("ACTION");

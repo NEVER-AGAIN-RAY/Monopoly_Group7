@@ -2,7 +2,6 @@ package com.monopoly.controller;
 
 import com.monopoly.dto.GameStateSnapshot;
 import com.monopoly.dto.StartSessionRequest;
-import com.monopoly.persistence.GameSessionMemento;
 import com.monopoly.pattern.observer.GameUpdateObserver;
 import com.monopoly.pattern.observer.GameUpdateSubject;
 
@@ -32,7 +31,6 @@ class AiVsAiModeSmokeTest {
         } else {
             System.setProperty("monopoly.aiBattle.log.enabled", prevAiBattleLogEnabled);
         }
-        GameSessionMemento.resetSingletonEngineForTests();
     }
 
     @Test

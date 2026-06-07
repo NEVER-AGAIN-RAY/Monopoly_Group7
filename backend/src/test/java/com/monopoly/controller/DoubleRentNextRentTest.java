@@ -21,12 +21,11 @@ class DoubleRentNextRentTest {
         GameController controller = newPvpControllerInPlayPhase();
         Player actor = controller.getSessionPlayersView().get(0);
         Player target = controller.getSessionPlayersView().get(1);
-        actor.addToPropertyZone(new PropertyCard("brown-1", "Brown", "BROWN"));
+        ControllerTestCards.addToPropertyZone(controller, actor, new PropertyCard("brown-1", "Brown", "BROWN"));
         ActionCard doubleRent = new ActionCard("double-rent", "Double The Rent", "DOUBLE_RENT");
         ActionCard rent = new ActionCard("rent", "Rent", "RENT");
-        actor.receiveCardToHand(doubleRent);
-        actor.receiveCardToHand(rent);
-        target.addToBank(new MoneyCard("target-2m", "2M", 2));
+        ControllerTestCards.receiveToHand(controller, actor, doubleRent, rent);
+        ControllerTestCards.addToBank(controller, target, new MoneyCard("target-2m", "2M", 2));
 
         playAction(controller, doubleRent.getId(), null, null);
 

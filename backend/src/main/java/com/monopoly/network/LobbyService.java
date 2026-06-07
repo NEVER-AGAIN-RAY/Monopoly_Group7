@@ -39,7 +39,7 @@ final class LobbyService {
         String sessionId = SessionHub.normalizeSessionId(dispatcher.getString(payload, "sessionId", null));
         String nickname = normalizeNickname(dispatcher.getString(payload, "nickname", null));
         if (nickname.isBlank()) {
-            sendRoomError(from, "昵称不能为空");
+            sendRoomError(from, "Nickname cannot be empty");
             return;
         }
         LobbyRoom room = new LobbyRoom(sessionId);
@@ -52,7 +52,7 @@ final class LobbyService {
         }
         LobbyRoom existing = lobbyRooms.putIfAbsent(sessionId, room);
         if (existing != null) {
-            sendRoomError(from, "房间号已存在");
+            sendRoomError(from, "Room ID already exists");
             return;
         }
         hub.sessionRegistry().register(from, playerKey(from));
@@ -65,21 +65,21 @@ final class LobbyService {
         String sessionId = SessionHub.normalizeSessionId(dispatcher.getString(payload, "sessionId", null));
         String nickname = normalizeNickname(dispatcher.getString(payload, "nickname", null));
         if (nickname.isBlank()) {
-            sendRoomError(from, "昵称不能为空");
+            sendRoomError(from, "Nickname cannot be empty");
             return;
         }
         LobbyRoom room = lobbyRooms.get(sessionId);
         if (room == null) {
-            sendRoomError(from, "房间不存在");
+            sendRoomError(from, "Room does not exist");
             return;
         }
         synchronized (room) {
             if (room.started) {
-                sendRoomError(from, "房间已开局");
+                sendRoomError(from, "The room has already started");
                 return;
             }
             if (room.nicknameExists(nickname, playerKey(from))) {
-                sendRoomError(from, "昵称已被使用");
+                sendRoomError(from, "Nickname is already taken");
                 return;
             }
             room.addMember(playerKey(from), nickname);
@@ -94,21 +94,21 @@ final class LobbyService {
         String sessionId = SessionHub.normalizeSessionId(dispatcher.getString(payload, "sessionId", null));
         LobbyRoom room = lobbyRooms.get(sessionId);
         if (room == null) {
-            sendRoomError(from, "房间不存在");
+            sendRoomError(from, "Room does not exist");
             return;
         }
         synchronized (room) {
             if (!isRoomHost(room, from)) {
-                sendRoomError(from, "只有房主可以调整席位");
+                sendRoomError(from, "Only the host can adjust seats");
                 return;
             }
             if (room.started) {
-                sendRoomError(from, "房间已开局，不能调整席位");
+                sendRoomError(from, "The room has already started; seats cannot be adjusted");
                 return;
             }
             int seatIndex = dispatcher.getInt(payload, "seatIndex", -1);
             if (seatIndex < 0 || seatIndex >= room.seats.size()) {
-                sendRoomError(from, "席位编号无效");
+                sendRoomError(from, "Invalid seat index");
                 return;
             }
             LobbySeat seat = room.seats.get(seatIndex);
@@ -116,12 +116,12 @@ final class LobbyService {
             String nickname = normalizeNickname(dispatcher.getString(payload, "nickname", null));
             if ("human".equals(role)) {
                 if (nickname.isBlank()) {
-                    sendRoomError(from, "真人席位必须选择已加入玩家昵称");
+                    sendRoomError(from, "A human seat must select the nickname of a player who has joined");
                     return;
                 }
                 String memberKey = room.memberKeyByNickname(nickname);
                 if (memberKey == null) {
-                    sendRoomError(from, "该昵称还没有加入房间");
+                    sendRoomError(from, "That nickname has not joined the room");
                     return;
                 }
                 for (int i = 0; i < room.seats.size(); i++) {
@@ -162,22 +162,22 @@ final class LobbyService {
         String sessionId = SessionHub.normalizeSessionId(dispatcher.getString(payload, "sessionId", null));
         LobbyRoom room = lobbyRooms.get(sessionId);
         if (room == null) {
-            sendRoomError(from, "房间不存在");
+            sendRoomError(from, "Room does not exist");
             return;
         }
         StartSessionRequest req = new StartSessionRequest();
         synchronized (room) {
             if (!isRoomHost(room, from)) {
-                sendRoomError(from, "只有房主可以开始游戏");
+                sendRoomError(from, "Only the host can start the game");
                 return;
             }
             List<String> roles = room.activeSeatRoles();
             if (roles.size() < 2) {
-                sendRoomError(from, "至少需要 2 个有效席位");
+                sendRoomError(from, "At least 2 valid seats are required");
                 return;
             }
             if (roles.stream().noneMatch("human"::equals)) {
-                sendRoomError(from, "至少需要 1 个真人玩家");
+                sendRoomError(from, "At least 1 human player is required");
                 return;
             }
             room.started = true;

@@ -26,10 +26,10 @@ final class SessionFactory {
 
     void startNewSession(StartSessionRequest req) {
         if (req == null) {
-            throw new IllegalArgumentException("StartSessionRequest 不能为 null。");
+            throw new IllegalArgumentException("StartSessionRequest must not be null.");
         }
         if (controller.isPaused()) {
-            controller.recordError("PAUSED", "游戏已暂停，无法开始或重开对局。");
+            controller.recordError("PAUSED", "Game is paused; cannot start or restart session.");
             controller.pushSnapshot(controller.getCurrentSessionId(), "RULE_VIOLATION");
             return;
         }
@@ -43,7 +43,7 @@ final class SessionFactory {
                 : List.of();
         int count = customRoles.isEmpty() ? requestedCount : customRoles.size();
         if (count < 2 || count > 5) {
-            throw new IllegalArgumentException("playerCount 必须在 2–5 之间，当前为 " + count + "。");
+            throw new IllegalArgumentException("playerCount must be between 2 and 5, got " + count + ".");
         }
         if ("CUSTOM".equals(mode) && customRoles.isEmpty()) {
             customRoles = SeatAssembler.defaultCustomRoles(count);
@@ -52,7 +52,7 @@ final class SessionFactory {
                 && !"LLM".equals(mode) && !"AI_VS_AI".equals(mode)
                 && !"CUSTOM".equals(mode)) {
             throw new IllegalArgumentException(
-                    "gameMode 必须为 HVM、PVP、LLM、AI_VS_AI 或 CUSTOM，当前为 " + req.getGameMode() + "。");
+                    "gameMode must be HVM, PVP, LLM, AI_VS_AI, or CUSTOM; got " + req.getGameMode() + ".");
         }
 
         controller.resetRuntimeForNewSession(req.getSessionId(), mode);
@@ -99,7 +99,7 @@ final class SessionFactory {
         controller.pushSnapshot(
                 controller.getCurrentSessionId(),
                 "INIT",
-                "新局已开始：牌堆已随机洗牌，起手按真人发牌方式轮流发 5 张。");
+                "New session started: deck shuffled, dealt 5 cards each.");
         controller.runAiTurnIfNeeded(current);
     }
 

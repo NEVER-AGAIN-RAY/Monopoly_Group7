@@ -25,6 +25,7 @@ public class PropertyCard extends Card implements Payable {
         return buildingLevel;
     }
 
+    /** Attach or upgrade the building on this property (called by House/Hotel effects). */
     public void setBuildingLevel(BuildingLevel buildingLevel) {
         if (buildingLevel != null) {
             this.buildingLevel = buildingLevel;

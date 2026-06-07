@@ -171,8 +171,8 @@ final class SeatAssembler {
             case "NORMAL", "MEDIUM", "AI_NORMAL", "AI_MEDIUM" -> "NORMAL";
             case "HARD", "AI_HARD" -> "HARD";
             default -> throw new IllegalArgumentException(
-                    "CUSTOM 席位角色不支持: " + raw
-                            + "。可用 human/easy/normal/hard/llm/student/lookahead/search/local_strong/strong。");
+                    "Unsupported CUSTOM seat role: " + raw
+                            + ". Available: human/easy/normal/hard/llm/student/lookahead/search/local_strong/strong.");
         };
     }
 

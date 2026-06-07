@@ -65,7 +65,7 @@ class GameServerRoomListTest {
         server.onMessage(guest, "{\"type\":\"JOIN_ROOM\",\"payload\":{\"sessionId\":\"lobby-b\",\"nickname\":\"客人\"}}");
         server.onMessage(duplicate, "{\"type\":\"JOIN_ROOM\",\"payload\":{\"sessionId\":\"lobby-b\",\"nickname\":\"客人\"}}");
 
-        assertTrue(duplicateOut.stream().anyMatch(s -> s.contains("昵称已被使用")));
+        assertTrue(duplicateOut.stream().anyMatch(s -> s.contains("Nickname is already taken")));
 
         server.onMessage(host, "{\"type\":\"ROOM_SET_SEAT\",\"payload\":{"
                 + "\"sessionId\":\"lobby-b\","

@@ -14,7 +14,7 @@ public final class PassGoEffect implements ActionEffect {
         Player actor = ctx.getActor();
         GameEngineSingleton engine = ctx.getEngine();
         if (actor == null || engine == null) {
-            return ActionEffectResult.failed("Pass Go 效果上下文无效。");
+            return ActionEffectResult.failed("Invalid Pass Go effect context.");
         }
         int drawn = 0;
         for (int i = 0; i < DRAW_COUNT; i++) {
@@ -26,6 +26,6 @@ public final class PassGoEffect implements ActionEffect {
             drawn++;
         }
         return ActionEffectResult.success(
-                "Pass Go：已摸 " + drawn + " 张牌（目标 2 张，牌堆不足时可能少于 2）。");
+                "Pass Go: drew " + drawn + " card(s) (target 2; may be fewer when the draw pile is low).");
     }
 }

@@ -114,7 +114,7 @@ class OverflowDiscardRuleTest {
         IllegalStateException ex = assertThrows(
                 IllegalStateException.class,
                 () -> play(controller, "DEPOSIT", "deposit-4"));
-        assertEquals("每回合最多可出 3 张牌，已达到上限。", ex.getMessage());
+        assertEquals("Maximum 3 actions per turn reached.", ex.getMessage());
     }
 
     private static void play(GameController controller, String actionType, String cardId) {

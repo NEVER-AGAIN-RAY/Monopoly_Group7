@@ -19,20 +19,20 @@ public final class DealBreakerEffect implements ActionEffect {
         Player actor = ctx.getActor();
         Player target = ctx.getTarget();
         if (target == null) {
-            return ActionEffectResult.failed("Deal Breaker 需指定目标玩家。");
+            return ActionEffectResult.failed("Deal Breaker requires a target player.");
         }
 
         String colorKey = resolveTargetColorKey(ctx);
         if (colorKey == null) {
-            return ActionEffectResult.failed("Deal Breaker 需指定目标完整套颜色。");
+            return ActionEffectResult.failed("Deal Breaker requires the color of a complete set to target.");
         }
         if (!PropertySetCalculator.hasCompleteSetForColor(target.getPropertyCardsView(), colorKey)) {
-            return ActionEffectResult.failed("目标玩家不存在 " + colorKey + " 的完整房产集。");
+            return ActionEffectResult.failed("The target player has no complete " + colorKey + " property set.");
         }
 
         List<PropertyCard> stealSet = collectSetCards(target, colorKey);
         if (stealSet.isEmpty()) {
-            return ActionEffectResult.failed("未找到可夺取的完整套。");
+            return ActionEffectResult.failed("No complete set available to steal.");
         }
         for (PropertyCard card : stealSet) {
             if (target.removePropertyCard(card)) {
@@ -40,8 +40,8 @@ public final class DealBreakerEffect implements ActionEffect {
             }
         }
         return ActionEffectResult.success(
-                actor.getDisplayName() + " 夺取了 " + target.getDisplayName()
-                        + " 的完整套：" + colorKey + "，收入财产区。");
+                actor.getDisplayName() + " stole " + target.getDisplayName()
+                        + "'s complete " + colorKey + " set into the property zone.");
     }
 
     private static String resolveTargetColorKey(ActionEffectContext ctx) {

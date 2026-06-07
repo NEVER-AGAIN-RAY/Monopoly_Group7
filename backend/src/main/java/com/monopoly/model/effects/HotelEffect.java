@@ -16,31 +16,31 @@ public final class HotelEffect implements ActionEffect {
         Player actor = ctx.getActor();
         PropertyCard target = ctx.getActorProperty();
         if (actor == null) {
-            return ActionEffectResult.failed("缺少行动玩家。");
+            return ActionEffectResult.failed("Missing acting player.");
         }
         if (target == null) {
-            return ActionEffectResult.failed("请指定财产区内要升级酒店的房产（actorCardId 或 targetCardId）。");
+            return ActionEffectResult.failed("Specify the property in your property zone to upgrade to a hotel (actorCardId or targetCardId).");
         }
         if (!actor.getPropertyCardsView().contains(target)) {
-            return ActionEffectResult.failed("指定房产不在你的财产区。");
+            return ActionEffectResult.failed("The specified property is not in your property zone.");
         }
         String colorKey = HouseEffect.resolveColorKey(target);
         if (colorKey == null) {
-            return ActionEffectResult.failed("万能房产需先声明颜色。");
+            return ActionEffectResult.failed("A wild property must be assigned a color first.");
         }
         if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), colorKey)) {
-            return ActionEffectResult.failed("该颜色未形成完整套，无法升级酒店。");
+            return ActionEffectResult.failed("This color does not form a complete set; cannot upgrade to a hotel.");
         }
         if (!BuildingPlacementRules.allowsHouseHotel(colorKey)) {
-            return ActionEffectResult.failed("铁路与公共事业套不能加盖旅馆。");
+            return ActionEffectResult.failed("Railroad and utility sets cannot have hotels.");
         }
         if (BuildingPlacementRules.hasHotelForColor(actor.getPropertyCardsView(), colorKey)) {
-            return ActionEffectResult.failed("该完整套已有旅馆。");
+            return ActionEffectResult.failed("This complete set already has a hotel.");
         }
         if (target.getBuildingLevel() != BuildingLevel.HOUSE) {
-            return ActionEffectResult.failed("必须先在该房产上加盖房子，才能再升级为酒店。");
+            return ActionEffectResult.failed("A house must be added to this property before it can be upgraded to a hotel.");
         }
         target.setBuildingLevel(BuildingLevel.HOTEL);
-        return ActionEffectResult.success("已将房子升级为酒店。");
+        return ActionEffectResult.success("Upgraded the house to a hotel.");
     }
 }

@@ -32,7 +32,7 @@ final class SaveLoadService {
 
     void importSessionJson(String json) {
         if (json == null || json.isBlank()) {
-            throw new IllegalArgumentException("memento JSON 不能为空。");
+            throw new IllegalArgumentException("memento JSON must not be blank.");
         }
         String plain = SaveEncryption.decodeFromStorage(json);
         GameSessionMemento m = GameSessionMemento.fromJson(plain);

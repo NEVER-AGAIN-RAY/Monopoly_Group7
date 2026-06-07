@@ -94,126 +94,144 @@ public class ActionCard extends Card implements Payable {
         }
         String code = effectCode == null ? "" : effectCode.trim().toUpperCase();
 
-        if ("RENT".equals(code)) {
-            String color = (params != null && params.getTargetColorKey() != null)
-                    ? params.getTargetColorKey().trim()
-                    : "";
-            if (color.isEmpty()) {
-                return false;
-            }
-            return PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), color) > 0;
+        switch (code) {
+            case "RENT":
+                return canPlayRent(actor, params);
+            case "DOUBLE_RENT":
+                return canPlayDoubleRent(actor, context);
+            case "RENT_DUAL":
+                return canPlayRentDual(actor, params, context);
+            case "STEAL_PROPERTY":
+                return canPlaySteal(actor, params, context);
+            case "FORCED_DEAL":
+                return canPlayForcedDeal(actor, params, context);
+            case "DEBT_COLLECTOR":
+                return canPlayDebtCollector(actor, params, context);
+            case "RENT_WAIVER":
+                return canPlayRentWaiver(actor, context);
+            case "HOUSE":
+                return canPlayHouseUpgrade(actor, params);
+            case "HOTEL":
+                return canPlayHotelUpgrade(actor, params);
+            case "BIRTHDAY":
+                return canPlayBirthday(context);
+            case "DEAL_BREAKER":
+                return canPlayDealBreaker(actor, params, context);
+            case "PASS_GO":
+            default:
+                return true;
         }
+    }
 
-        if ("DOUBLE_RENT".equals(code)) {
-            return !context.hasPendingDoubleRentFor(actor.getPlayerId()) && hasAnyRentableProperty(actor);
+    private static boolean canPlayRent(Player actor, ActionParamContext params) {
+        String color = (params != null && params.getTargetColorKey() != null)
+                ? params.getTargetColorKey().trim()
+                : "";
+        if (color.isEmpty()) {
+            return false;
         }
+        return PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), color) > 0;
+    }
 
-        if ("RENT_DUAL".equals(code)) {
-            if (params == null || blank(params.getTargetColorKey())) {
-                return false;
-            }
-            String chosen = params.getTargetColorKey().trim().toUpperCase(Locale.ROOT);
-            boolean inPalette = rentPalette.stream().anyMatch(chosen::equals);
-            if (!inPalette) {
-                return false;
-            }
-            if (PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), chosen) <= 0) {
-                return false;
-            }
-            if (!rentDualChargesEachOtherPlayer) {
-                if (blank(params.getTargetPlayerId())) {
-                    return false;
-                }
-                Player target = context.findPlayer(params.getTargetPlayerId());
-                return target != null && target != actor;
-            }
-            return true;
+    private static boolean canPlayDoubleRent(Player actor, GameContext context) {
+        return !context.hasPendingDoubleRentFor(actor.getPlayerId()) && hasAnyRentableProperty(actor);
+    }
+
+    private boolean canPlayRentDual(Player actor, ActionParamContext params, GameContext context) {
+        if (params == null || blank(params.getTargetColorKey())) {
+            return false;
         }
-
-        if ("STEAL_PROPERTY".equals(code)) {
-            return canPlaySteal(actor, params, context);
+        String chosen = params.getTargetColorKey().trim().toUpperCase(Locale.ROOT);
+        boolean inPalette = rentPalette.stream().anyMatch(chosen::equals);
+        if (!inPalette) {
+            return false;
         }
-
-        if ("FORCED_DEAL".equals(code)) {
-            if (params == null || blank(params.getTargetPlayerId())) {
-                return false;
-            }
-            Player target = context.findPlayer(params.getTargetPlayerId());
-            if (target == null || target == actor
-                    || target.getPropertyCardCount() == 0
-                    || actor.getPropertyCardCount() == 0) {
-                return false;
-            }
-            String targetCardId = params.getTargetCardId();
-            String actorCardId = params.getActorCardId();
-            if (blank(targetCardId) && blank(actorCardId)) {
-                return hasTradableProperty(target) && hasTradableProperty(actor);
-            }
-            if (blank(targetCardId) || blank(actorCardId)) {
-                return false;
-            }
-            PropertyCard targetProperty = findPropertyById(target, targetCardId);
-            PropertyCard actorProperty = findPropertyById(actor, actorCardId);
-            return targetProperty != null
-                    && actorProperty != null
-                    && PropertyStealRules.mayStealPropertyFromTarget(target, targetProperty)
-                    && PropertyStealRules.mayStealPropertyFromTarget(actor, actorProperty);
+        if (PropertySetCalculator.effectiveCountForColor(actor.getPropertyCardsView(), chosen) <= 0) {
+            return false;
         }
-
-        if ("DEBT_COLLECTOR".equals(code)) {
-            if (params == null || blank(params.getTargetPlayerId())) {
+        if (!rentDualChargesEachOtherPlayer) {
+            if (blank(params.getTargetPlayerId())) {
                 return false;
             }
             Player target = context.findPlayer(params.getTargetPlayerId());
-            if (target == null || target == actor) {
-                return false;
-            }
-            return target.totalBankValueM() > 0 || target.getPropertyCardCount() > 0;
+            return target != null && target != actor;
         }
-
-        if ("RENT_WAIVER".equals(code)) {
-            if (context == null || context.getResponseState() == null) {
-                return false;
-            }
-            return context.isAwaitingResponseFrom(actor.getPlayerId());
-        }
-
-        if ("PASS_GO".equals(code)) {
-            return true;
-        }
-
-        if ("HOUSE".equals(code)) {
-            PropertyCard pc = findActorPropertyForUpgrade(actor, params);
-            return pc != null && canPlayHouse(actor, pc);
-        }
-
-        if ("HOTEL".equals(code)) {
-            PropertyCard pc = findActorPropertyForUpgrade(actor, params);
-            return pc != null && canPlayHotel(actor, pc);
-        }
-
-        if ("BIRTHDAY".equals(code)) {
-            return context != null && context.getPlayers() != null && context.getPlayers().size() >= 2;
-        }
-
-        if ("DEAL_BREAKER".equals(code)) {
-            if (params == null || blank(params.getTargetPlayerId())) {
-                return false;
-            }
-            Player target = context.findPlayer(params.getTargetPlayerId());
-            if (target == null || target == actor) {
-                return false;
-            }
-            String colorKey = normalizeColorKey(params.getTargetColorKey());
-            if (colorKey == null && !blank(params.getTargetCardId())) {
-                PropertyCard targetProperty = findPropertyById(target, params.getTargetCardId());
-                colorKey = colorKeyForProperty(targetProperty);
-            }
-            return colorKey != null
-                    && PropertySetCalculator.hasCompleteSetForColor(target.getPropertyCardsView(), colorKey);
-        }
-
         return true;
+    }
+
+    private static boolean canPlayForcedDeal(Player actor, ActionParamContext params, GameContext context) {
+        if (params == null || blank(params.getTargetPlayerId())) {
+            return false;
+        }
+        Player target = context.findPlayer(params.getTargetPlayerId());
+        if (target == null || target == actor
+                || target.getPropertyCardCount() == 0
+                || actor.getPropertyCardCount() == 0) {
+            return false;
+        }
+        String targetCardId = params.getTargetCardId();
+        String actorCardId = params.getActorCardId();
+        if (blank(targetCardId) && blank(actorCardId)) {
+            return hasTradableProperty(target) && hasTradableProperty(actor);
+        }
+        if (blank(targetCardId) || blank(actorCardId)) {
+            return false;
+        }
+        PropertyCard targetProperty = findPropertyById(target, targetCardId);
+        PropertyCard actorProperty = findPropertyById(actor, actorCardId);
+        return targetProperty != null
+                && actorProperty != null
+                && PropertyStealRules.mayStealPropertyFromTarget(target, targetProperty)
+                && PropertyStealRules.mayStealPropertyFromTarget(actor, actorProperty);
+    }
+
+    private static boolean canPlayDebtCollector(Player actor, ActionParamContext params, GameContext context) {
+        if (params == null || blank(params.getTargetPlayerId())) {
+            return false;
+        }
+        Player target = context.findPlayer(params.getTargetPlayerId());
+        if (target == null || target == actor) {
+            return false;
+        }
+        return target.totalBankValueM() > 0 || target.getPropertyCardCount() > 0;
+    }
+
+    private static boolean canPlayRentWaiver(Player actor, GameContext context) {
+        if (context == null || context.getResponseState() == null) {
+            return false;
+        }
+        return context.isAwaitingResponseFrom(actor.getPlayerId());
+    }
+
+    private static boolean canPlayHouseUpgrade(Player actor, ActionParamContext params) {
+        PropertyCard pc = findActorPropertyForUpgrade(actor, params);
+        return pc != null && canPlayHouse(actor, pc);
+    }
+
+    private static boolean canPlayHotelUpgrade(Player actor, ActionParamContext params) {
+        PropertyCard pc = findActorPropertyForUpgrade(actor, params);
+        return pc != null && canPlayHotel(actor, pc);
+    }
+
+    private static boolean canPlayBirthday(GameContext context) {
+        return context != null && context.getPlayers() != null && context.getPlayers().size() >= 2;
+    }
+
+    private static boolean canPlayDealBreaker(Player actor, ActionParamContext params, GameContext context) {
+        if (params == null || blank(params.getTargetPlayerId())) {
+            return false;
+        }
+        Player target = context.findPlayer(params.getTargetPlayerId());
+        if (target == null || target == actor) {
+            return false;
+        }
+        String colorKey = normalizeColorKey(params.getTargetColorKey());
+        if (colorKey == null && !blank(params.getTargetCardId())) {
+            PropertyCard targetProperty = findPropertyById(target, params.getTargetCardId());
+            colorKey = colorKeyForProperty(targetProperty);
+        }
+        return colorKey != null
+                && PropertySetCalculator.hasCompleteSetForColor(target.getPropertyCardsView(), colorKey);
     }
 
     private static PropertyCard findActorPropertyForUpgrade(Player actor, ActionParamContext params) {

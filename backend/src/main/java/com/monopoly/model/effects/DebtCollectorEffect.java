@@ -16,16 +16,16 @@ public class DebtCollectorEffect implements ActionEffect {
         Player target = ctx.getTarget();
 
         if (target == null) {
-            return ActionEffectResult.failed("债务催缴需指定目标玩家。");
+            return ActionEffectResult.failed("Debt Collector requires a target player.");
         }
 
         PaymentSettlement.Result result = PaymentSettlement.settle(target, actor, DEBT_AMOUNT, ctx.getEngine());
         if (result.isSuccess()) {
             return ActionEffectResult.success(
-                    target.getDisplayName() + " 向 " + actor.getDisplayName()
-                            + " 支付债务 " + result.getAmountPaid() + "M。");
+                    target.getDisplayName() + " paid " + actor.getDisplayName()
+                            + " a debt of " + result.getAmountPaid() + "M.");
         } else {
-            return ActionEffectResult.failed("债务催缴失败：" + result.getMessage());
+            return ActionEffectResult.failed("Debt collection failed: " + result.getMessage());
         }
     }
 }

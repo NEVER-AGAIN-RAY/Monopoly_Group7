@@ -48,7 +48,7 @@ public final class ActionOptionsService {
         ActionOptionsResult out = new ActionOptionsResult();
         if (actor == null || actionCard == null || allPlayers == null || engine == null) {
             out.setOk(false);
-            out.setError("参数无效");
+            out.setError("Invalid parameters");
             return out;
         }
         String ec = actionCard.getEffectCode() == null ? "" : actionCard.getEffectCode().trim().toUpperCase(Locale.ROOT);
@@ -107,7 +107,7 @@ public final class ActionOptionsService {
             ActionOptionsResult out) {
         if (others.isEmpty()) {
             out.setOk(false);
-            out.setError("没有其他玩家可收租。");
+            out.setError("No other player to charge rent from.");
             return;
         }
         String paletteLabel = String.join(" / ", card.getRentPaletteView());
@@ -133,7 +133,7 @@ public final class ActionOptionsService {
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("卡面色组中暂无你拥有的颜色。");
+            out.setError("None of this card's printed colors match a color you own.");
         }
     }
 
@@ -148,7 +148,7 @@ public final class ActionOptionsService {
             ActionOptionsResult out) {
         if (others.isEmpty()) {
             out.setOk(false);
-            out.setError("没有其他玩家可收租。");
+            out.setError("No other player to charge rent from.");
             return;
         }
         String paletteLabel = String.join(" / ", card.getRentPaletteView());
@@ -175,7 +175,7 @@ public final class ActionOptionsService {
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("卡面色组中暂无你拥有的颜色与对手组合。");
+            out.setError("No combination of a color you own and an opponent is available for this card.");
         }
     }
 
@@ -209,7 +209,7 @@ public final class ActionOptionsService {
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("当前没有可收租的颜色与对手组合。");
+            out.setError("No color-and-opponent combination is currently available to charge rent.");
         }
     }
 
@@ -248,7 +248,7 @@ public final class ActionOptionsService {
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("没有其他玩家可指定。");
+            out.setError("No other player to target.");
         }
     }
 
@@ -265,7 +265,7 @@ public final class ActionOptionsService {
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("没有可偷的房产。");
+            out.setError("No property available to steal.");
         }
     }
 
@@ -289,7 +289,7 @@ public final class ActionOptionsService {
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("没有可行的强制交换组合。");
+            out.setError("No viable forced-swap combination.");
         }
     }
 
@@ -305,7 +305,7 @@ public final class ActionOptionsService {
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("没有对手拥有可夺取的完整套。");
+            out.setError("No opponent has a complete set available to steal.");
         }
     }
 
@@ -332,7 +332,7 @@ public final class ActionOptionsService {
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("没有可加盖房屋的房产（需已声明颜色的完整套且为平地）。");
+            out.setError("No property eligible for a house (requires a color-assigned complete set with no building yet).");
         }
     }
 
@@ -359,7 +359,7 @@ public final class ActionOptionsService {
         }
         if (out.getOptions().isEmpty()) {
             out.setOk(false);
-            out.setError("没有可升级为旅馆的房产（需先有房屋且套完整）。");
+            out.setError("No property eligible for a hotel upgrade (requires an existing house on a complete set).");
         }
     }
 

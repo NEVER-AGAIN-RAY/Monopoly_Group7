@@ -64,7 +64,7 @@ final class EffectStackOrchestrator {
 
     void enterRentResponseWindow(Player tenant, Player playedBy, ActionCard playedCard) {
         if (tenant == null) {
-            throw new IllegalStateException("收租目标无效。");
+            throw new IllegalStateException("Invalid rent target.");
         }
         if (shouldAutoRespond(tenant)) {
             turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
@@ -105,7 +105,7 @@ final class EffectStackOrchestrator {
             Supplier<ActionEffectResult> resolver,
             int actionCountAfterPlay) {
         if (target == null || card == null || resolver == null) {
-            throw new IllegalStateException("行动响应目标无效。");
+            throw new IllegalStateException("Invalid action response target.");
         }
         if (shouldAutoRespond(target)) {
             turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
@@ -209,30 +209,30 @@ final class EffectStackOrchestrator {
      */
     void performResponsePass(String actingPlayerId, List<String> paymentCardIds) {
         if (actingPlayerId == null || actingPlayerId.isBlank()) {
-            throw new IllegalArgumentException("放弃响应时必须提供 actingPlayerId。");
+            throw new IllegalArgumentException("actingPlayerId is required when passing on a response.");
         }
         if (!controller.getGameContext().isAwaitingResponseFrom(actingPlayerId)) {
-            throw new IllegalStateException("当前未轮到该玩家响应或已超时。");
+            throw new IllegalStateException("Not this player's turn to respond, or already timed out.");
         }
         GameContext ctx = controller.getGameContext();
         StackResponseState st = ctx.getResponseState();
         if (paymentCardIds != null && !paymentCardIds.isEmpty()) {
             if (st == null || st.getRole() != StackResponseState.Role.TENANT) {
-                throw new IllegalStateException("仅承租人在放弃免租时可指定 paymentCardIds。");
+                throw new IllegalStateException("Only the tenant may specify paymentCardIds when passing on rent waiver.");
             }
             List<EffectStackEntry> copy = new ArrayList<>(ctx.getEffectStackView());
             Set<String> cancelled = EffectStackResolver.computeCancelledEntryIds(copy);
             List<EffectStackEntry> active = EffectStackResolver.activeRentEntriesInOrder(copy, cancelled);
             if (active.isEmpty()) {
-                throw new IllegalStateException("当前无应付租金，请勿指定 paymentCardIds。");
+                throw new IllegalStateException("No rent due currently; do not specify paymentCardIds.");
             }
             EffectStackEntry first = active.get(0);
             if (!actingPlayerId.equals(first.getTenantPlayerId())) {
-                throw new IllegalStateException("首条应付租金不指向你，不能指定 paymentCardIds。");
+                throw new IllegalStateException("First rent charge is not directed at you; cannot specify paymentCardIds.");
             }
             Player tenant = controller.resolvePlayer(actingPlayerId);
             if (tenant == null) {
-                throw new IllegalStateException("承租人玩家不存在。");
+                throw new IllegalStateException("Tenant player not found.");
             }
             PaymentSettlement.validateExplicitChoice(tenant, first.getAmountDue(), paymentCardIds);
         }
@@ -252,27 +252,27 @@ final class EffectStackOrchestrator {
     void handleWaiverPlay(PlayActionRequest req) {
         Player actor = controller.resolvePlayer(req.getActingPlayerId());
         if (actor == null) {
-            throw new IllegalArgumentException("等待响应阶段必须提供有效的 actingPlayerId。");
+            throw new IllegalArgumentException("Valid actingPlayerId required during response phase.");
         }
         GameContext ctx = controller.getGameContext();
         if (!ctx.isAwaitingResponseFrom(actor.getPlayerId())) {
-            throw new IllegalStateException("当前未轮到该玩家打出免租牌。");
+            throw new IllegalStateException("Not this player's turn to play a rent waiver card.");
         }
         Card card = turnFlow.resolveCardInHand(actor, req.getCardId(), req.getHandIndex());
         if (!(card instanceof ActionCard actionCard)) {
-            throw new IllegalArgumentException("只能打出行动卡。");
+            throw new IllegalArgumentException("Only action cards can be played in this phase.");
         }
         if (!"RENT_WAIVER".equalsIgnoreCase(actionCard.getEffectCode())) {
-            throw new IllegalStateException("当前只能打出免租牌（Just Say No）。");
+            throw new IllegalStateException("Can only play Just Say No (RENT_WAIVER) during response phase.");
         }
         ctx.bindPlayers(controller.getSessionPlayersView());
         ActionParamContext p = ActionParamContext.fromPlayRequest(req);
         if (!actionCard.canPlay(actor, p, ctx)) {
-            throw new IllegalStateException("当前不能打出免租牌。");
+            throw new IllegalStateException("Cannot play RENT_WAIVER at this time.");
         }
         StackResponseState st = ctx.getResponseState();
         if (st == null) {
-            throw new IllegalStateException("响应状态丢失。");
+            throw new IllegalStateException("Response state lost.");
         }
         String targetId;
         if (st.getRole() == StackResponseState.Role.TENANT) {
@@ -284,7 +284,7 @@ final class EffectStackOrchestrator {
             targetId = top != null ? top.getId() : null;
         }
         if (targetId == null) {
-            throw new IllegalStateException("找不到可抵消的效果条目。");
+            throw new IllegalStateException("No counterable effect entry found.");
         }
 
         actor.placeActionToCenter(actionCard);
@@ -294,7 +294,7 @@ final class EffectStackOrchestrator {
         if (st.getRole() == StackResponseState.Role.TENANT) {
             Player landlord = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
             if (landlord == null) {
-                throw new IllegalStateException("当前回合玩家丢失。");
+                throw new IllegalStateException("Current turn player lost.");
             }
             if (shouldAutoRespond(landlord)) {
                 ctx.setResponseState(new StackResponseState(
@@ -341,7 +341,7 @@ final class EffectStackOrchestrator {
 
     void resolvePaymentChoiceForSimulation(String tenantId, List<String> explicitPaymentCardIds) {
         if (tenantId == null || tenantId.isBlank()) {
-            throw new IllegalArgumentException("付款玩家不能为空。");
+            throw new IllegalArgumentException("Tenant ID must not be blank.");
         }
         GameContext ctx = controller.getGameContext();
         List<EffectStackEntry> copy = new ArrayList<>(ctx.getEffectStackView());
@@ -355,11 +355,11 @@ final class EffectStackOrchestrator {
             }
         }
         if (due == null) {
-            throw new IllegalStateException("当前效果栈没有该玩家需要支付的租金。");
+            throw new IllegalStateException("No rent due for this player in the effect stack.");
         }
         Player tenant = controller.resolvePlayer(tenantId);
         if (tenant == null) {
-            throw new IllegalStateException("付款玩家不存在。");
+            throw new IllegalStateException("Paying player not found.");
         }
         PaymentSettlement.validateExplicitChoice(tenant, due.getAmountDue(), explicitPaymentCardIds);
         resolveEffectStackAndResume("COUNTERFACTUAL_PAYMENT", explicitPaymentCardIds, tenantId);
@@ -405,7 +405,7 @@ final class EffectStackOrchestrator {
                             rentSeq.getSourceEffectCode()));
                     enterRentResponseWindow(nextTenant);
                     controller.pushSnapshot(controller.getCurrentSessionId(), phaseHint,
-                            "Effect stack resolved: " + pay.getMessage() + " — 下一名承租人。");
+                            "Effect stack resolved: " + pay.getMessage() + " — next tenant.");
                     System.out.println("[EFFECT_STACK] " + phaseHint + " " + pay.getMessage()
                             + " (rent sequence continues)");
                     return;
@@ -443,7 +443,7 @@ final class EffectStackOrchestrator {
                 ? TurnFlowService.TurnPhase.END_TURN
                 : TurnFlowService.TurnPhase.PLAY;
         ActionEffectResult result = cancelledAction
-                ? ActionEffectResult.countered("Just Say No 抵消了 " + pending.card.getName() + "。")
+                ? ActionEffectResult.countered("Just Say No countered " + pending.card.getName() + ".")
                 : pending.resolver.get();
         String phase = result.isSuccess() ? "ACTION_SUCCESS"
                 : (result.getStatus() == ActionEffectResult.Status.COUNTERED
@@ -464,18 +464,18 @@ final class EffectStackOrchestrator {
         }
         if (st.getRole() == StackResponseState.Role.TENANT) {
             if (st.getDeadlineEpochMs() > 0L) {
-                return "有人对你打出收租或行动，你有 "
+                return "Someone played rent or action against you; you have "
                         + RESPONSE_WINDOW_SECONDS
-                        + " 秒打出 Just Say No，否则默认接受。";
+                        + " seconds to play Just Say No, otherwise the action is accepted.";
             }
-            return "有人对你打出收租或行动，你可以打出 Just Say No，也可以接受。";
+            return "Someone played rent or action against you; you may play Just Say No or accept.";
         }
         if (st.getDeadlineEpochMs() > 0L) {
-            return "对方打出免租，你有 "
+            return "Opponent played Just Say No; you have "
                     + RESPONSE_WINDOW_SECONDS
-                    + " 秒打出 Just Say No 反制，否则默认放弃反制。";
+                    + " seconds to counter with your own Just Say No, otherwise the counter is accepted.";
         }
-        return "对方打出免租，你可以打出 Just Say No 反制，也可以放弃反制。";
+        return "Opponent played Just Say No; you may counter with your own Just Say No or pass.";
     }
 
     private boolean shouldAutoRespond(Player player) {

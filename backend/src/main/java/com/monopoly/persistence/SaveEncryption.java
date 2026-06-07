@@ -39,10 +39,10 @@ public final class SaveEncryption {
      */
     public static byte[] encrypt(String plain, String key) {
         if (plain == null) {
-            throw new IllegalArgumentException("plain 不能为 null");
+            throw new IllegalArgumentException("plain must not be null");
         }
         if (key == null || key.isBlank()) {
-            throw new IllegalArgumentException("加密需要非空 key");
+            throw new IllegalArgumentException("Encryption requires a non-blank key");
         }
         try {
             SecretKeySpec sk = aesKeyFromPassphrase(key);
@@ -57,16 +57,16 @@ public final class SaveEncryption {
             System.arraycopy(ct, 0, out, iv.length, ct.length);
             return out;
         } catch (GeneralSecurityException e) {
-            throw new IllegalStateException("AES-GCM 加密失败", e);
+            throw new IllegalStateException("AES-GCM encryption failed", e);
         }
     }
 
     public static String decrypt(byte[] cipher, String key) {
         if (cipher == null || cipher.length <= GCM_IV_LEN) {
-            throw new IllegalArgumentException("密文无效");
+            throw new IllegalArgumentException("Ciphertext is invalid");
         }
         if (key == null || key.isBlank()) {
-            throw new IllegalArgumentException("解密需要非空 key");
+            throw new IllegalArgumentException("Decryption requires a non-blank key");
         }
         try {
             byte[] iv = Arrays.copyOfRange(cipher, 0, GCM_IV_LEN);
@@ -77,9 +77,9 @@ public final class SaveEncryption {
             byte[] plain = c.doFinal(ct);
             return new String(plain, StandardCharsets.UTF_8);
         } catch (AEADBadTagException e) {
-            throw new IllegalArgumentException("解密失败：密钥错误或数据已损坏。", e);
+            throw new IllegalArgumentException("Decryption failed: wrong key or corrupted data.", e);
         } catch (GeneralSecurityException e) {
-            throw new IllegalStateException("AES-GCM 解密失败", e);
+            throw new IllegalStateException("AES-GCM decryption failed", e);
         }
     }
 
@@ -100,7 +100,7 @@ public final class SaveEncryption {
      */
     public static String decodeFromStorage(String stored) {
         if (stored == null) {
-            throw new IllegalArgumentException("内容不能为 null");
+            throw new IllegalArgumentException("Content must not be null");
         }
         String t = stored.trim();
         String k = getKeyOrNull();

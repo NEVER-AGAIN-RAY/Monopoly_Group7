@@ -16,11 +16,11 @@ public final class BirthdayEffect implements ActionEffect {
     public ActionEffectResult execute(ActionEffectContext ctx) {
         Player actor = ctx.getActor();
         if (actor == null) {
-            return ActionEffectResult.failed("缺少行动玩家。");
+            return ActionEffectResult.failed("Missing acting player.");
         }
         List<Player> all = ctx.getAllPlayers();
         if (all == null || all.size() < 2) {
-            return ActionEffectResult.failed("人数不足，无法结算生日礼金。");
+            return ActionEffectResult.failed("Not enough players to settle birthday gifts.");
         }
         int totalPaid = 0;
         StringBuilder note = new StringBuilder();
@@ -35,10 +35,10 @@ public final class BirthdayEffect implements ActionEffect {
                 if (note.length() > 0) {
                     note.append(" ");
                 }
-                note.append(p.getDisplayName()).append("未能支付2M;");
+                note.append(p.getDisplayName()).append(" could not pay 2M;");
             }
         }
         return ActionEffectResult.success(
-                "生日礼金共收入 " + totalPaid + "M。" + (note.length() > 0 ? " " + note : ""));
+                "Birthday gifts collected " + totalPaid + "M in total." + (note.length() > 0 ? " " + note : ""));
     }
 }

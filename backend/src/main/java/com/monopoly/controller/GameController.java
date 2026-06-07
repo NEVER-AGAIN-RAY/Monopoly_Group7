@@ -489,7 +489,7 @@ public class GameController implements AiGameBridge {
     Player requireCurrentPlayer() {
         Player current = turnManager.getCurrentPlayer();
         if (current == null) {
-            throw new IllegalStateException("当前没有可行动玩家，请先 startNewSession。");
+            throw new IllegalStateException("No active player; call startNewSession first.");
         }
         return current;
     }
@@ -603,10 +603,10 @@ public class GameController implements AiGameBridge {
 
     void ensureSessionActive() {
         if (sessionEndedNaturally) {
-            throw new IllegalStateException("对局已结束，不可继续操作。");
+            throw new IllegalStateException("Session has ended naturally; no further actions allowed.");
         }
         if (sessionForceEnded) {
-            throw new IllegalStateException("对局已强制结束，不可继续操作。");
+            throw new IllegalStateException("Session has been force-ended; no further actions allowed.");
         }
         if (sessionStartEpochMs <= 0) {
             return;
@@ -621,7 +621,7 @@ public class GameController implements AiGameBridge {
         sessionForceEnded = true;
         forceEndReason = "TIMEOUT";
         pushSnapshot(currentSessionId, "GAME_FORCE_END");
-        throw new IllegalStateException("对局已超过单局时长上限，已强制结束。");
+        throw new IllegalStateException("Session exceeded time limit; force-ended.");
     }
 
     void recordError(String code, String message) {

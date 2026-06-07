@@ -19,32 +19,32 @@ public final class HouseEffect implements ActionEffect {
         Player actor = ctx.getActor();
         PropertyCard target = ctx.getActorProperty();
         if (actor == null) {
-            return ActionEffectResult.failed("缺少行动玩家。");
+            return ActionEffectResult.failed("Missing acting player.");
         }
         if (target == null) {
-            return ActionEffectResult.failed("请指定财产区内要加盖房子的房产（actorCardId 或 targetCardId 指向己方房产）。");
+            return ActionEffectResult.failed("Specify the property in your property zone to add a house to (actorCardId or targetCardId pointing to your own property).");
         }
         if (!actor.getPropertyCardsView().contains(target)) {
-            return ActionEffectResult.failed("指定房产不在你的财产区。");
+            return ActionEffectResult.failed("The specified property is not in your property zone.");
         }
         String colorKey = resolveColorKey(target);
         if (colorKey == null) {
-            return ActionEffectResult.failed("万能房产需先声明颜色后才能加盖房子。");
+            return ActionEffectResult.failed("A wild property must be assigned a color before a house can be added.");
         }
         if (!PropertySetCalculator.hasCompleteSetForColor(actor.getPropertyCardsView(), colorKey)) {
-            return ActionEffectResult.failed("该颜色尚未形成完整地产集，无法加盖房子。");
+            return ActionEffectResult.failed("This color does not form a complete property set; cannot add a house.");
         }
         if (!BuildingPlacementRules.allowsHouseHotel(colorKey)) {
-            return ActionEffectResult.failed("铁路与公共事业套不能加盖房屋或旅馆。");
+            return ActionEffectResult.failed("Railroad and utility sets cannot have houses or hotels.");
         }
         if (BuildingPlacementRules.hasAnyBuildingForColor(actor.getPropertyCardsView(), colorKey)) {
-            return ActionEffectResult.failed("该完整套已有房屋或旅馆。");
+            return ActionEffectResult.failed("This complete set already has a house or hotel.");
         }
         if (target.getBuildingLevel() != BuildingLevel.BASE) {
-            return ActionEffectResult.failed("该房产已有建筑，请使用酒店卡将房子升级为酒店。");
+            return ActionEffectResult.failed("This property already has a building; use a hotel card to upgrade the house to a hotel.");
         }
         target.setBuildingLevel(BuildingLevel.HOUSE);
-        return ActionEffectResult.success("已在该房产上加盖房子。");
+        return ActionEffectResult.success("Added a house to the property.");
     }
 
     static String resolveColorKey(PropertyCard card) {

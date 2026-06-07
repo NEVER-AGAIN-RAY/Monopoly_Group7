@@ -33,13 +33,13 @@ public class PropertyWildCard extends PropertyCard {
         this.wildKind = kind == null ? WildPropertyKind.ANY_COLOR : kind;
         if (this.wildKind == WildPropertyKind.DUAL_COLOR) {
             if (printedPair == null || printedPair.size() != 2) {
-                throw new IllegalArgumentException("DUAL_COLOR 万能须恰好两色: " + id);
+                throw new IllegalArgumentException("DUAL_COLOR wild must have exactly 2 printed colors: " + id);
             }
             String a = printedPair.get(0).trim().toUpperCase(Locale.ROOT);
             String b = printedPair.get(1).trim().toUpperCase(Locale.ROOT);
             if (!PropertySetCalculator.REQUIRED_BY_COLOR.containsKey(a)
                     || !PropertySetCalculator.REQUIRED_BY_COLOR.containsKey(b)) {
-                throw new IllegalArgumentException("万能印色须为标准色键: " + a + "," + b);
+                throw new IllegalArgumentException("Wild printed colors must be standard color keys: " + a + "," + b);
             }
             this.printedColorPair = List.of(a, b);
         } else {
@@ -62,7 +62,7 @@ public class PropertyWildCard extends PropertyCard {
     public void setAssignedColorKey(String colorKey) {
         if (colorKey == null || colorKey.isBlank()) {
             if (assignedColorKey != null) {
-                throw new IllegalStateException("万能房产已经声明为 " + assignedColorKey + "，不能清空或改色。");
+                throw new IllegalStateException("Wild property already assigned " + assignedColorKey + "; cannot clear or reassign.");
             }
             this.assignedColorKey = null;
             return;
@@ -70,7 +70,7 @@ public class PropertyWildCard extends PropertyCard {
         String ck = colorKey.trim().toUpperCase(Locale.ROOT);
         validateAssignableColorKey(ck);
         if (assignedColorKey != null && !assignedColorKey.equals(ck)) {
-            throw new IllegalStateException("万能房产已经声明为 " + assignedColorKey + "，不能改为 " + ck + "。");
+            throw new IllegalStateException("Wild property already assigned " + assignedColorKey + "; cannot change to " + ck + ".");
         }
         this.assignedColorKey = ck;
     }
@@ -80,17 +80,17 @@ public class PropertyWildCard extends PropertyCard {
      */
     public void validateAssignableColorKey(String normalizedColorKey) {
         if (normalizedColorKey == null || normalizedColorKey.isBlank()) {
-            throw new IllegalArgumentException("声明颜色不能为空。");
+            throw new IllegalArgumentException("Assigned color must not be blank.");
         }
         if (!PropertySetCalculator.REQUIRED_BY_COLOR.containsKey(normalizedColorKey)) {
-            throw new IllegalArgumentException("无效颜色键: " + normalizedColorKey);
+            throw new IllegalArgumentException("Invalid color key: " + normalizedColorKey);
         }
         if (wildKind == WildPropertyKind.DUAL_COLOR) {
             boolean ok = printedColorPair.stream().anyMatch(normalizedColorKey::equals);
             if (!ok) {
                 throw new IllegalArgumentException(
-                        "该双色万能仅可声明为 " + printedColorPair.get(0) + " 或 " + printedColorPair.get(1)
-                                + "，不能为 " + normalizedColorKey + "。");
+                        "This dual-color wild can only be assigned " + printedColorPair.get(0) + " or " + printedColorPair.get(1)
+                                + ", not " + normalizedColorKey + ".");
             }
         }
     }

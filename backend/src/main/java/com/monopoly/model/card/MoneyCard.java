@@ -14,7 +14,7 @@ public class MoneyCard extends Card implements Payable {
     public MoneyCard(String id, String name, int valueM) {
         super(id, name);
         if (valueM <= 0) {
-            throw new IllegalArgumentException("钱币面值必须为正数");
+            throw new IllegalArgumentException("Money card value must be positive");
         }
         this.valueM = valueM;
     }

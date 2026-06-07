@@ -16,19 +16,19 @@ public class RentEffect implements ActionEffect {
         String colorKey = ctx.getTargetColorKey();
 
         if (landlord == null) {
-            return DueResult.error("房东无效。");
+            return DueResult.error("Invalid landlord.");
         }
         if (tenant == null) {
-            return DueResult.error("必须指定收租目标玩家。");
+            return DueResult.error("A target player must be specified to charge rent.");
         }
         if (colorKey == null || colorKey.isBlank()) {
-            return DueResult.error("必须指定收租颜色。");
+            return DueResult.error("A rent color must be specified.");
         }
 
         String ck = colorKey.trim().toUpperCase(java.util.Locale.ROOT);
         int due = RentCalculator.computeRentForColor(landlord, ck);
         if (due <= 0) {
-            return DueResult.error("你在财产区没有 " + ck + " 房产，无法收租。");
+            return DueResult.error("You have no " + ck + " property in your property zone; cannot charge rent.");
         }
         return DueResult.ok(due);
     }
@@ -40,15 +40,15 @@ public class RentEffect implements ActionEffect {
         Player landlord = ctx.getActor();
         String colorKey = ctx.getTargetColorKey();
         if (landlord == null) {
-            return DueResult.error("房东无效。");
+            return DueResult.error("Invalid landlord.");
         }
         if (colorKey == null || colorKey.isBlank()) {
-            return DueResult.error("必须指定收租颜色。");
+            return DueResult.error("A rent color must be specified.");
         }
         String ck = colorKey.trim().toUpperCase(java.util.Locale.ROOT);
         int due = RentCalculator.computeRentForColor(landlord, ck);
         if (due <= 0) {
-            return DueResult.error("你在财产区没有 " + ck + " 房产，无法打出该双色收租牌。");
+            return DueResult.error("You have no " + ck + " property in your property zone; cannot play this dual-color rent card.");
         }
         return DueResult.ok(due);
     }
@@ -96,10 +96,10 @@ public class RentEffect implements ActionEffect {
         PaymentSettlement.Result result = PaymentSettlement.settle(tenant, landlord, due, ctx.getEngine());
         if (result.isSuccess()) {
             return ActionEffectResult.success(
-                    "收租成功：" + tenant.getDisplayName() + " 向 " + landlord.getDisplayName()
-                            + " 支付 " + result.getAmountPaid() + "M（应付 " + due + "M）。");
+                    "Rent collected: " + tenant.getDisplayName() + " paid " + landlord.getDisplayName()
+                            + " " + result.getAmountPaid() + "M (due " + due + "M).");
         } else {
-            return ActionEffectResult.failed("收租失败：" + result.getMessage());
+            return ActionEffectResult.failed("Rent collection failed: " + result.getMessage());
         }
     }
 }

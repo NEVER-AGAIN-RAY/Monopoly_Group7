@@ -29,9 +29,9 @@ public final class ActionEffectDispatcher {
     static {
         REGISTRY.put("RENT", new RentEffect());
         REGISTRY.put("RENT_DUAL", ctx -> ActionEffectResult.failed(
-                "RENT_DUAL 由回合流程入效果栈，请勿走通用 dispatch。"));
+                "RENT_DUAL is pushed onto the effect stack by the turn flow; do not route it through the generic dispatch."));
         REGISTRY.put("DOUBLE_RENT", ctx -> ActionEffectResult.failed(
-                "DOUBLE_RENT 由回合流程记录为下一张租金牌翻倍，请勿走通用 dispatch。"));
+                "DOUBLE_RENT is recorded by the turn flow as a multiplier for the next rent card; do not route it through the generic dispatch."));
         REGISTRY.put("STEAL_PROPERTY", new StealCardEffect());
         REGISTRY.put("FORCED_DEAL", new ForcedDealEffect());
         REGISTRY.put("DEBT_COLLECTOR", new DebtCollectorEffect());
@@ -41,7 +41,7 @@ public final class ActionEffectDispatcher {
         REGISTRY.put("HOTEL", new HotelEffect());
         REGISTRY.put("BIRTHDAY", new BirthdayEffect());
         REGISTRY.put("DEAL_BREAKER", new DealBreakerEffect());
-        REGISTRY.put("EFFECT_PLACEHOLDER", ctx -> ActionEffectResult.success("占位行动卡，无效果。"));
+        REGISTRY.put("EFFECT_PLACEHOLDER", ctx -> ActionEffectResult.success("Placeholder action card; no effect."));
     }
 
     private ActionEffectDispatcher() {
@@ -54,11 +54,11 @@ public final class ActionEffectDispatcher {
      */
     public static ActionEffectResult dispatch(String effectCode, ActionEffectContext ctx) {
         if (effectCode == null || effectCode.isBlank()) {
-            return ActionEffectResult.failed("effectCode 为空，无法分派效果。");
+            return ActionEffectResult.failed("effectCode is empty; cannot dispatch an effect.");
         }
         ActionEffect effect = REGISTRY.get(effectCode.trim().toUpperCase());
         if (effect == null) {
-            return ActionEffectResult.failed("未知 effectCode：" + effectCode);
+            return ActionEffectResult.failed("Unknown effectCode: " + effectCode);
         }
         return effect.execute(ctx);
     }

@@ -13,20 +13,20 @@ public class DoubleRentEffect implements ActionEffect {
         String colorKey = ctx.getTargetColorKey();
 
         if (landlord == null) {
-            return RentEffect.DueResult.error("房东无效。");
+            return RentEffect.DueResult.error("Invalid landlord.");
         }
         if (tenant == null) {
-            return RentEffect.DueResult.error("Double rent multiplier需指定目标玩家。");
+            return RentEffect.DueResult.error("Double rent requires a target player.");
         }
         if (colorKey == null || colorKey.isBlank()) {
-            return RentEffect.DueResult.error("Double rent multiplier需指定颜色。");
+            return RentEffect.DueResult.error("Double rent requires a color.");
         }
 
         String ck = colorKey.trim().toUpperCase(java.util.Locale.ROOT);
         int base = RentCalculator.computeRentForColor(landlord, ck);
         int due = base * 2;
         if (due <= 0) {
-            return RentEffect.DueResult.error("你在财产区没有 " + ck + " 房产，无法双倍收租。");
+            return RentEffect.DueResult.error("You have no " + ck + " property in your property zone; cannot charge double rent.");
         }
         return RentEffect.DueResult.ok(due);
     }
@@ -45,10 +45,10 @@ public class DoubleRentEffect implements ActionEffect {
         if (result.isSuccess()) {
             int base = due / 2;
             return ActionEffectResult.success(
-                    "Double rent multiplier成功：" + tenant.getDisplayName() + " 支付 " + result.getAmountPaid()
-                            + "M（基础 " + base + "M × 2）。");
+                    "Double rent collected: " + tenant.getDisplayName() + " paid " + result.getAmountPaid()
+                            + "M (base " + base + "M x 2).");
         } else {
-            return ActionEffectResult.failed("Double rent multiplier失败：" + result.getMessage());
+            return ActionEffectResult.failed("Double rent collection failed: " + result.getMessage());
         }
     }
 }

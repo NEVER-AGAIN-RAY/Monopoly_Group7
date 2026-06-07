@@ -211,7 +211,7 @@ public final class GameSessionMemento {
      */
     public static GameSessionMemento capture(GameController controller) {
         if (controller == null) {
-            throw new IllegalArgumentException("controller 不能为 null");
+            throw new IllegalArgumentException("controller must not be null");
         }
         try {
             GameSessionMemento m = new GameSessionMemento();
@@ -286,7 +286,7 @@ public final class GameSessionMemento {
 
             return m;
         } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("捕获会话快照失败", e);
+            throw new IllegalStateException("Failed to capture session snapshot", e);
         }
     }
 
@@ -299,7 +299,7 @@ public final class GameSessionMemento {
             m.setAccessible(true);
             m.invoke(null);
         } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("无法重置 GameEngineSingleton", e);
+            throw new IllegalStateException("Failed to reset GameEngineSingleton", e);
         }
     }
 
@@ -308,7 +308,7 @@ public final class GameSessionMemento {
      */
     public static void applyToController(GameController controller, GameSessionMemento memento) {
         if (controller == null || memento == null) {
-            throw new IllegalArgumentException("controller 与 memento 不能为 null");
+            throw new IllegalArgumentException("controller and memento must not be null");
         }
         try {
             GameEngineSingleton engine = controller.getEngine();
@@ -370,13 +370,13 @@ public final class GameSessionMemento {
             writeField(controller, "sessionForceEnded", memento.isSessionForceEnded());
             writeField(controller, "forceEndReason", memento.getForceEndReason());
         } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("恢复快照失败", e);
+            throw new IllegalStateException("Failed to restore snapshot", e);
         }
     }
 
     public static GameController restore(GameUpdateSubject subject, GameSessionMemento memento) {
         if (subject == null || memento == null) {
-            throw new IllegalArgumentException("subject 与 memento 不能为 null");
+            throw new IllegalArgumentException("subject and memento must not be null");
         }
         GameController controller = new GameController(subject);
         applyToController(controller, memento);
@@ -464,14 +464,14 @@ public final class GameSessionMemento {
         for (PersistedCard pc : sm.getPropertyCards()) {
             Card c = PersistedCard.toCard(pc);
             if (!(c instanceof PropertyCard prop)) {
-                throw new IllegalStateException("财产区需要 PropertyCard: " + pc.getId());
+                throw new IllegalStateException("Property zone requires PropertyCard: " + pc.getId());
             }
             p.addToPropertyZone(prop);
         }
         for (PersistedCard pc : sm.getActionZoneCards()) {
             Card c = PersistedCard.toCard(pc);
             if (!(c instanceof ActionCard ac)) {
-                throw new IllegalStateException("行动区需要 ActionCard: " + pc.getId());
+                throw new IllegalStateException("Action zone requires ActionCard: " + pc.getId());
             }
             p.receiveCardToHand(ac);
             p.placeActionToCenter(ac);
@@ -481,7 +481,7 @@ public final class GameSessionMemento {
     private static EffectStackEntry restoreEffectEntry(EffectStackEntryMemento m)
             throws ReflectiveOperationException {
         if (m == null || m.getId() == null || m.getKind() == null) {
-            throw new IllegalArgumentException("effectStack 条目不完整");
+            throw new IllegalArgumentException("effectStack entry is incomplete");
         }
         EffectStackEntry.Kind kind = EffectStackEntry.Kind.valueOf(m.getKind().trim());
         Constructor<EffectStackEntry> ctor = EffectStackEntry.class.getDeclaredConstructor(
@@ -538,6 +538,6 @@ public final class GameSessionMemento {
                 c = c.getSuperclass();
             }
         }
-        throw new IllegalArgumentException("字段不存在: " + name + " on " + start.getName());
+        throw new IllegalArgumentException("Field not found: " + name + " on " + start.getName());
     }
 }

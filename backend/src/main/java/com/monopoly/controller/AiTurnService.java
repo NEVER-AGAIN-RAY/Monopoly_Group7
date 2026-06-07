@@ -132,7 +132,7 @@ final class AiTurnService {
                 ? ex.getClass().getSimpleName()
                 : ex.getMessage();
         System.err.println("[AI_TURN] " + ai.getPlayerId() + " decision failed: " + message);
-        controller.recordError("AI_DECISION_FAILED", ai.getDisplayName() + " 决策失败，已跳过本次行动：" + message);
+        controller.recordError("AI_DECISION_FAILED", ai.getDisplayName() + " decision failed; this action was skipped: " + message);
         if (controller.isSessionEnded()
                 || controller.getCurrentPlayer() != ai
                 || turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {

@@ -46,12 +46,12 @@ public final class PlayOptionsService {
         ActionOptionsResult bad = new ActionOptionsResult();
         if (actor == null || card == null || allPlayers == null || engine == null) {
             bad.setOk(false);
-            bad.setError("参数无效");
+            bad.setError("Invalid parameters");
             return bad;
         }
         if (actionType == null || actionType.isBlank()) {
             bad.setOk(false);
-            bad.setError("actionType 不能为空");
+            bad.setError("actionType cannot be empty");
             return bad;
         }
         String at = actionType.trim().toUpperCase(Locale.ROOT);
@@ -61,7 +61,7 @@ public final class PlayOptionsService {
             case "DEPOSIT" -> {
                 if (!(card instanceof MoneyCard) && !(card instanceof ActionCard)) {
                     out.setOk(false);
-                    out.setError("仅有现金或行动牌可存入银行。");
+                    out.setError("Only money or action cards can be deposited to the bank.");
                     return out;
                 }
                 out.setOk(true);
@@ -77,7 +77,7 @@ public final class PlayOptionsService {
             case "DEPLOY" -> {
                 if (!(card instanceof PropertyCard)) {
                     out.setOk(false);
-                    out.setError("DEPLOY 仅适用于房产牌。");
+                    out.setError("DEPLOY only applies to property cards.");
                     return out;
                 }
                 out.setOk(true);
@@ -100,14 +100,14 @@ public final class PlayOptionsService {
             case "ACTION" -> {
                 if (!(card instanceof ActionCard ac)) {
                     out.setOk(false);
-                    out.setError("ACTION 仅适用于行动牌。");
+                    out.setError("ACTION only applies to action cards.");
                     return out;
                 }
                 return ActionOptionsService.build(actor, ac, allPlayers, engine, gameContext);
             }
             default -> {
                 out.setOk(false);
-                out.setError("不支持的 actionType: " + actionType);
+                out.setError("Unsupported actionType: " + actionType);
                 return out;
             }
         }

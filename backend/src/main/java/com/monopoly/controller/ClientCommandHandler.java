@@ -61,7 +61,7 @@ final class ClientCommandHandler {
                     return;
                 }
                 throw new IllegalStateException(
-                        "等待响应阶段仅允许打出免租（ACTION）或放弃（RESPONSE_PASS）。");
+                        "During response window, only ACTION (waiver) or RESPONSE_PASS is allowed.");
             }
 
             if ("DISCARD".equals(normalized)) {
@@ -92,22 +92,22 @@ final class ClientCommandHandler {
             controller.ensureSessionActive();
             controller.clearLastError();
             if (playerId == null || playerId.isBlank()) {
-                throw new IllegalArgumentException("playerId 不能为空。");
-            }
-            if (cardId == null || cardId.isBlank()) {
-                throw new IllegalArgumentException("cardId 不能为空。");
-            }
-            Player cur = controller.requireCurrentPlayer();
-            if (!playerId.trim().equals(cur.getPlayerId())) {
-                throw new IllegalStateException("仅当前回合玩家可查询行动选项。");
-            }
-            TurnFlowService turnFlow = controller.turnFlowService();
-            if (turnFlow.currentTurnPhase != TurnFlowService.TurnPhase.PLAY) {
-                throw new IllegalStateException("仅在出牌阶段可查询行动选项。");
-            }
-            Card c = turnFlow.resolveCardInHand(cur, cardId, null);
-            if (!(c instanceof ActionCard ac)) {
-                throw new IllegalArgumentException("该卡牌不是行动牌。");
+throw new IllegalArgumentException("playerId must not be blank.");
+                }
+                if (cardId == null || cardId.isBlank()) {
+                    throw new IllegalArgumentException("cardId must not be blank.");
+                }
+                Player cur = controller.requireCurrentPlayer();
+                if (!playerId.trim().equals(cur.getPlayerId())) {
+                    throw new IllegalStateException("Only the current-turn player may query action options.");
+                }
+                TurnFlowService turnFlow = controller.turnFlowService();
+                if (turnFlow.currentTurnPhase != TurnFlowService.TurnPhase.PLAY) {
+                    throw new IllegalStateException("Action options only available during PLAY phase.");
+                }
+                Card c = turnFlow.resolveCardInHand(cur, cardId, null);
+                if (!(c instanceof ActionCard ac)) {
+                    throw new IllegalArgumentException("The card is not an action card.");
             }
             return ActionOptionsService.build(
                     cur, ac, controller.getSessionPlayersView(),
@@ -126,21 +126,21 @@ final class ClientCommandHandler {
             controller.ensureSessionActive();
             controller.clearLastError();
             if (playerId == null || playerId.isBlank()) {
-                throw new IllegalArgumentException("playerId 不能为空。");
-            }
-            if (cardId == null || cardId.isBlank()) {
-                throw new IllegalArgumentException("cardId 不能为空。");
-            }
-            if (actionType == null || actionType.isBlank()) {
-                throw new IllegalArgumentException("actionType 不能为空。");
-            }
-            Player cur = controller.requireCurrentPlayer();
-            if (!playerId.trim().equals(cur.getPlayerId())) {
-                throw new IllegalStateException("仅当前回合玩家可查询出牌选项。");
-            }
-            TurnFlowService turnFlow = controller.turnFlowService();
-            if (turnFlow.currentTurnPhase != TurnFlowService.TurnPhase.PLAY) {
-                throw new IllegalStateException("仅在出牌阶段可查询出牌选项。");
+throw new IllegalArgumentException("playerId must not be blank.");
+                }
+                if (cardId == null || cardId.isBlank()) {
+                    throw new IllegalArgumentException("cardId must not be blank.");
+                }
+                if (actionType == null || actionType.isBlank()) {
+                    throw new IllegalArgumentException("actionType must not be blank.");
+                }
+                Player cur = controller.requireCurrentPlayer();
+                if (!playerId.trim().equals(cur.getPlayerId())) {
+                    throw new IllegalStateException("Only the current-turn player may query play options.");
+                }
+                TurnFlowService turnFlow = controller.turnFlowService();
+                if (turnFlow.currentTurnPhase != TurnFlowService.TurnPhase.PLAY) {
+                    throw new IllegalStateException("Play options only available during PLAY phase.");
             }
             Card c = turnFlow.resolveCardInHand(cur, cardId, null);
             return PlayOptionsService.build(
@@ -156,35 +156,35 @@ final class ClientCommandHandler {
 
     void validatePlayActionRequest(PlayActionRequest req) {
         if (req == null) {
-            throw new ProtocolValidationException(ERR_PLAY_REQUEST_EMPTY, "出牌请求不能为空。");
+            throw new ProtocolValidationException(ERR_PLAY_REQUEST_EMPTY, "Play request must not be empty.");
         }
         if (req.getActionType() == null || req.getActionType().isBlank()) {
             throw new ProtocolValidationException(
-                    ERR_PLAY_ACTION_TYPE_REQUIRED, "actionType 不能为空。");
+                    ERR_PLAY_ACTION_TYPE_REQUIRED, "actionType must not be blank.");
         }
         String normalized = req.getActionType().trim().toUpperCase(Locale.ROOT);
         Set<String> allowed = Set.of(
                 "DEPLOY", "DEPOSIT", "ACTION", "DISCARD", "RESPONSE_PASS");
         if (!allowed.contains(normalized)) {
             throw new ProtocolValidationException(
-                    ERR_PLAY_ACTION_TYPE_INVALID, "不支持的 actionType: " + req.getActionType());
+                    ERR_PLAY_ACTION_TYPE_INVALID, "Unsupported actionType: " + req.getActionType());
         }
         if ("RESPONSE_PASS".equals(normalized)) {
             if (req.getActingPlayerId() == null || req.getActingPlayerId().isBlank()) {
                 throw new ProtocolValidationException(
                         ERR_PLAY_ACTING_PLAYER_REQUIRED,
-                        "RESPONSE_PASS 必须提供 actingPlayerId。");
+                        "RESPONSE_PASS requires actingPlayerId.");
             }
             return;
         }
         if (req.getCardId() == null || req.getCardId().isBlank()) {
             if (req.getHandIndex() == null) {
                 throw new ProtocolValidationException(
-                        ERR_PLAY_CARD_SELECTOR_REQUIRED, "必须提供 cardId 或 handIndex。");
+                        ERR_PLAY_CARD_SELECTOR_REQUIRED, "Must provide cardId or handIndex.");
             }
             if (req.getHandIndex() < 0) {
                 throw new ProtocolValidationException(
-                        ERR_PLAY_HAND_INDEX_INVALID, "handIndex 必须 >= 0。");
+                        ERR_PLAY_HAND_INDEX_INVALID, "handIndex must be >= 0.");
             }
         }
     }

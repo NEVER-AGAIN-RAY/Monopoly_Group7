@@ -79,10 +79,10 @@ final class TurnFlowService {
         controller.ensureSessionActive();
         ensureTurnContext(player);
         if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
-            throw new IllegalStateException("正在等待免租响应，不能摸牌。");
+            throw new IllegalStateException("Awaiting rent response; cannot draw.");
         }
         if (currentTurnPhase != TurnPhase.DRAW) {
-            throw new IllegalStateException("当前不是摸牌阶段，不能重复摸牌。");
+            throw new IllegalStateException("Not in DRAW phase; cannot draw again.");
         }
         int effectiveCount = player.getHandCardCount() == 0 ? 5 : 2;
         int drawn = 0;
@@ -124,18 +124,18 @@ final class TurnFlowService {
         controller.ensureSessionActive();
         ensureTurnContext(player);
         if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
-            throw new IllegalStateException("正在等待免租响应，不能出牌。");
+            throw new IllegalStateException("Awaiting rent response; cannot play cards.");
         }
-        ensureNoPendingOverflowDiscard(player, "出牌");
+        ensureNoPendingOverflowDiscard(player, "playing a card");
         ensureTurnActionAvailable();
         if (currentTurnPhase != TurnPhase.PLAY) {
-            throw new IllegalStateException("当前不是出牌阶段，请先完成摸牌。");
+            throw new IllegalStateException("Not in PLAY phase; please draw first.");
         }
         if (!player.getHandCardsView().contains(card)) {
-            throw new IllegalStateException("该卡牌不在当前玩家手牌中，不能打出。");
+            throw new IllegalStateException("Card not in current player's hand; cannot play.");
         }
         if (actionType == null || actionType.isBlank()) {
-            throw new IllegalArgumentException("actionType 不能为空。");
+            throw new IllegalArgumentException("actionType must not be blank.");
         }
         String normalizedActionType = actionType.trim().toUpperCase();
 
@@ -145,28 +145,28 @@ final class TurnFlowService {
             player.depositToBank(card);
         } else if ("DEPLOY".equals(normalizedActionType)) {
             if (!(card instanceof PropertyCard)) {
-                throw new IllegalArgumentException("DEPLOY 需要 PropertyCard（房产卡）。");
+                throw new IllegalArgumentException("DEPLOY requires a PropertyCard.");
             }
             if (card instanceof PropertyWildCard wild) {
                 String requested = params != null ? blankToNull(params.getTargetColorKey()) : null;
                 String current = wild.getAssignedColorKey();
                 if (current != null && requested != null && !current.equalsIgnoreCase(requested)) {
-                    throw new IllegalStateException("万能房产已经声明为 " + current + "，不能改为 " + requested + "。");
+                    throw new IllegalStateException("Wild property already assigned " + current + "; cannot change to " + requested + ".");
                 }
                 String assign = current != null ? current : requested;
                 if (assign == null) {
-                    throw new IllegalArgumentException("部署万能房产牌时必须指定 targetColorKey。");
+                    throw new IllegalArgumentException("Deploying a wild property requires targetColorKey.");
                 }
                 wild.setAssignedColorKey(assign);
             }
             player.deployProperty((PropertyCard) card);
         } else if ("ACTION".equals(normalizedActionType)) {
             if (!(card instanceof ActionCard)) {
-                throw new IllegalArgumentException("ACTION 需要 ActionCard（行动卡）。");
+                throw new IllegalArgumentException("ACTION requires an ActionCard.");
             }
             player.placeActionToCenter((ActionCard) card);
         } else {
-            throw new IllegalArgumentException("未知 actionType: " + actionType);
+            throw new IllegalArgumentException("Unknown actionType: " + actionType);
         }
 
         if (currentTurnActionCount >= MAX_ACTIONS_PER_TURN) {
@@ -191,20 +191,20 @@ final class TurnFlowService {
         controller.ensureSessionActive();
         ensureTurnContext(player);
         if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
-            throw new IllegalStateException("正在等待免租响应，不能弃牌。");
+            throw new IllegalStateException("Awaiting rent response; cannot discard.");
         }
         if (!player.getHandCardsView().contains(card)) {
-            throw new IllegalStateException("该卡牌不在当前玩家手牌中，不能弃牌。");
+            throw new IllegalStateException("Card not in current player's hand; cannot discard.");
         }
         boolean forcedOverflowDiscard =
                 player.getHandCardCount() > MAX_HAND_SIZE
                         && (currentTurnMustDiscardOverflow || currentTurnPhase == TurnPhase.END_TURN);
         if (forcedOverflowDiscard) {
             if (currentTurnPhase != TurnPhase.PLAY && currentTurnPhase != TurnPhase.END_TURN) {
-                throw new IllegalStateException("当前阶段不能弃牌。");
+                throw new IllegalStateException("Cannot discard in current phase.");
             }
             if (!player.discardFromHand(card)) {
-                throw new IllegalStateException("从手牌弃置失败。");
+                throw new IllegalStateException("Failed to discard card from hand.");
             }
             engine.discard(card);
             if (player.getHandCardCount() <= MAX_HAND_SIZE) {
@@ -221,12 +221,12 @@ final class TurnFlowService {
         }
         ensureTurnActionAvailable();
         if (currentTurnPhase != TurnPhase.PLAY) {
-            throw new IllegalStateException("当前不是出牌阶段，不能弃牌。");
+            throw new IllegalStateException("Not in PLAY phase; cannot discard.");
         }
         currentTurnActionCount++;
         if (!player.discardFromHand(card)) {
             currentTurnActionCount--;
-            throw new IllegalStateException("从手牌弃置失败。");
+            throw new IllegalStateException("Failed to discard card from hand.");
         }
         engine.discard(card);
         if (currentTurnActionCount >= MAX_ACTIONS_PER_TURN) {
@@ -248,7 +248,7 @@ final class TurnFlowService {
         controller.ensureSessionActive();
         ensureTurnContext(player);
         if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
-            throw new IllegalStateException("正在等待免租响应，不能强制弃牌。");
+            throw new IllegalStateException("Awaiting rent response; cannot force-discard.");
         }
         List<Card> chosen = player.chooseOverflowDiscardsTo(MAX_HAND_SIZE);
         if (player instanceof AIPlayer ai && ai.getPlayStrategy() instanceof AiChoiceAdvisor advisor) {
@@ -271,7 +271,7 @@ final class TurnFlowService {
     // --- rejected legacy wild property recolor command ---
 
     void reassignWildProperty(Player player, String wildPropertyCardId, String newColorKey) {
-        throw new UnsupportedOperationException("万能房产颜色一旦声明后不能再改变。");
+        throw new UnsupportedOperationException("Wild property color cannot be changed once assigned.");
     }
 
     // --- end turn ---
@@ -290,10 +290,10 @@ final class TurnFlowService {
         controller.ensureSessionActive();
         ensureTurnContext(player);
         if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
-            throw new IllegalStateException("正在等待免租响应，不能结束回合。");
+            throw new IllegalStateException("Awaiting rent response; cannot end turn.");
         }
         if (currentTurnPhase == TurnPhase.DRAW) {
-            throw new IllegalStateException("当前回合尚未摸牌，不能结束回合。");
+            throw new IllegalStateException("Must draw before ending turn.");
         }
 
         if (player.getHandCardCount() > MAX_HAND_SIZE) {
@@ -301,7 +301,7 @@ final class TurnFlowService {
             currentTurnPhase = TurnPhase.END_TURN;
             int need = player.getHandCardCount() - MAX_HAND_SIZE;
             controller.pushSnapshot(controller.getCurrentSessionId(), "FORCE_DISCARD_REQUIRED",
-                    player.getDisplayName() + " 手牌超过 7 张，需要弃 " + need + " 张。");
+                    player.getDisplayName() + " has " + need + " cards over limit; must discard before proceeding.");
             return player;
         }
         currentTurnMustDiscardOverflow = false;
@@ -352,7 +352,7 @@ final class TurnFlowService {
         controller.ensureSessionActive();
         Player actor = controller.requireCurrentPlayer();
         if (handIndex < 0 || handIndex >= actor.getHandCardsView().size()) {
-            throw new IllegalArgumentException("handIndex 越界。");
+            throw new IllegalArgumentException("handIndex out of bounds.");
         }
         String cardId = actor.getHandCardsView().get(handIndex).getId();
 
@@ -374,13 +374,13 @@ final class TurnFlowService {
 
     ActionEffectResult handleActionCardCommand(ActionParamContext params) {
         if (params == null) {
-            throw new IllegalArgumentException("ActionParamContext 不能为 null。");
+            throw new IllegalArgumentException("ActionParamContext must not be null.");
         }
         controller.ensureSessionActive();
         Player actor = controller.requireCurrentPlayer();
         Card card = resolveCardInHand(actor, params.getCardId(), params.getHandIndex());
         if (!(card instanceof ActionCard actionCard)) {
-            throw new IllegalArgumentException("指定卡牌不是行动卡，无法触发效果。");
+            throw new IllegalArgumentException("Specified card is not an action card; cannot trigger effect.");
         }
 
         Player target = controller.resolvePlayer(params.getTargetPlayerId());
@@ -432,26 +432,26 @@ final class TurnFlowService {
     ActionEffectResult playActionCard(
             Player actor, ActionCard card, ActionEffectContext ctx, ActionParamContext params) {
         if (actor == null || card == null) {
-            throw new IllegalArgumentException("actor 和 card 不能为 null。");
+            throw new IllegalArgumentException("actor and card must not be null.");
         }
         controller.ensureSessionActive();
         ensureTurnContext(actor);
         if (currentTurnPhase == TurnPhase.WAITING_FOR_RESPONSE) {
-            throw new IllegalStateException("正在等待免租响应，不能打出行动牌。");
+            throw new IllegalStateException("Awaiting rent response; cannot play action card.");
         }
-        ensureNoPendingOverflowDiscard(actor, "打出行动牌");
+        ensureNoPendingOverflowDiscard(actor, "playing an action card");
         ensureTurnActionAvailable();
         if (currentTurnPhase != TurnPhase.PLAY) {
-            throw new IllegalStateException("当前不是出牌阶段，请先完成摸牌。");
+            throw new IllegalStateException("Not in PLAY phase; please draw first.");
         }
         if (!actor.getHandCardsView().contains(card)) {
-            throw new IllegalStateException("该卡牌不在当前玩家手牌中，不能打出。");
+            throw new IllegalStateException("Card not in current player's hand; cannot play.");
         }
 
         GameContext gameContext = controller.getGameContext();
         gameContext.bindPlayers(controller.getSessionPlayersView());
         if (!card.canPlay(actor, params, gameContext)) {
-            throw new IllegalStateException("当前规则不允许打出该行动卡。");
+            throw new IllegalStateException("Current rules do not allow playing this action card.");
         }
 
         String effectCodeStr = card.getEffectCode() == null
@@ -475,7 +475,7 @@ final class TurnFlowService {
             gameContext.pushEffect(rentEntry);
             effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
-                    "收租已入栈，等待对方" + responseWindowPrompt() + "。");
+                    "Rent entered stack; awaiting opponent " + responseWindowPrompt() + ".");
             System.out.println("[ACTION] " + result.getMessage());
             return result;
         }
@@ -488,7 +488,7 @@ final class TurnFlowService {
                 currentTurnPhase = TurnPhase.END_TURN;
             }
             ActionEffectResult result = ActionEffectResult.success(
-                    "Double The Rent 已生效：你下一张租金牌金额翻倍。");
+                    "Double The Rent in effect: next rent card amount is doubled.");
             controller.pushSnapshot(
                     controller.getCurrentSessionId(),
                     "ACTION_SUCCESS",
@@ -515,7 +515,7 @@ final class TurnFlowService {
                     }
                 }
                 if (tenantIds.isEmpty()) {
-                    throw new IllegalStateException("没有其他玩家可收租。");
+                    throw new IllegalStateException("No other players to charge rent to.");
                 }
                 currentTurnActionCount++;
                 actor.placeActionToCenter(card);
@@ -530,7 +530,7 @@ final class TurnFlowService {
                 Player firstTenant = controller.resolvePlayer(tenantIds.get(0));
                 if (firstTenant == null) {
                     gameContext.clearRentChargeSequence();
-                    throw new IllegalStateException("承租人玩家不存在。");
+                    throw new IllegalStateException("Tenant player not found.");
                 }
                 gameContext.pushEffect(EffectStackEntry.pendingRent(
                         actor.getPlayerId(),
@@ -541,9 +541,9 @@ final class TurnFlowService {
                         card.getEffectCode()));
                 effectStack.enterRentResponseWindow(firstTenant, actor, card);
                 ActionEffectResult result = ActionEffectResult.success(
-                        "双色全员收租已入栈，将依次向每位其他玩家收租；当前等待 "
+                        "Dual-rent (all players) entered stack; will charge each other player sequentially; now awaiting "
                                 + firstTenant.getDisplayName()
-                                + " " + responseWindowPrompt() + "。");
+                                + " " + responseWindowPrompt() + ".");
                 System.out.println("[ACTION] " + result.getMessage());
                 return result;
             }
@@ -564,7 +564,7 @@ final class TurnFlowService {
             gameContext.pushEffect(rentEntry);
             effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
-                    "双色收租已入栈，等待对方" + responseWindowPrompt() + "。");
+                    "Dual-rent entered stack; awaiting opponent " + responseWindowPrompt() + ".");
             System.out.println("[ACTION] " + result.getMessage());
             return result;
         }
@@ -572,7 +572,7 @@ final class TurnFlowService {
         if ("BIRTHDAY".equals(effectCodeStr)) {
             List<String> tenantIds = otherPlayerIds(actor);
             if (tenantIds.isEmpty()) {
-                throw new IllegalStateException("没有其他玩家可收取生日礼金。");
+                throw new IllegalStateException("No other players to collect birthday gift from.");
             }
             currentTurnActionCount++;
             actor.placeActionToCenter(card);
@@ -587,7 +587,7 @@ final class TurnFlowService {
             Player firstTenant = controller.resolvePlayer(tenantIds.get(0));
             if (firstTenant == null) {
                 gameContext.clearRentChargeSequence();
-                throw new IllegalStateException("生日礼金目标玩家不存在。");
+                throw new IllegalStateException("Birthday gift target player not found.");
             }
             gameContext.pushEffect(EffectStackEntry.pendingRent(
                     actor.getPlayerId(),
@@ -598,16 +598,16 @@ final class TurnFlowService {
                     card.getEffectCode()));
             effectStack.enterRentResponseWindow(firstTenant, actor, card);
             ActionEffectResult result = ActionEffectResult.success(
-                    "生日礼金已入栈，将依次向每位其他玩家收 2M；当前等待 "
+                    "Birthday gift entered stack; will collect 2M from each other player; now awaiting "
                             + firstTenant.getDisplayName()
-                            + " " + responseWindowPrompt() + "。");
+                            + " " + responseWindowPrompt() + ".");
             System.out.println("[ACTION] " + result.getMessage());
             return result;
         }
 
         if ("DEBT_COLLECTOR".equals(effectCodeStr)) {
             if (ctx.getTarget() == null) {
-                throw new IllegalStateException("讨债需指定目标玩家。");
+                throw new IllegalStateException("Debt collector requires a target player.");
             }
             currentTurnActionCount++;
             actor.placeActionToCenter(card);
@@ -621,7 +621,7 @@ final class TurnFlowService {
             gameContext.pushEffect(debtEntry);
             effectStack.enterRentResponseWindow(ctx.getTarget(), actor, card);
             ActionEffectResult result = ActionEffectResult.success(
-                    "讨债已入栈，等待对方" + responseWindowPrompt() + "或选择支付 5M。");
+                    "Debt collector entered stack; awaiting opponent " + responseWindowPrompt() + " or pay 5M.");
             System.out.println("[ACTION] " + result.getMessage());
             return result;
         }
@@ -637,8 +637,8 @@ final class TurnFlowService {
                     () -> ActionEffectDispatcher.dispatch(card.getEffectCode(), ctx),
                     actionCountAfterPlay);
             ActionEffectResult result = ActionEffectResult.success(
-                    card.getName() + " 已入栈，等待 " + ctx.getTarget().getDisplayName()
-                            + " " + responseWindowPrompt() + "。");
+                    card.getName() + " entered stack; awaiting " + ctx.getTarget().getDisplayName()
+                            + " " + responseWindowPrompt() + ".");
             System.out.println("[ACTION] " + result.getMessage());
             return result;
         }
@@ -692,7 +692,7 @@ final class TurnFlowService {
     }
 
     private String responseWindowPrompt() {
-        return "在 " + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS + " 秒内打出免租或放弃";
+        return "within " + EffectStackOrchestrator.RESPONSE_WINDOW_SECONDS + " seconds";
     }
 
     // --- helpers ---
@@ -707,7 +707,7 @@ final class TurnFlowService {
             return;
         }
         if (!currentTurnPlayerId.equals(pid)) {
-            throw new IllegalStateException("当前不是玩家 " + pid + " 的回合。");
+            throw new IllegalStateException("Not player " + pid + "'s turn.");
         }
     }
 
@@ -720,12 +720,12 @@ final class TurnFlowService {
             return;
         }
         throw new IllegalStateException(
-                "手牌超过 7 张，必须先弃牌至最多 7 张，不能" + attemptedAction + "。");
+                "Must discard down to 7 cards before " + attemptedAction + ".");
     }
 
     private void ensureTurnActionAvailable() {
         if (currentTurnActionCount >= MAX_ACTIONS_PER_TURN) {
-            throw new IllegalStateException("每回合最多可出 3 张牌，已达到上限。");
+            throw new IllegalStateException("Maximum 3 actions per turn reached.");
         }
     }
 
@@ -737,12 +737,12 @@ final class TurnFlowService {
                     return c;
                 }
             }
-            throw new IllegalArgumentException("手牌中不存在 id 为 \"" + cardId + "\" 的卡牌。");
+            throw new IllegalArgumentException("Card not in hand with id \"" + cardId + "\".");
         }
         if (handIndex != null && handIndex >= 0 && handIndex < hand.size()) {
             return hand.get(handIndex);
         }
-        throw new IllegalArgumentException("请提供有效的 cardId 或 handIndex。");
+        throw new IllegalArgumentException("Provide a valid cardId or handIndex.");
     }
 
     PropertyCard resolvePropertyCardById(Player owner, String propertyCardId) {
@@ -754,8 +754,7 @@ final class TurnFlowService {
                 return pc;
             }
         }
-        throw new IllegalArgumentException(
-                "玩家 " + owner.getPlayerId() + " 财产区不存在 id 为 \"" + propertyCardId + "\" 的房产卡。");
+        throw new IllegalArgumentException("No property card with id \"" + propertyCardId + "\" in player " + owner.getPlayerId() + "'s property zone.");
     }
 
     private Card resolveBankCardById(Player owner, String cardId) {
@@ -767,8 +766,7 @@ final class TurnFlowService {
                 return c;
             }
         }
-        throw new IllegalArgumentException(
-                "玩家 " + owner.getPlayerId() + " 银行不存在 id 为 \"" + cardId + "\" 的卡牌。");
+        throw new IllegalArgumentException("No card with id \"" + cardId + "\" in player " + owner.getPlayerId() + "'s bank.");
     }
 
     boolean checkWinCondition(Player player) {
@@ -781,11 +779,11 @@ final class TurnFlowService {
 
     static String normalizeWildReassignColorKey(String newColorKey) {
         if (newColorKey == null || newColorKey.isBlank()) {
-            throw new IllegalArgumentException("newColorKey 不能为空。");
+            throw new IllegalArgumentException("newColorKey must not be blank.");
         }
         String key = newColorKey.trim().toUpperCase(Locale.ROOT);
         if (!PropertySetCalculator.REQUIRED_BY_COLOR.containsKey(key)) {
-            throw new IllegalArgumentException("无效的颜色键，须为轨道标准色之一: " + key);
+            throw new IllegalArgumentException("Invalid color key; must be a standard track color: " + key);
         }
         return key;
     }

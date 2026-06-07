@@ -11,7 +11,7 @@ import java.util.Set;
  */
 final class PauseVoteService {
 
-    static final String MSG_PAUSED = "游戏已暂停。";
+    static final String MSG_PAUSED = "Game is paused.";
 
     private volatile boolean paused;
     private volatile boolean pausePending;
@@ -40,7 +40,7 @@ final class PauseVoteService {
      */
     void pause() {
         if (controller.isPvpMode()) {
-            throw new IllegalStateException("人人模式请使用 PAUSE_REQUEST / PAUSE_ACK。");
+            throw new IllegalStateException("PVP mode requires PAUSE_REQUEST / PAUSE_ACK.");
         }
         pauseImmediate();
     }
@@ -59,7 +59,7 @@ final class PauseVoteService {
         Player cur = controller.requireCurrentPlayer();
         String turnPid = controller.getCurrentTurnPlayerId();
         if (cur == null || turnPid == null || !turnPid.equals(cur.getPlayerId())) {
-            throw new IllegalStateException("仅当前回合玩家可发起 PAUSE_REQUEST。");
+            throw new IllegalStateException("Only the current-turn player may issue PAUSE_REQUEST.");
         }
         if (pausePending) {
             return;
@@ -74,7 +74,7 @@ final class PauseVoteService {
      */
     void acknowledgePause(String playerId) {
         if (playerId == null || playerId.isBlank()) {
-            throw new IllegalArgumentException("playerId 不能为空。");
+            throw new IllegalArgumentException("playerId must not be blank.");
         }
         if (!controller.isPvpMode()) {
             return;
@@ -91,7 +91,7 @@ final class PauseVoteService {
             }
         }
         if (!known) {
-            throw new IllegalArgumentException("未知玩家: " + pid);
+            throw new IllegalArgumentException("Unknown player: " + pid);
         }
         pauseAcks.add(pid);
         if (pauseAcks.size() >= controller.getSessionPlayersView().size()) {

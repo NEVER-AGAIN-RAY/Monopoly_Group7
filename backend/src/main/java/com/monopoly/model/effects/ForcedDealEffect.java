@@ -17,38 +17,38 @@ public class ForcedDealEffect implements ActionEffect {
         PropertyCard targetProp = ctx.getTargetProperty();
 
         if (target == null) {
-            return ActionEffectResult.failed("强制交换需指定目标玩家。");
+            return ActionEffectResult.failed("Forced Deal requires a target player.");
         }
         if (actorProp == null || targetProp == null) {
-            return ActionEffectResult.failed("强制交换需指定双方各一张房产卡。");
+            return ActionEffectResult.failed("Forced Deal requires one property card from each side.");
         }
         if (!actor.getPropertyCardsView().contains(actorProp)) {
-            return ActionEffectResult.failed("己方指定房产不在财产区。");
+            return ActionEffectResult.failed("Your specified property is not in your property zone.");
         }
         if (!target.getPropertyCardsView().contains(targetProp)) {
-            return ActionEffectResult.failed("目标房产不在目标玩家财产区。");
+            return ActionEffectResult.failed("The target property is not in the target player's property zone.");
         }
 
         if (!PropertyStealRules.mayStealPropertyFromTarget(target, targetProp)) {
-            return ActionEffectResult.failed("目标房产属于完整套，不能被强制交易。");
+            return ActionEffectResult.failed("The target property belongs to a complete set and cannot be force-traded.");
         }
         if (!PropertyStealRules.mayStealPropertyFromTarget(actor, actorProp)) {
-            return ActionEffectResult.failed("己方指定房产属于完整套，不能被强制交易。");
+            return ActionEffectResult.failed("Your specified property belongs to a complete set and cannot be force-traded.");
         }
 
         if (!actor.removePropertyCard(actorProp)) {
-            return ActionEffectResult.failed("状态不一致：无法从己方财产区移除房产。");
+            return ActionEffectResult.failed("Inconsistent state: failed to remove the property from your property zone.");
         }
         if (!target.removePropertyCard(targetProp)) {
             actor.addToPropertyZone(actorProp);
-            return ActionEffectResult.failed("状态不一致：无法从目标玩家财产区移除房产。");
+            return ActionEffectResult.failed("Inconsistent state: failed to remove the property from the target player's property zone.");
         }
         actor.addToPropertyZone(targetProp);
         target.addToPropertyZone(actorProp);
 
         return ActionEffectResult.success(
-                actor.getDisplayName() + " 与 " + target.getDisplayName()
-                        + " Forced property swap：" + actorProp.getName()
-                        + " <-> " + targetProp.getName() + "，双方财产区互换。");
+                actor.getDisplayName() + " and " + target.getDisplayName()
+                        + " forced property swap: " + actorProp.getName()
+                        + " <-> " + targetProp.getName() + " exchanged between property zones.");
     }
 }

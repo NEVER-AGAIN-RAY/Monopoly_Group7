@@ -75,14 +75,14 @@ public final class PersistedCard {
 
     public static Card toCard(PersistedCard p) {
         if (p == null || p.id == null || p.className == null) {
-            throw new IllegalArgumentException("PersistedCard 缺少 id 或 className。");
+            throw new IllegalArgumentException("PersistedCard missing id or className.");
         }
         String cn = p.className.trim();
         String nm = p.name != null && !p.name.isBlank() ? p.name : p.id;
         return switch (cn) {
             case "MoneyCard" -> {
                 if (p.valueM == null || p.valueM <= 0) {
-                    throw new IllegalArgumentException("MoneyCard 需要正整数 valueM: " + p.id);
+                    throw new IllegalArgumentException("MoneyCard requires positive valueM: " + p.id);
                 }
                 yield new MoneyCard(p.id, nm, p.valueM);
             }
@@ -129,7 +129,7 @@ public final class PersistedCard {
                 }
                 yield new ActionCard(p.id, nm, ec, bv, pal, dualAll, wildRent);
             }
-            default -> throw new IllegalArgumentException("不支持的卡牌类型: " + cn);
+            default -> throw new IllegalArgumentException("Unsupported card type: " + cn);
         };
     }
 

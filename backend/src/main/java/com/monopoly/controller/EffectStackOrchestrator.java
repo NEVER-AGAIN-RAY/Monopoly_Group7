@@ -21,10 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Orchestrates rent/Just-Say-No response windows and 20s PVP timeouts (extracted from GameController).
@@ -42,13 +38,8 @@ final class EffectStackOrchestrator {
     private final GameEngineSingleton engine;
     private PendingAction pendingAction;
 
-    private final ScheduledExecutorService responseScheduler =
-            Executors.newSingleThreadScheduledExecutor(r -> {
-                Thread t = new Thread(r, "effect-response-timeout");
-                t.setDaemon(true);
-                return t;
-            });
-    private volatile ScheduledFuture<?> pendingResponseFuture;
+    private final ResponseTimeoutScheduler timeoutScheduler =
+            new ResponseTimeoutScheduler(RESPONSE_WINDOW_SECONDS);
 
     EffectStackOrchestrator(GameController controller, TurnFlowService turnFlow) {
         this.controller = controller;
@@ -159,8 +150,7 @@ final class EffectStackOrchestrator {
     // --- timeout scheduler ---
 
     void scheduleResponseTimeout(long deadlineEpochMs) {
-        cancelPendingResponseTimeout();
-        pendingResponseFuture = responseScheduler.schedule(() -> {
+        timeoutScheduler.schedule(() -> {
             StackResponseState st = controller.getGameContext().getResponseState();
             if (st == null || st.getDeadlineEpochMs() != deadlineEpochMs) {
                 return;
@@ -175,7 +165,7 @@ final class EffectStackOrchestrator {
             } catch (RuntimeException ex) {
                 ex.printStackTrace();
             }
-        }, RESPONSE_WINDOW_SECONDS, TimeUnit.SECONDS);
+        });
     }
 
     void scheduleResponseTimeoutIfNeeded(long deadlineEpochMs) {
@@ -187,15 +177,11 @@ final class EffectStackOrchestrator {
     }
 
     void cancelPendingResponseTimeout() {
-        if (pendingResponseFuture != null) {
-            pendingResponseFuture.cancel(false);
-            pendingResponseFuture = null;
-        }
+        timeoutScheduler.cancel();
     }
 
     void shutdown() {
-        cancelPendingResponseTimeout();
-        responseScheduler.shutdownNow();
+        timeoutScheduler.shutdown();
     }
 
     // --- pass / explicit payment ---
@@ -258,6 +244,23 @@ final class EffectStackOrchestrator {
         if (!ctx.isAwaitingResponseFrom(actor.getPlayerId())) {
             throw new IllegalStateException("Not this player's turn to play a rent waiver card.");
         }
+        ActionCard actionCard = resolveWaiverCard(actor, req, ctx);
+        StackResponseState st = ctx.getResponseState();
+        if (st == null) {
+            throw new IllegalStateException("Response state lost.");
+        }
+        String targetId = resolveCounterTargetId(ctx, st);
+        actor.placeActionToCenter(actionCard);
+        ctx.pushEffect(EffectStackEntry.waiver(actor.getPlayerId(), targetId));
+        cancelPendingResponseTimeout();
+        if (st.getRole() == StackResponseState.Role.TENANT) {
+            openLandlordCounterWindow(actor, actionCard, ctx);
+        } else {
+            resolveCounterImmediately(actor, actionCard);
+        }
+    }
+
+    private ActionCard resolveWaiverCard(Player actor, PlayActionRequest req, GameContext ctx) {
         Card card = turnFlow.resolveCardInHand(actor, req.getCardId(), req.getHandIndex());
         if (!(card instanceof ActionCard actionCard)) {
             throw new IllegalArgumentException("Only action cards can be played in this phase.");
@@ -270,10 +273,10 @@ final class EffectStackOrchestrator {
         if (!actionCard.canPlay(actor, p, ctx)) {
             throw new IllegalStateException("Cannot play RENT_WAIVER at this time.");
         }
-        StackResponseState st = ctx.getResponseState();
-        if (st == null) {
-            throw new IllegalStateException("Response state lost.");
-        }
+        return actionCard;
+    }
+
+    private String resolveCounterTargetId(GameContext ctx, StackResponseState st) {
         String targetId;
         if (st.getRole() == StackResponseState.Role.TENANT) {
             targetId = pendingAction != null
@@ -286,50 +289,49 @@ final class EffectStackOrchestrator {
         if (targetId == null) {
             throw new IllegalStateException("No counterable effect entry found.");
         }
+        return targetId;
+    }
 
-        actor.placeActionToCenter(actionCard);
-        ctx.pushEffect(EffectStackEntry.waiver(actor.getPlayerId(), targetId));
-        cancelPendingResponseTimeout();
-
-        if (st.getRole() == StackResponseState.Role.TENANT) {
-            Player landlord = controller.resolvePlayer(turnFlow.currentTurnPlayerId());
-            if (landlord == null) {
-                throw new IllegalStateException("Current turn player lost.");
-            }
-            if (shouldAutoRespond(landlord)) {
-                ctx.setResponseState(new StackResponseState(
-                        StackResponseState.Role.LANDLORD_COUNTER, landlord.getPlayerId(), 0L));
-                controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_AWAITING_COUNTER",
-                        actor.getDisplayName() + " played Just Say No; landlord may counter.",
-                        actor,
-                        actionCard,
-                        "ACTION");
-                autoRespondFromCurrentWindow(
-                        (AIPlayer) landlord,
-                        "JSN_AI_COUNTER_PASS",
-                        landlord.getDisplayName() + " auto-passed Just Say No counter.");
-                return;
-            }
-            long deadline = responseDeadlineEpochMs();
+    private void openLandlordCounterWindow(Player actor, ActionCard actionCard, GameContext ctx) {
+        Player landlord = controller.resolvePlayer(turnFlow.currentTurnPlayerId());
+        if (landlord == null) {
+            throw new IllegalStateException("Current turn player lost.");
+        }
+        if (shouldAutoRespond(landlord)) {
             ctx.setResponseState(new StackResponseState(
-                    StackResponseState.Role.LANDLORD_COUNTER, landlord.getPlayerId(), deadline));
-            scheduleResponseTimeoutIfNeeded(deadline);
+                    StackResponseState.Role.LANDLORD_COUNTER, landlord.getPlayerId(), 0L));
             controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_AWAITING_COUNTER",
                     actor.getDisplayName() + " played Just Say No; landlord may counter.",
                     actor,
                     actionCard,
                     "ACTION");
+            autoRespondFromCurrentWindow(
+                    (AIPlayer) landlord,
+                    "JSN_AI_COUNTER_PASS",
+                    landlord.getDisplayName() + " auto-passed Just Say No counter.");
+            return;
+        }
+        long deadline = responseDeadlineEpochMs();
+        ctx.setResponseState(new StackResponseState(
+                StackResponseState.Role.LANDLORD_COUNTER, landlord.getPlayerId(), deadline));
+        scheduleResponseTimeoutIfNeeded(deadline);
+        controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_AWAITING_COUNTER",
+                actor.getDisplayName() + " played Just Say No; landlord may counter.",
+                actor,
+                actionCard,
+                "ACTION");
+    }
+
+    private void resolveCounterImmediately(Player actor, ActionCard actionCard) {
+        controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_COUNTER_PLAYED",
+                actor.getDisplayName() + " played Just Say No to counter.",
+                actor,
+                actionCard,
+                "ACTION");
+        if (pendingAction != null) {
+            resolvePendingActionAndResume("JSN_COUNTER_RESOLVED");
         } else {
-            controller.pushSnapshot(controller.getCurrentSessionId(), "JSN_COUNTER_PLAYED",
-                    actor.getDisplayName() + " played Just Say No to counter.",
-                    actor,
-                    actionCard,
-                    "ACTION");
-            if (pendingAction != null) {
-                resolvePendingActionAndResume("JSN_COUNTER_RESOLVED");
-            } else {
-                resolveEffectStackAndResume("JSN_COUNTER_RESOLVED", null, null);
-            }
+            resolveEffectStackAndResume("JSN_COUNTER_RESOLVED", null, null);
         }
     }
 

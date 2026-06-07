@@ -87,8 +87,8 @@ final class AiTurnService {
         controller.refreshAiDecisionContext();
 
         AiPlayStrategy strategy = ai.getPlayStrategy();
-        if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.PLAY
-                && turnFlow.currentTurnActionCount < TurnFlowService.MAX_ACTIONS_PER_TURN
+        if (turnFlow.phase() == TurnFlowService.TurnPhase.PLAY
+                && turnFlow.actionCount() < TurnFlowService.MAX_ACTIONS_PER_TURN
                 && !controller.isSessionForceEnded()
                 && !ai.getHandCardsView().isEmpty()) {
             boolean progressed = strategy != null
@@ -100,11 +100,11 @@ final class AiTurnService {
                 finishAiTurn(ai);
                 return;
             }
-            if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
+            if (turnFlow.phase() == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
                 return;
             }
-            if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.PLAY
-                    && turnFlow.currentTurnActionCount < TurnFlowService.MAX_ACTIONS_PER_TURN
+            if (turnFlow.phase() == TurnFlowService.TurnPhase.PLAY
+                    && turnFlow.actionCount() < TurnFlowService.MAX_ACTIONS_PER_TURN
                     && !ai.getHandCardsView().isEmpty()) {
                 schedule(ai, false);
                 return;
@@ -114,7 +114,7 @@ final class AiTurnService {
     }
 
     private void finishAiTurn(AIPlayer ai) {
-        if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
+        if (turnFlow.phase() == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
             return;
         }
         if (controller.isSessionForceEnded()) {
@@ -135,11 +135,11 @@ final class AiTurnService {
         controller.recordError("AI_DECISION_FAILED", ai.getDisplayName() + " decision failed; this action was skipped: " + message);
         if (controller.isSessionEnded()
                 || controller.getCurrentPlayer() != ai
-                || turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
+                || turnFlow.phase() == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
             controller.pushSnapshot(controller.getCurrentSessionId(), "AI_DECISION_FAILED");
             return;
         }
-        if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.DRAW) {
+        if (turnFlow.phase() == TurnFlowService.TurnPhase.DRAW) {
             turnFlow.skipDrawAfterAiFailure(ai);
         }
         finishAiTurn(ai);

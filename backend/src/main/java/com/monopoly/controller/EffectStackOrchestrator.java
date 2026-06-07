@@ -67,7 +67,7 @@ final class EffectStackOrchestrator {
             throw new IllegalStateException("Invalid rent target.");
         }
         if (shouldAutoRespond(tenant)) {
-            turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
+            turnFlow.enterWaitingForResponse();
             GameContext ctx = controller.getGameContext();
             ctx.setResponseState(
                     new StackResponseState(StackResponseState.Role.TENANT, tenant.getPlayerId(), 0L));
@@ -89,7 +89,7 @@ final class EffectStackOrchestrator {
         long deadline = responseDeadlineEpochMs();
         ctx.setResponseState(
                 new StackResponseState(StackResponseState.Role.TENANT, tenant.getPlayerId(), deadline));
-        turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
+        turnFlow.enterWaitingForResponse();
         scheduleResponseTimeoutIfNeeded(deadline);
         EffectStackEntry top = ctx.peekTopEffect();
         int due = top != null ? top.getAmountDue() : 0;
@@ -108,18 +108,18 @@ final class EffectStackOrchestrator {
             throw new IllegalStateException("Invalid action response target.");
         }
         if (shouldAutoRespond(target)) {
-            turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
+            turnFlow.enterWaitingForResponse();
             GameContext ctx = controller.getGameContext();
             pendingAction = new PendingAction(card, resolver, actionCountAfterPlay);
             ctx.setResponseState(
                     new StackResponseState(StackResponseState.Role.TENANT, target.getPlayerId(), 0L));
             ctx.pushEffect(EffectStackEntry.pendingAction(
-                    turnFlow.currentTurnPlayerId,
+                    turnFlow.currentTurnPlayerId(),
                     target.getPlayerId(),
                     card.getName(),
                     card.getEffectCode()));
-            Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
-            String actorName = actor != null ? actor.getDisplayName() : turnFlow.currentTurnPlayerId;
+            Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId());
+            String actorName = actor != null ? actor.getDisplayName() : turnFlow.currentTurnPlayerId();
             controller.pushSnapshot(controller.getCurrentSessionId(),
                     "ACTION_AWAITING_RESPONSE",
                     actorName + " played ACTION (" + card.getName()
@@ -138,15 +138,15 @@ final class EffectStackOrchestrator {
         pendingAction = new PendingAction(card, resolver, actionCountAfterPlay);
         ctx.setResponseState(
                 new StackResponseState(StackResponseState.Role.TENANT, target.getPlayerId(), deadline));
-        turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE;
+        turnFlow.enterWaitingForResponse();
         scheduleResponseTimeoutIfNeeded(deadline);
         ctx.pushEffect(EffectStackEntry.pendingAction(
-                turnFlow.currentTurnPlayerId,
+                turnFlow.currentTurnPlayerId(),
                 target.getPlayerId(),
                 card.getName(),
                 card.getEffectCode()));
-        Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
-        String actorName = actor != null ? actor.getDisplayName() : turnFlow.currentTurnPlayerId;
+        Player actor = controller.resolvePlayer(turnFlow.currentTurnPlayerId());
+        String actorName = actor != null ? actor.getDisplayName() : turnFlow.currentTurnPlayerId();
         controller.pushSnapshot(controller.getCurrentSessionId(),
                 "ACTION_AWAITING_RESPONSE",
                 actorName + " played ACTION (" + card.getName()
@@ -292,7 +292,7 @@ final class EffectStackOrchestrator {
         cancelPendingResponseTimeout();
 
         if (st.getRole() == StackResponseState.Role.TENANT) {
-            Player landlord = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
+            Player landlord = controller.resolvePlayer(turnFlow.currentTurnPlayerId());
             if (landlord == null) {
                 throw new IllegalStateException("Current turn player lost.");
             }
@@ -414,10 +414,7 @@ final class EffectStackOrchestrator {
             ctx.clearRentChargeSequence();
         }
 
-        turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.PLAY;
-        if (turnFlow.currentTurnActionCount >= TurnFlowService.MAX_ACTIONS_PER_TURN) {
-            turnFlow.currentTurnPhase = TurnFlowService.TurnPhase.END_TURN;
-        }
+        turnFlow.resumeToPlayOrEnd(turnFlow.actionCount());
 
         controller.pushSnapshot(controller.getCurrentSessionId(), phaseHint,
                 "Effect stack resolved: " + pay.getMessage());
@@ -439,9 +436,7 @@ final class EffectStackOrchestrator {
                 .anyMatch(e -> cancelled.contains(e.getId()));
         pendingAction = null;
         ctx.clearEffectStack();
-        turnFlow.currentTurnPhase = pending.actionCountAfterPlay >= TurnFlowService.MAX_ACTIONS_PER_TURN
-                ? TurnFlowService.TurnPhase.END_TURN
-                : TurnFlowService.TurnPhase.PLAY;
+        turnFlow.resumeToPlayOrEnd(pending.actionCountAfterPlay);
         ActionEffectResult result = cancelledAction
                 ? ActionEffectResult.countered("Just Say No countered " + pending.card.getName() + ".")
                 : pending.resolver.get();

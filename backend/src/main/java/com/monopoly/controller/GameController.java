@@ -185,7 +185,7 @@ public class GameController implements AiGameBridge {
         if (suppressAiAutoContinuation) {
             return;
         }
-        if (turnFlowService.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
+        if (turnFlowService.phase() == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
             return;
         }
         Player current = turnManager.getCurrentPlayer();
@@ -483,7 +483,7 @@ public class GameController implements AiGameBridge {
     }
 
     String getCurrentTurnPlayerId() {
-        return turnFlowService.currentTurnPlayerId;
+        return turnFlowService.currentTurnPlayerId();
     }
 
     Player requireCurrentPlayer() {
@@ -504,12 +504,12 @@ public class GameController implements AiGameBridge {
 
     void refreshAiDecisionContext() {
         gameContext.bindPlayers(getSessionPlayersView());
-        TurnFlowService.TurnPhase phase = turnFlowService.currentTurnPhase;
+        TurnFlowService.TurnPhase phase = turnFlowService.phase();
         gameContext.setTurnState(
-                turnFlowService.currentTurnPlayerId,
+                turnFlowService.currentTurnPlayerId(),
                 phase == null ? "UNKNOWN" : phase.name(),
                 Math.max(1, fullRoundsCompleted + 1),
-                turnFlowService.currentTurnActionCount,
+                turnFlowService.actionCount(),
                 TurnFlowService.MAX_ACTIONS_PER_TURN);
         gameContext.setStateSequence(snapshotBuilder.currentStateSequence());
     }

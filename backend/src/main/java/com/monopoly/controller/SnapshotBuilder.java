@@ -60,19 +60,19 @@ final class SnapshotBuilder {
                 ? actionSummary
                 : fallbackActionSummary(phase);
 
-        TurnFlowService.TurnPhase tp = turnFlow.currentTurnPhase;
+        TurnFlowService.TurnPhase tp = turnFlow.phase();
 
         GameStateSnapshot snap = new GameStateSnapshot();
         snap.setSessionId(sessionId);
         snap.setPhase(phase);
         snap.setStateSequence(++stateSequence);
         snap.setLastActionSummary(summary);
-        snap.setCurrentPlayerId(turnFlow.currentTurnPlayerId);
+        snap.setCurrentPlayerId(turnFlow.currentTurnPlayerId());
         snap.setTurnPhase(tp == null ? "UNKNOWN" : tp.name());
-        snap.setActionsUsedThisTurn(turnFlow.currentTurnActionCount);
+        snap.setActionsUsedThisTurn(turnFlow.actionCount());
         snap.setActionsRemainingThisTurn(
-                Math.max(0, TurnFlowService.MAX_ACTIONS_PER_TURN - turnFlow.currentTurnActionCount));
-        Player currentTurnPlayer = controller.resolvePlayer(turnFlow.currentTurnPlayerId);
+                Math.max(0, TurnFlowService.MAX_ACTIONS_PER_TURN - turnFlow.actionCount()));
+        Player currentTurnPlayer = controller.resolvePlayer(turnFlow.currentTurnPlayerId());
         boolean overflowDiscardPhase = tp == TurnFlowService.TurnPhase.END_TURN;
         int overflowDiscardCount = !overflowDiscardPhase || currentTurnPlayer == null
                 ? 0
@@ -104,7 +104,7 @@ final class SnapshotBuilder {
             }
             snap.setEffectStackDepth(controller.getGameContext().getEffectStackView().size());
         } else {
-            snap.setDecisionPlayerId(turnFlow.currentTurnPlayerId);
+            snap.setDecisionPlayerId(turnFlow.currentTurnPlayerId());
             snap.setDecisionKind(decisionKindForTurnPhase(tp));
             snap.setDecisionLabel(decisionLabelForTurnPhase(tp));
             snap.setDecisionDeadlineEpochMs(0L);
@@ -125,7 +125,7 @@ final class SnapshotBuilder {
         snap.setForceEndReason(controller.isSessionForceEnded() ? controller.forceEndReason() : null);
         if (playedCard != null) {
             long seq = ++playEventSequence;
-            String actorId = playedBy != null ? playedBy.getPlayerId() : turnFlow.currentTurnPlayerId;
+            String actorId = playedBy != null ? playedBy.getPlayerId() : turnFlow.currentTurnPlayerId();
             snap.setLastPlayedSequence(seq);
             snap.setLastPlayedPlayerId(actorId);
             snap.setLastPlayedActionType(

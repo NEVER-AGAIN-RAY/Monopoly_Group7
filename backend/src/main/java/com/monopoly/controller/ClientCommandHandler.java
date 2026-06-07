@@ -50,7 +50,7 @@ final class ClientCommandHandler {
             String normalized = req.getActionType().trim().toUpperCase(Locale.ROOT);
             TurnFlowService turnFlow = controller.turnFlowService();
 
-            if (turnFlow.currentTurnPhase == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
+            if (turnFlow.phase() == TurnFlowService.TurnPhase.WAITING_FOR_RESPONSE) {
                 if ("RESPONSE_PASS".equals(normalized)) {
                     controller.effectStackOrchestrator().performResponsePass(
                             req.getActingPlayerId(), req.getPaymentCardIds());
@@ -102,7 +102,7 @@ throw new IllegalArgumentException("playerId must not be blank.");
                     throw new IllegalStateException("Only the current-turn player may query action options.");
                 }
                 TurnFlowService turnFlow = controller.turnFlowService();
-                if (turnFlow.currentTurnPhase != TurnFlowService.TurnPhase.PLAY) {
+                if (turnFlow.phase() != TurnFlowService.TurnPhase.PLAY) {
                     throw new IllegalStateException("Action options only available during PLAY phase.");
                 }
                 Card c = turnFlow.resolveCardInHand(cur, cardId, null);
@@ -139,7 +139,7 @@ throw new IllegalArgumentException("playerId must not be blank.");
                     throw new IllegalStateException("Only the current-turn player may query play options.");
                 }
                 TurnFlowService turnFlow = controller.turnFlowService();
-                if (turnFlow.currentTurnPhase != TurnFlowService.TurnPhase.PLAY) {
+                if (turnFlow.phase() != TurnFlowService.TurnPhase.PLAY) {
                     throw new IllegalStateException("Play options only available during PLAY phase.");
             }
             Card c = turnFlow.resolveCardInHand(cur, cardId, null);

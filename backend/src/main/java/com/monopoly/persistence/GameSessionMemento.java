@@ -217,9 +217,10 @@ public final class GameSessionMemento {
             m.sessionId = (String) readField(controller, "currentSessionId");
 
             Object turnFlow = readField(controller, "turnFlowService");
-            m.currentTurnPlayerId = (String) readField(turnFlow, "currentTurnPlayerId");
-            m.currentTurnActionCount = (Integer) readField(turnFlow, "currentTurnActionCount");
-            Object phase = readField(turnFlow, "currentTurnPhase");
+            Object turnState = readField(turnFlow, "turnState");
+            m.currentTurnPlayerId = (String) readField(turnState, "currentPlayerId");
+            m.currentTurnActionCount = (Integer) readField(turnState, "actionCount");
+            Object phase = readField(turnState, "phase");
             m.currentTurnPhase = phase != null ? ((Enum<?>) phase).name() : null;
 
             m.sessionStartEpochMs = (Long) readField(controller, "sessionStartEpochMs");
@@ -345,12 +346,13 @@ public final class GameSessionMemento {
             ctx.setPendingDoubleRentFor(memento.getPendingDoubleRentPlayerId());
 
             Object turnFlow = readField(controller, "turnFlowService");
+            Object turnState = readField(turnFlow, "turnState");
             Class<?> phaseClass = Class.forName("com.monopoly.controller.TurnFlowService$TurnPhase");
             @SuppressWarnings({"unchecked", "rawtypes"})
             Object phaseEnum = Enum.valueOf((Class<? extends Enum>) phaseClass, memento.getCurrentTurnPhase());
-            writeField(turnFlow, "currentTurnPhase", phaseEnum);
-            writeField(turnFlow, "currentTurnPlayerId", memento.getCurrentTurnPlayerId());
-            writeField(turnFlow, "currentTurnActionCount", memento.getCurrentTurnActionCount());
+            writeField(turnState, "phase", phaseEnum);
+            writeField(turnState, "currentPlayerId", memento.getCurrentTurnPlayerId());
+            writeField(turnState, "actionCount", memento.getCurrentTurnActionCount());
             writeField(controller, "sessionStartEpochMs", memento.getSessionStartEpochMs());
             writeField(controller, "sessionGameMode", normalizeGameMode(memento.getGameMode()));
             writeField(controller, "sessionForceEnded", memento.isSessionForceEnded());

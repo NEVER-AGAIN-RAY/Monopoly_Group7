@@ -15,7 +15,8 @@ body {
   margin: 0;
   min-width: 780px;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background:
     radial-gradient(circle at 50% 20%, rgba(46, 125, 86, 0.5), transparent 38%),
     linear-gradient(180deg, #172126 0%, #0b1014 100%);
@@ -2095,7 +2096,6 @@ select:focus {
 }
 
 .lobby-screen {
-  height: 100vh;
   min-height: 100vh;
   place-items: start center;
   align-content: start;

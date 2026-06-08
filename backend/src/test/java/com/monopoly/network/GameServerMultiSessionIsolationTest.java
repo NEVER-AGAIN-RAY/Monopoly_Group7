@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -22,6 +23,7 @@ class GameServerMultiSessionIsolationTest {
         server.onClientConnected(clientA);
         server.onClientConnected(clientB);
 
+        server.onMessage(clientA, "{\"type\":\"AUTH\",\"payload\":{\"playerId\":\"pvp-1\",\"sessionId\":\"room-a\"}}");
         server.onMessage(clientA, startSessionJson("room-a"));
 
         assertTrue(contains(roomA, "\"sessionId\":\"room-a\""));
@@ -29,6 +31,7 @@ class GameServerMultiSessionIsolationTest {
 
         roomA.clear();
         roomB.clear();
+        server.onMessage(clientB, "{\"type\":\"AUTH\",\"payload\":{\"playerId\":\"pvp-1\",\"sessionId\":\"room-b\"}}");
         server.onMessage(clientB, startSessionJson("room-b"));
 
         assertTrue(contains(roomB, "\"sessionId\":\"room-b\""));
@@ -64,6 +67,13 @@ class GameServerMultiSessionIsolationTest {
 
     private static ClientConnection recordingClient(List<String> sink) {
         return new ClientConnection() {
+            private final String id = UUID.randomUUID().toString();
+
+            @Override
+            public String connectionId() {
+                return id;
+            }
+
             @Override
             public boolean isOpen() {
                 return true;

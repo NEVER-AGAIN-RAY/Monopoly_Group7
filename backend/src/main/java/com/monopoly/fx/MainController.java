@@ -206,7 +206,8 @@ public class MainController {
                 this::clearError,
                 this::switchToStartView,
                 this::updateLobbyControls,
-                this::clearPlayedEvents);
+                this::clearPlayedEvents,
+                this::onReconnect);
         commandGateway = new ClientCommandGateway(
                 ws,
                 state,
@@ -315,6 +316,7 @@ public class MainController {
             if (row != null) {
                 sessionIdField.setText(jsonString(row, "sessionId", sessionIdField.getText()));
             }
+            updateLobbyControls();
         });
         handPanelController.installSelectionHandling(handToggleGroup, this::quickPlay, this::syncActionButtons);
 
@@ -510,7 +512,24 @@ public class MainController {
     private void onAuth() {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("playerId", playerId());
+        if (!sessionId().isBlank()) {
+            payload.put("sessionId", sessionId());
+        }
         sendEnvelope("AUTH", payload);
+    }
+
+    private void onReconnect() {
+        onAuth();
+        if (state.currentLobbyRoom != null) {
+            boolean started = jsonBool(state.currentLobbyRoom, "started", false);
+            if (!started) {
+                Map<String, Object> payload = scopedPayload();
+                payload.put("nickname", nickname());
+                sendEnvelope("JOIN_ROOM", payload);
+                return;
+            }
+        }
+        sendEnvelope("ROOM_LIST", scopedPayload());
     }
 
     private void onStartSession() {
@@ -721,6 +740,7 @@ public class MainController {
         if (!roomListView.getItems().isEmpty()) {
             roomListView.getSelectionModel().selectFirst();
         }
+        updateLobbyControls();
     }
 
     private void applyRoomState(String raw) {
@@ -1613,7 +1633,7 @@ public class MainController {
             return 0;
         }
         for (JsonElement el : seats) {
-            if (el.isJsonObject() && !"empty".equals(jsonString(el.getAsJsonObject(), "role", "empty"))) {
+            if (el.isJsonObject() && isActiveLobbySeat(el.getAsJsonObject())) {
                 count++;
             }
         }
@@ -1630,11 +1650,21 @@ public class MainController {
             return 0;
         }
         for (JsonElement el : seats) {
-            if (el.isJsonObject() && "human".equals(jsonString(el.getAsJsonObject(), "role", "empty"))) {
+            if (el.isJsonObject()
+                    && "human".equals(jsonString(el.getAsJsonObject(), "role", "empty"))
+                    && !jsonString(el.getAsJsonObject(), "playerKey", "").isBlank()) {
                 count++;
             }
         }
         return count;
+    }
+
+    private boolean isActiveLobbySeat(JsonObject seat) {
+        String role = jsonString(seat, "role", "empty");
+        if ("human".equals(role)) {
+            return !jsonString(seat, "playerKey", "").isBlank();
+        }
+        return !"empty".equals(role);
     }
 
     private String defaultSeatNickname(JsonObject seat, List<String> memberNames) {

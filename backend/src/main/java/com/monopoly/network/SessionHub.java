@@ -185,16 +185,20 @@ final class SessionHub {
 
     boolean shouldFallbackBroadcast(String sessionId) {
         String normalized = normalizeSessionId(sessionId);
-        if (gameController == null
-                || !normalizeSessionId(gameController.getCurrentSessionIdPublic()).equals(normalized)) {
+        if (gameController == null) {
             return false;
         }
-        for (SessionRuntime runtime : sessions.values()) {
-            if (runtime.controller() != gameController) {
-                return false;
-            }
+        if (!normalizeSessionId(gameController.getCurrentSessionIdPublic()).equals(normalized)) {
+            return false;
         }
-        return true;
+        if (sessions.isEmpty()) {
+            return true;
+        }
+        if (sessions.size() == 1) {
+            SessionRuntime only = sessions.values().iterator().next();
+            return only.controller() == gameController;
+        }
+        return false;
     }
 
     void broadcast(String message) {

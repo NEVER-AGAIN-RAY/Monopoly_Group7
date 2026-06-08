@@ -20,6 +20,9 @@ final class ConnectionController {
             Button disconnectButton) {
     }
 
+    private static final int MAX_RECONNECT_ATTEMPTS = 3;
+    private static final double[] RECONNECT_DELAYS = {2.0, 4.0, 8.0};
+
     private final FxWebSocketClient ws;
     private final FxClientState state;
     private final Refs refs;
@@ -31,8 +34,12 @@ final class ConnectionController {
     private final Runnable switchToStartView;
     private final Runnable updateLobbyControls;
     private final Runnable clearPlayedEvents;
+    private final Runnable afterReconnect;
 
     private PauseTransition connectionTimeout;
+    private PauseTransition reconnectTimer;
+    private int reconnectAttempts;
+    private boolean intentionalDisconnect;
 
     ConnectionController(
             FxWebSocketClient ws,
@@ -45,7 +52,8 @@ final class ConnectionController {
             Runnable clearError,
             Runnable switchToStartView,
             Runnable updateLobbyControls,
-            Runnable clearPlayedEvents) {
+            Runnable clearPlayedEvents,
+            Runnable afterReconnect) {
         this.ws = ws;
         this.state = state;
         this.refs = refs;
@@ -57,9 +65,11 @@ final class ConnectionController {
         this.switchToStartView = switchToStartView;
         this.updateLobbyControls = updateLobbyControls;
         this.clearPlayedEvents = clearPlayedEvents;
+        this.afterReconnect = afterReconnect;
     }
 
     void connect(Runnable defaultAfterConnect) {
+        intentionalDisconnect = false;
         clearError.run();
         refs.statusLabel().setText(i18n.get("status.connecting"));
         refs.connectionLabel().setText(i18n.get("status.connecting"));
@@ -69,9 +79,10 @@ final class ConnectionController {
             public void onOpen() {
                 Platform.runLater(() -> {
                     cancelConnectionTimeout();
+                    reconnectAttempts = 0;
                     refs.statusLabel().setText(i18n.get("status.connected"));
                     refs.connectionLabel().setText(i18n.get("status.connected"));
-                    appendTraffic.accept("« " + i18n.get("log.wsOpened") + " »");
+                    appendTraffic.accept("<< " + i18n.get("log.wsOpened") + " >>");
                     refreshButtons();
                     if (state.postConnectAction != null) {
                         Runnable action = state.postConnectAction;
@@ -93,11 +104,18 @@ final class ConnectionController {
                 Platform.runLater(() -> {
                     cancelConnectionTimeout();
                     state.postConnectAction = null;
-                    refs.statusLabel().setText(i18n.get("status.connectFailed", error.getMessage()));
-                    refs.connectionLabel().setText(i18n.get("status.disconnected"));
-                    showError.accept(i18n.get("error.connectHint", refs.wsUrlField().getText().trim()));
-                    appendTraffic.accept("« " + i18n.get("log.error") + " » " + error);
-                    refreshButtons();
+                    if (intentionalDisconnect) {
+                        return;
+                    }
+                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && hadPreviousConnection()) {
+                        scheduleReconnect();
+                    } else {
+                        refs.statusLabel().setText(i18n.get("status.connectFailed", error.getMessage()));
+                        refs.connectionLabel().setText(i18n.get("status.disconnected"));
+                        showError.accept(i18n.get("error.connectHint", refs.wsUrlField().getText().trim()));
+                        appendTraffic.accept("<< " + i18n.get("log.error") + " >> " + error);
+                        refreshButtons();
+                    }
                 });
             }
 
@@ -105,18 +123,37 @@ final class ConnectionController {
             public void onClose(int code, String reason) {
                 Platform.runLater(() -> {
                     cancelConnectionTimeout();
-                    refs.statusLabel().setText(i18n.get("status.closed", code));
-                    refs.connectionLabel().setText(i18n.get("status.disconnected"));
-                    appendTraffic.accept("« " + i18n.get("log.closed", code, reason) + " »");
-                    state.lastStatePayload = null;
-                    clearPlayedEvents.run();
-                    state.pendingOptionsResultHandler = null;
-                    state.postConnectAction = null;
-                    state.awaitingInitialState = false;
-                    state.currentLobbyRoom = null;
-                    switchToStartView.run();
-                    refreshButtons();
-                    updateLobbyControls.run();
+                    if (intentionalDisconnect) {
+                        state.lastStatePayload = null;
+                        clearPlayedEvents.run();
+                        state.pendingOptionsResultHandler = null;
+                        state.postConnectAction = null;
+                        state.awaitingInitialState = false;
+                        state.currentLobbyRoom = null;
+                        switchToStartView.run();
+                        refreshButtons();
+                        updateLobbyControls.run();
+                        return;
+                    }
+                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && hadPreviousConnection()) {
+                        refs.statusLabel().setText(i18n.get("status.reconnecting"));
+                        refs.connectionLabel().setText(i18n.get("status.reconnecting"));
+                        appendTraffic.accept("<< " + i18n.get("log.closed", code, reason) + " >>");
+                        scheduleReconnect();
+                    } else {
+                        refs.statusLabel().setText(i18n.get("status.closed", code));
+                        refs.connectionLabel().setText(i18n.get("status.disconnected"));
+                        appendTraffic.accept("<< " + i18n.get("log.closed", code, reason) + " >>");
+                        state.lastStatePayload = null;
+                        clearPlayedEvents.run();
+                        state.pendingOptionsResultHandler = null;
+                        state.postConnectAction = null;
+                        state.awaitingInitialState = false;
+                        state.currentLobbyRoom = null;
+                        switchToStartView.run();
+                        refreshButtons();
+                        updateLobbyControls.run();
+                    }
                 });
             }
         });
@@ -133,7 +170,41 @@ final class ConnectionController {
         connectionTimeout.play();
     }
 
+    private boolean hadPreviousConnection() {
+        return state.lastStatePayload != null || state.currentLobbyRoom != null;
+    }
+
+    private void scheduleReconnect() {
+        double delay = RECONNECT_DELAYS[Math.min(reconnectAttempts, RECONNECT_DELAYS.length - 1)];
+        reconnectAttempts++;
+        String url = refs.wsUrlField().getText().trim();
+        if (url.isEmpty()) {
+            url = "ws://localhost:8025/ws";
+        }
+        appendTraffic.accept("<< Reconnecting (" + reconnectAttempts + "/" + MAX_RECONNECT_ATTEMPTS + ")... >>");
+        reconnectTimer = new PauseTransition(Duration.seconds(delay));
+        final int attempt = reconnectAttempts;
+        reconnectTimer.setOnFinished(e -> {
+            if (reconnectAttempts != attempt) {
+                return;
+            }
+            if (!ws.isConnected() && !intentionalDisconnect) {
+                connect(this::onReconnectedRefresh);
+            }
+        });
+        reconnectTimer.play();
+    }
+
+    private void onReconnectedRefresh() {
+        appendTraffic.accept("<< " + i18n.get("log.wsOpened") + " >>");
+        if (afterReconnect != null) {
+            afterReconnect.run();
+        }
+    }
+
     void disconnect(Runnable switchToStartView, Runnable updateLobbyControls) {
+        intentionalDisconnect = true;
+        cancelReconnectTimer();
         ws.closeQuietly();
         refs.statusLabel().setText(i18n.get("status.disconnected"));
         refs.connectionLabel().setText(i18n.get("status.disconnected"));
@@ -145,7 +216,9 @@ final class ConnectionController {
     }
 
     void shutdown() {
+        intentionalDisconnect = true;
         cancelConnectionTimeout();
+        cancelReconnectTimer();
         ws.closeQuietly();
     }
 
@@ -160,5 +233,13 @@ final class ConnectionController {
             connectionTimeout.stop();
             connectionTimeout = null;
         }
+    }
+
+    private void cancelReconnectTimer() {
+        if (reconnectTimer != null) {
+            reconnectTimer.stop();
+            reconnectTimer = null;
+        }
+        reconnectAttempts = MAX_RECONNECT_ATTEMPTS + 1;
     }
 }

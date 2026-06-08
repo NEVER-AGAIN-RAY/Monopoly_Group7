@@ -6,10 +6,13 @@ import com.monopoly.controller.ProtocolErrors;
 import com.monopoly.dto.ActionOptionsResult;
 import com.monopoly.dto.PlayActionRequest;
 import com.monopoly.dto.StartSessionRequest;
+import com.monopoly.model.player.HumanPlayer;
+import com.monopoly.model.player.Player;
 import com.monopoly.network.connection.ClientConnection;
 import com.monopoly.network.protocol.MessageDispatcher;
 
 import java.io.IOException;
+import java.util.Optional;
 
 final class MessageRouter {
 
@@ -27,6 +30,64 @@ final class MessageRouter {
         this.dispatcher = dispatcher;
         this.lobby = lobby;
         this.saveLoad = saveLoad;
+    }
+
+    private Optional<String> registeredPlayerId(ClientConnection from) {
+        return hub.sessionRegistry().getPlayerId(from);
+    }
+
+    private boolean isPlayerAuthorized(ClientConnection from, String claimedPlayerId) {
+        if (claimedPlayerId == null || claimedPlayerId.isBlank()) {
+            return false;
+        }
+        return registeredPlayerId(from)
+                .filter(pid -> pid.equals(claimedPlayerId.trim()))
+                .isPresent();
+    }
+
+    private boolean requireAuthorizedPlayer(
+            ClientConnection from,
+            String playerId,
+            String requestId) {
+        if (isPlayerAuthorized(from, playerId)) {
+            return true;
+        }
+        hub.sendError(from, "UNAUTHORIZED", "Cannot act as another player", requestId);
+        return false;
+    }
+
+    private boolean requireCurrentHumanAuthorized(
+            ClientConnection from,
+            GameController controller,
+            String requestId) {
+        Player current = controller.getCurrentPlayer();
+        if (!(current instanceof HumanPlayer)) {
+            hub.sendError(from, "UNAUTHORIZED", "Only the current human player can perform this action", requestId);
+            return false;
+        }
+        return requireAuthorizedPlayer(from, current.getPlayerId(), requestId);
+    }
+
+    private boolean requireSessionHumanAuthorized(
+            ClientConnection from,
+            GameController controller,
+            String requestId) {
+        Optional<String> playerId = registeredPlayerId(from);
+        if (playerId.isEmpty()) {
+            hub.sendError(from, "UNAUTHORIZED", "A bound player identity is required", requestId);
+            return false;
+        }
+        if (controller.getSessionPlayersView().isEmpty()) {
+            return true;
+        }
+        boolean inSession = controller.getSessionPlayersView().stream()
+                .filter(HumanPlayer.class::isInstance)
+                .anyMatch(p -> p.getPlayerId().equals(playerId.get()));
+        if (!inSession) {
+            hub.sendError(from, "UNAUTHORIZED", "Cannot act in another session", requestId);
+            return false;
+        }
+        return true;
     }
 
     void route(ClientConnection from, String json) {
@@ -79,29 +140,58 @@ final class MessageRouter {
         GameController controller = hub.resolveController(from, payload);
         if (controller == null) {
             hub.sendError(from, "SESSION_NOT_FOUND",
-                    "请先 START_SESSION，或在 payload 中提供 sessionId。", dispatcher.extractRequestId(root, payload));
+                    "Please START_SESSION first, or provide sessionId in payload.", dispatcher.extractRequestId(root, payload));
             return;
         }
         if ("PAUSE".equals(type) || "PAUSE_REQUEST".equals(type)) {
+            String requestId = dispatcher.extractRequestId(root, payload);
+            String playerId = dispatcher.getString(payload, "playerId", null);
+            if (playerId != null && !playerId.isBlank()
+                    && !requireAuthorizedPlayer(from, playerId, requestId)) {
+                return;
+            }
+            if ((playerId == null || playerId.isBlank())
+                    && !requireSessionHumanAuthorized(from, controller, requestId)) {
+                return;
+            }
             controller.requestPause();
             return;
         }
         if ("PAUSE_ACK".equals(type)) {
             String ackPlayerId = dispatcher.getString(payload, "playerId", null);
+            if (!requireAuthorizedPlayer(from, ackPlayerId, dispatcher.extractRequestId(root, payload))) {
+                return;
+            }
             controller.acknowledgePause(ackPlayerId);
             return;
         }
         if ("RESUME".equals(type)) {
+            String requestId = dispatcher.extractRequestId(root, payload);
+            String playerId = dispatcher.getString(payload, "playerId", null);
+            if (playerId != null && !playerId.isBlank()
+                    && !requireAuthorizedPlayer(from, playerId, requestId)) {
+                return;
+            }
+            if ((playerId == null || playerId.isBlank())
+                    && !requireSessionHumanAuthorized(from, controller, requestId)) {
+                return;
+            }
             controller.resume();
             return;
         }
         if ("REASSIGN_WILD".equals(type)) {
+            if (!requireCurrentHumanAuthorized(from, controller, dispatcher.extractRequestId(root, payload))) {
+                return;
+            }
             String wildId = dispatcher.getString(payload, "wildPropertyCardId", null);
             String newKey = dispatcher.getString(payload, "newColorKey", null);
             controller.handleReassignWildCommand(wildId, newKey);
             return;
         }
         if ("DRAW".equals(type)) {
+            if (!requireCurrentHumanAuthorized(from, controller, dispatcher.extractRequestId(root, payload))) {
+                return;
+            }
             int count = dispatcher.getInt(payload, "count", 2);
             controller.handleDrawCommand(count);
             return;
@@ -119,11 +209,17 @@ final class MessageRouter {
             return;
         }
         if ("END_TURN".equals(type)) {
+            if (!requireCurrentHumanAuthorized(from, controller, dispatcher.extractRequestId(root, payload))) {
+                return;
+            }
             controller.handleEndTurnCommand();
             return;
         }
         if ("QUIT".equals(type)) {
             String quitPlayerId = dispatcher.getString(payload, "playerId", null);
+            if (!requireAuthorizedPlayer(from, quitPlayerId, dispatcher.extractRequestId(root, payload))) {
+                return;
+            }
             controller.handleQuitCommand(quitPlayerId);
             return;
         }
@@ -132,6 +228,9 @@ final class MessageRouter {
             return;
         }
         if ("SAVE_GAME".equals(type)) {
+            if (!requireSessionHumanAuthorized(from, controller, dispatcher.extractRequestId(root, payload))) {
+                return;
+            }
             saveLoad.handleSaveGame(from, payload, controller);
             return;
         }
@@ -144,6 +243,9 @@ final class MessageRouter {
             return;
         }
         if ("LOAD_GAME".equals(type)) {
+            if (!requireSessionHumanAuthorized(from, controller, dispatcher.extractRequestId(root, payload))) {
+                return;
+            }
             saveLoad.handleLoadGame(from, payload, controller);
             return;
         }
@@ -167,7 +269,7 @@ final class MessageRouter {
             try {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "AUTH_RESULT",
-                        dispatcher.operationResult(false, "playerId 不能为空")));
+                        dispatcher.operationResult(false, "playerId must not be empty")));
             } catch (IOException ignored) {
             }
             return;
@@ -187,7 +289,7 @@ final class MessageRouter {
         }
         GameController controller = sessionId == null || sessionId.isBlank() ? null : hub.controllerForSession(sessionId);
         if (controller != null && !controller.getSessionPlayersView().isEmpty()) {
-            controller.pushCurrentState("JOIN", "玩家已连接房间。");
+            controller.pushCurrentState("JOIN", "Player reconnected.");
         }
     }
 
@@ -195,6 +297,13 @@ final class MessageRouter {
         String requestId = dispatcher.extractRequestId(root, payload);
         try {
             PlayActionRequest playReq = dispatcher.parsePlayActionRequest(payload);
+            if (playReq.getActingPlayerId() != null && !playReq.getActingPlayerId().isBlank()) {
+                if (!requireAuthorizedPlayer(from, playReq.getActingPlayerId(), requestId)) {
+                    return;
+                }
+            } else if (!requireCurrentHumanAuthorized(from, controller, requestId)) {
+                return;
+            }
             controller.handlePlayActionRequest(playReq);
         } catch (ProtocolErrors.ProtocolValidationException e) {
             hub.sendError(from, e.getCode(), e.getMessage(), requestId);
@@ -210,6 +319,9 @@ final class MessageRouter {
         try {
             String playerId = dispatcher.getString(payload, "playerId", null);
             String cardId = dispatcher.getString(payload, "cardId", null);
+            if (!requireAuthorizedPlayer(from, playerId, requestId)) {
+                return;
+            }
             ActionOptionsResult r = controller.queryActionOptionsForHandCard(playerId, cardId);
             try {
                 from.sendText(dispatcher.toJsonEnvelopeModel("ACTION_OPTIONS_RESULT", r));
@@ -230,6 +342,9 @@ final class MessageRouter {
             String playerId = dispatcher.getString(payload, "playerId", null);
             String cardId = dispatcher.getString(payload, "cardId", null);
             String actionType = dispatcher.getString(payload, "actionType", null);
+            if (!requireAuthorizedPlayer(from, playerId, requestId)) {
+                return;
+            }
             ActionOptionsResult r = controller.queryPlayOptions(playerId, cardId, actionType);
             try {
                 from.sendText(dispatcher.toJsonEnvelopeModel("PLAY_OPTIONS_RESULT", r));
@@ -250,6 +365,9 @@ final class MessageRouter {
             PlayActionRequest passReq = dispatcher.parsePlayActionRequest(payload);
             if (passReq.getActingPlayerId() == null || passReq.getActingPlayerId().isBlank()) {
                 passReq.setActingPlayerId(dispatcher.getString(payload, "actingPlayerId", null));
+            }
+            if (!requireAuthorizedPlayer(from, passReq.getActingPlayerId(), requestId)) {
+                return;
             }
             passReq.setActionType("RESPONSE_PASS");
             controller.handlePlayActionRequest(passReq);

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,6 +39,10 @@ class ErrorCodeContractTest {
         server.attachTo(subject);
         List<String> out = new ArrayList<>();
         ClientConnection client = recordingClient(out);
+        server.onClientConnected(client);
+        server.onMessage(client,
+                "{\"type\":\"AUTH\",\"payload\":{\"playerId\":\"human-1\",\"sessionId\":\"state-violation\"}}");
+        out.clear();
 
         // 初始阶段是 DRAW，此时出牌会触发状态错误。
         server.onMessage(client, "{\"type\":\"PLAY\",\"requestId\":\"r-state\",\"payload\":{\"actionType\":\"DEPOSIT\",\"handIndex\":0}}");
@@ -48,6 +53,13 @@ class ErrorCodeContractTest {
 
     private static ClientConnection recordingClient(List<String> sink) {
         return new ClientConnection() {
+            private final String id = UUID.randomUUID().toString();
+
+            @Override
+            public String connectionId() {
+                return id;
+            }
+
             @Override
             public boolean isOpen() {
                 return true;

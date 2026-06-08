@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -73,8 +74,8 @@ class GameServerProtocolGuardTest {
     @Test
     void actionOptionsMissingCard_shouldReturnActionOptionsBadError() {
         List<String> out = new ArrayList<>();
-        GameServer server = newStartedServer(out, "guard-action-options");
         ClientConnection client = recordingClient(out);
+        GameServer server = newStartedServer(out, client, "guard-action-options");
         out.clear();
 
         server.onMessage(client,
@@ -87,8 +88,8 @@ class GameServerProtocolGuardTest {
     @Test
     void playOptionsMissingCard_shouldReturnPlayOptionsBadError() {
         List<String> out = new ArrayList<>();
-        GameServer server = newStartedServer(out, "guard-play-options");
         ClientConnection client = recordingClient(out);
+        GameServer server = newStartedServer(out, client, "guard-play-options");
         out.clear();
 
         server.onMessage(client,
@@ -98,14 +99,16 @@ class GameServerProtocolGuardTest {
         assertError(error, "PLAY_OPTIONS_BAD", "r-play-options");
     }
 
-    private static GameServer newStartedServer(List<String> out, String sessionId) {
+    private static GameServer newStartedServer(List<String> out, ClientConnection client, String sessionId) {
         DefaultGameUpdateSubject subject = new DefaultGameUpdateSubject();
         GameController controller = new GameController(subject);
         controller.startNewSession(sessionId);
         GameServer server = new GameServer();
         server.wireController(controller);
         server.attachTo(subject);
-        server.onClientConnected(recordingClient(out));
+        server.onClientConnected(client);
+        server.onMessage(client,
+                "{\"type\":\"AUTH\",\"payload\":{\"playerId\":\"human-1\",\"sessionId\":\"" + sessionId + "\"}}");
         return server;
     }
 
@@ -131,6 +134,13 @@ class GameServerProtocolGuardTest {
 
     private static ClientConnection recordingClient(List<String> sink) {
         return new ClientConnection() {
+            private final String id = UUID.randomUUID().toString();
+
+            @Override
+            public String connectionId() {
+                return id;
+            }
+
             @Override
             public boolean isOpen() {
                 return true;

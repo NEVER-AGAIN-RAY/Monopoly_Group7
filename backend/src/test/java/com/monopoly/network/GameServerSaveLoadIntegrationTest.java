@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -50,9 +51,11 @@ class GameServerSaveLoadIntegrationTest {
         req.setGameMode("PVP");
         req.setRandomizeFirstPlayer(false);
         controller.startNewSession(req);
+        server.onMessage(client, "{\"type\":\"AUTH\",\"payload\":{\"playerId\":\"pvp-1\",\"sessionId\":\"int-save\"}}");
 
         out.clear();
-        server.onMessage(client, "{\"type\":\"SAVE_GAME\",\"payload\":{}}");
+        server.onMessage(client, "{\"type\":\"SAVE_GAME\",\"payload\":{\"requestId\":\"save-int\"}}");
+        server.onMessage(client, "{\"type\":\"SAVE_GAME_ACK\",\"payload\":{\"requestId\":\"save-int\"}}");
 
         String saveReply = out.stream()
                 .filter(s -> s.contains("\"SAVE_GAME_RESULT\""))
@@ -96,17 +99,20 @@ class GameServerSaveLoadIntegrationTest {
         server.onClientConnected(client);
 
         controller.startNewSession("path-save");
+        server.onMessage(client, "{\"type\":\"AUTH\",\"payload\":{\"playerId\":\"human-1\",\"sessionId\":\"path-save\"}}");
 
         Path tmp = Files.createTempFile("monopoly-save-", ".json");
         tmp.toFile().deleteOnExit();
 
         JsonObject savePayload = new JsonObject();
+        savePayload.addProperty("requestId", "save-path");
         savePayload.addProperty("path", tmp.toString());
         JsonObject saveRoot = new JsonObject();
         saveRoot.addProperty("type", "SAVE_GAME");
         saveRoot.add("payload", savePayload);
         out.clear();
         server.onMessage(client, GSON.toJson(saveRoot));
+        server.onMessage(client, "{\"type\":\"SAVE_GAME_ACK\",\"payload\":{\"requestId\":\"save-path\"}}");
 
         String saveReply = out.stream()
                 .filter(s -> s.contains("\"SAVE_GAME_RESULT\""))
@@ -389,6 +395,13 @@ class GameServerSaveLoadIntegrationTest {
 
     private static ClientConnection recordingClient(List<String> sink) {
         return new ClientConnection() {
+            private final String id = UUID.randomUUID().toString();
+
+            @Override
+            public String connectionId() {
+                return id;
+            }
+
             @Override
             public boolean isOpen() {
                 return true;

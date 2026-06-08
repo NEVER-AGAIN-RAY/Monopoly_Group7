@@ -30,7 +30,11 @@ final class LobbyService {
 
     void onClientDisconnected(ClientConnection client) {
         for (LobbyRoom room : lobbyRooms.values()) {
-            removeMemberFromRoom(room, playerKey(client));
+            if (!room.started) {
+                removeMemberFromRoom(room, playerKey(client));
+            } else {
+                sendRoomStateToSession(room.sessionId);
+            }
         }
         broadcastRoomList();
     }
@@ -48,7 +52,7 @@ final class LobbyService {
             room.addMember(playerKey(from), nickname);
             room.seats.get(0).humanPlayerKey = playerKey(from);
             room.seats.get(0).role = "human";
-            room.seats.get(1).role = "strong";
+            room.seats.get(1).role = "human";
         }
         LobbyRoom existing = lobbyRooms.putIfAbsent(sessionId, room);
         if (existing != null) {
@@ -83,6 +87,7 @@ final class LobbyService {
                 return;
             }
             room.addMember(playerKey(from), nickname);
+            room.assignJoinedHuman(playerKey(from));
         }
         hub.sessionRegistry().register(from, playerKey(from));
         hub.sessionRegistry().bindSession(from, sessionId);
@@ -389,7 +394,7 @@ final class LobbyService {
     }
 
     String playerKey(ClientConnection conn) {
-        return "conn-" + System.identityHashCode(conn);
+        return "conn-" + conn.connectionId();
     }
 
     boolean isRoomHost(LobbyRoom room, ClientConnection conn) {
@@ -439,11 +444,13 @@ final class LobbyService {
         }
 
         int activeSeatCount() {
-            return (int) seats.stream().filter(seat -> !"empty".equals(seat.role)).count();
+            return (int) seats.stream().filter(LobbySeat::isActive).count();
         }
 
         int humanSeatCount() {
-            return (int) seats.stream().filter(seat -> "human".equals(seat.role)).count();
+            return (int) seats.stream()
+                    .filter(seat -> "human".equals(seat.role) && seat.humanPlayerKey != null)
+                    .count();
         }
 
         List<String> activeSeatRoles() {
@@ -460,11 +467,36 @@ final class LobbyService {
         List<String> activeSeatNames() {
             List<String> names = new ArrayList<>();
             for (LobbySeat seat : seats) {
-                if (!"empty".equals(seat.role)) {
+                if (seat.isActive()) {
                     names.add(seat.displayName(this));
                 }
             }
             return names;
+        }
+
+        void assignJoinedHuman(String playerKey) {
+            for (LobbySeat seat : seats) {
+                if (playerKey.equals(seat.humanPlayerKey)) {
+                    return;
+                }
+            }
+            for (LobbySeat seat : seats) {
+                if ("human".equals(seat.role) && seat.humanPlayerKey == null) {
+                    seat.humanPlayerKey = playerKey;
+                    seat.botName = "";
+                    seat.inGamePlayerId = "";
+                    return;
+                }
+            }
+            for (LobbySeat seat : seats) {
+                if ("empty".equals(seat.role)) {
+                    seat.role = "human";
+                    seat.humanPlayerKey = playerKey;
+                    seat.botName = "";
+                    seat.inGamePlayerId = "";
+                    return;
+                }
+            }
         }
     }
 
@@ -492,6 +524,14 @@ final class LobbyService {
                 case "llm" -> "llm";
                 case "student" -> "student";
                 default -> "";
+            };
+        }
+
+        boolean isActive() {
+            return switch (role) {
+                case "human" -> humanPlayerKey != null;
+                case "hard", "strong", "llm", "student" -> true;
+                default -> false;
             };
         }
     }

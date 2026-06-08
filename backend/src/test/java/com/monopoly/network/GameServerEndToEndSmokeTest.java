@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -193,6 +194,13 @@ class GameServerEndToEndSmokeTest {
 
     private static ClientConnection recordingClient(List<String> sink) {
         return new ClientConnection() {
+            private final String id = UUID.randomUUID().toString();
+
+            @Override
+            public String connectionId() {
+                return id;
+            }
+
             @Override
             public boolean isOpen() {
                 return true;

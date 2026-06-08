@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -80,6 +81,35 @@ class GameServerRoomListTest {
         assertEquals("Student Bot 3", seats.get(2).getAsJsonObject().get("nickname").getAsString());
     }
 
+    @Test
+    void connectedGuestReceivesRoomListAndAutoSeatAfterJoin() {
+        GameServer server = new GameServer();
+        List<String> hostOut = Collections.synchronizedList(new ArrayList<>());
+        List<String> guestOut = Collections.synchronizedList(new ArrayList<>());
+        ClientConnection host = recordingClient(hostOut);
+        ClientConnection guest = recordingClient(guestOut);
+        server.onClientConnected(host);
+        server.onClientConnected(guest);
+
+        server.onMessage(host, "{\"type\":\"CREATE_ROOM\",\"payload\":{\"sessionId\":\"lobby-c\",\"nickname\":\"房主\"}}");
+
+        JsonObject listedRoom = latestRoom(guestOut, "lobby-c");
+        assertEquals(1, listedRoom.get("connectedPlayers").getAsInt());
+        assertEquals(1, listedRoom.get("humanSeats").getAsInt());
+
+        guestOut.clear();
+        server.onMessage(guest, "{\"type\":\"JOIN_ROOM\",\"payload\":{\"sessionId\":\"lobby-c\",\"nickname\":\"客人\"}}");
+
+        JsonObject guestState = latestRoomState(guestOut);
+        JsonArray seats = guestState.getAsJsonArray("seats");
+        assertEquals("房主", seats.get(0).getAsJsonObject().get("nickname").getAsString());
+        assertEquals("客人", seats.get(1).getAsJsonObject().get("nickname").getAsString());
+
+        JsonObject updatedRoom = latestRoom(guestOut, "lobby-c");
+        assertEquals(2, updatedRoom.get("connectedPlayers").getAsInt());
+        assertEquals(2, updatedRoom.get("humanSeats").getAsInt());
+    }
+
     private static JsonObject latestRoom(List<String> messages, String sessionId) {
         List<String> copy;
         synchronized (messages) {
@@ -118,6 +148,13 @@ class GameServerRoomListTest {
 
     private static ClientConnection recordingClient(List<String> sink) {
         return new ClientConnection() {
+            private final String id = UUID.randomUUID().toString();
+
+            @Override
+            public String connectionId() {
+                return id;
+            }
+
             @Override
             public boolean isOpen() {
                 return true;

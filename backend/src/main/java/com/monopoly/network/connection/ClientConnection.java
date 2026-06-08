@@ -7,6 +7,8 @@ import java.io.IOException;
  */
 public interface ClientConnection {
 
+    String connectionId();
+
     boolean isOpen();
 
     void sendText(String text) throws IOException;

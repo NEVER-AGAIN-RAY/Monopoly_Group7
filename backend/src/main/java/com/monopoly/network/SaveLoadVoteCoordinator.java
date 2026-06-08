@@ -14,17 +14,27 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 final class SaveLoadVoteCoordinator {
 
     private static final Path SAVE_DIR = Path.of(System.getProperty("user.home"), ".monopoly-deal", "saves");
+    private static final long LOAD_VOTE_TIMEOUT_MS = 60_000L;
 
     private final SessionHub hub;
     private final MessageDispatcher dispatcher;
     private final AtomicLong requestCounter;
     private final ConcurrentHashMap<String, PendingLoadVote> pendingLoadVotes = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, PendingSaveVote> pendingSaveVotes = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "vote-timeout");
+        t.setDaemon(true);
+        return t;
+    });
 
     SaveLoadVoteCoordinator(SessionHub hub, MessageDispatcher dispatcher, AtomicLong requestCounter) {
         this.hub = hub;
@@ -49,6 +59,14 @@ final class SaveLoadVoteCoordinator {
                     requestId, deadlineEpochMs, voters, payload, from, controller);
             String sessionId = SessionHub.normalizeSessionId(controller.getCurrentSessionIdPublic());
             pendingSaveVotes.put(sessionId, vote);
+            long delayMs = Math.max(1000L, deadlineEpochMs - System.currentTimeMillis() + 1000L);
+            scheduler.schedule(() -> {
+                PendingSaveVote v = pendingSaveVotes.get(sessionId);
+                if (v != null && v.requestId.equals(vote.requestId)
+                        && System.currentTimeMillis() > v.deadlineEpochMs) {
+                    cancelSaveVote(v, "Save vote timed out");
+                }
+            }, delayMs, TimeUnit.MILLISECONDS);
 
             JsonObject req = new JsonObject();
             req.addProperty("requestId", vote.requestId);
@@ -71,32 +89,35 @@ final class SaveLoadVoteCoordinator {
             if (vote == null) {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "SAVE_GAME_RESULT",
-                        dispatcher.operationResult(false, "当前没有待确认的保存请求")));
+                        dispatcher.operationResult(false, "No pending save request")));
                 return;
             }
             if (!vote.requestId.equals(dispatcher.getString(payload, "requestId", null))) {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "SAVE_GAME_RESULT",
-                        dispatcher.operationResult(false, "requestId 不匹配")));
+                        dispatcher.operationResult(false, "requestId mismatch")));
                 return;
             }
             if (System.currentTimeMillis() > vote.deadlineEpochMs) {
-                cancelSaveVote(vote, "投票超时");
+                cancelSaveVote(vote, "Save vote timed out");
                 return;
             }
-            String playerId = hub.sessionRegistry().getPlayerId(from)
-                    .orElse(dispatcher.getString(payload, "playerId", null));
+            String playerId = hub.sessionRegistry().getPlayerId(from).orElse(null);
             if (playerId == null || playerId.isBlank() || !vote.eligibleVoters.contains(playerId)) {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "SAVE_GAME_RESULT",
-                        dispatcher.operationResult(false, "无效投票玩家")));
+                        dispatcher.operationResult(false, "Invalid voting player")));
                 return;
             }
-            vote.acks.add(playerId);
+            if (!vote.acks.add(playerId)) {
+                return;
+            }
             if (vote.acks.size() < vote.eligibleVoters.size()) {
                 return;
             }
-            pendingSaveVotes.remove(SessionHub.normalizeSessionId(vote.controller.getCurrentSessionIdPublic()), vote);
+            if (!pendingSaveVotes.remove(SessionHub.normalizeSessionId(vote.controller.getCurrentSessionIdPublic()), vote)) {
+                return;
+            }
             commitSaveGame(vote.originalPayload, vote.requester, vote.controller);
         } catch (Exception e) {
             try {
@@ -117,12 +138,11 @@ final class SaveLoadVoteCoordinator {
             if (!vote.requestId.equals(dispatcher.getString(payload, "requestId", null))) {
                 return;
             }
-            String playerId = hub.sessionRegistry().getPlayerId(from)
-                    .orElse(dispatcher.getString(payload, "playerId", null));
+            String playerId = hub.sessionRegistry().getPlayerId(from).orElse(null);
             if (playerId == null || playerId.isBlank() || !vote.eligibleVoters.contains(playerId)) {
                 return;
             }
-            cancelSaveVote(vote, "有玩家拒绝保存");
+            cancelSaveVote(vote, "A player rejected the save");
         } catch (Exception ignored) {
         }
     }
@@ -188,7 +208,7 @@ final class SaveLoadVoteCoordinator {
             if (raw == null || raw.isBlank()) {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "LOAD_GAME_RESULT",
-                        dispatcher.operationResult(false, "mementoJson 不能为空")));
+                        dispatcher.operationResult(false, "mementoJson must not be empty")));
                 return;
             }
             Set<String> eligibleVoters = resolveEligibleLoadVoters(controller);
@@ -205,6 +225,13 @@ final class SaveLoadVoteCoordinator {
             PendingLoadVote vote = new PendingLoadVote(requestId, raw, eligibleVoters, controller);
             String sessionId = SessionHub.normalizeSessionId(controller.getCurrentSessionIdPublic());
             pendingLoadVotes.put(sessionId, vote);
+            long deadlineMs = System.currentTimeMillis() + LOAD_VOTE_TIMEOUT_MS;
+            scheduler.schedule(() -> {
+                PendingLoadVote v = pendingLoadVotes.get(sessionId);
+                if (v != null && v.requestId.equals(vote.requestId)) {
+                    cancelLoadVote(v, "Load vote timed out");
+                }
+            }, LOAD_VOTE_TIMEOUT_MS + 1000L, TimeUnit.MILLISECONDS);
 
             JsonObject request = new JsonObject();
             request.addProperty("requestId", vote.requestId);
@@ -226,25 +253,26 @@ final class SaveLoadVoteCoordinator {
             if (vote == null) {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "LOAD_GAME_RESULT",
-                        dispatcher.operationResult(false, "当前没有待确认的加载请求")));
+                        dispatcher.operationResult(false, "No pending load request")));
                 return;
             }
             String requestId = dispatcher.getString(payload, "requestId", null);
             if (requestId != null && !requestId.isBlank() && !vote.requestId.equals(requestId)) {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "LOAD_GAME_RESULT",
-                        dispatcher.operationResult(false, "requestId 不匹配")));
+                        dispatcher.operationResult(false, "requestId mismatch")));
                 return;
             }
-            String playerId = hub.sessionRegistry().getPlayerId(from)
-                    .orElse(dispatcher.getString(payload, "playerId", null));
+            String playerId = hub.sessionRegistry().getPlayerId(from).orElse(null);
             if (playerId == null || playerId.isBlank() || !vote.eligibleVoters.contains(playerId)) {
                 from.sendText(dispatcher.toJsonEnvelope(
                         "LOAD_GAME_RESULT",
-                        dispatcher.operationResult(false, "无效投票玩家")));
+                        dispatcher.operationResult(false, "Invalid voting player")));
                 return;
             }
-            vote.acks.add(playerId);
+            if (!vote.acks.add(playerId)) {
+                return;
+            }
             if (vote.acks.size() < vote.eligibleVoters.size()) {
                 return;
             }
@@ -269,12 +297,11 @@ final class SaveLoadVoteCoordinator {
             if (requestId != null && !requestId.isBlank() && !vote.requestId.equals(requestId)) {
                 return;
             }
-            String playerId = hub.sessionRegistry().getPlayerId(from)
-                    .orElse(dispatcher.getString(payload, "playerId", null));
+            String playerId = hub.sessionRegistry().getPlayerId(from).orElse(null);
             if (playerId == null || playerId.isBlank() || !vote.eligibleVoters.contains(playerId)) {
                 return;
             }
-            cancelLoadVote(vote, "有玩家拒绝加载");
+            cancelLoadVote(vote, "A player rejected the load");
         } catch (Exception ignored) {
         }
     }

@@ -55,9 +55,9 @@ public class GameServer implements GameUpdateObserver {
     }
 
     public void onClientDisconnected(ClientConnection client) {
+        hub.unregister(client);
         hub.removeClient(client);
         lobby.onClientDisconnected(client);
-        hub.unregister(client);
         lobby.broadcastRoomList();
     }
 

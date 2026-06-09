@@ -24,15 +24,13 @@ Phase-1 due Week 8 (2026-04-22). Phase-2 due Week 15 (2026-06-09). Demo on 2026-
 
 ## Member Contributions
 
-| Name | Role | Primary Tasks | Contribution (%) |
-| --- | --- | --- | --- |
-| Liu Zongrun| Architectural Designer | The overall concept and structure of the design project | 20% |
-| Lei Yurun| Graphic Design | Draw UML diagrams and organize group discussions | 20% |
-| Wang Tingdong | Summary of Requirements |Summarize the requirements after the group discussion and prepare the requirements document | 20% |
-| Qiu Siqi | Review and verification |Responsible for checking the compatibility between UML diagrams and the project | 20% |
-| Liu Yuhao | Contact Assistance |Assist in summarizing the requirements document and reviewing the presentation document | 20% |
-
-The contribution percentages differ because core code development (architecture, gameplay logic, GUI, design patterns) carries higher complexity and effort, while documentation and black-box testing require comparatively less specialized implementation work.
+| Full Name | UCD Student Number | GitHub Account Name | Main Responsibility | Contribution Description | Percentage |
+| --- | --- | --- | --- | --- | --- |
+| Liu Zongrun | 24107745 | LiuZongrun7 | AI model development and training | Responsible for DeepSeek integration, local student-model design, AI decision-candidate design, training artifact organization, and AI strategy experiment validation. | 20% |
+| Lei Yurun | 24107684 | NEVER-AGAIN-RAY | Backend development | Responsible for UML design, backend core logic, WebSocket message handling, turn flow, rule settlement, service decomposition, and backend refactoring. | 20% |
+| Wang Tingdong | 24107759 | Harry-magic | Frontend development | Responsible for requirements documentation, JavaFX + FXML desktop client development, card/player-board display, interaction flow, target selection, frontend-backend integration; also maintained the Web client as an auxiliary testing entry. | 20% |
+| Liu Yuhao | 24107764 | Yuhaollllll | Testing and quality checks | Responsible for functional testing, rule-boundary validation, regression-test organization, runtime compatibility checks, and pre-submission quality confirmation. | 20% |
+| Qiu Siqi | 24107750 | qiusiqi-2024 | Documentation and review | Responsible for requirements document organization, submission-material checks, presentation preparation, final-report review, and assistance with multiplayer-flow validation. | 20% |
 
 ## Project Overview
 
@@ -91,7 +89,7 @@ flowchart LR
 | `backend/src/main/java/com/monopoly/persistence/` | Save/load memento and encryption support. |
 | `backend/src/test/java/com/monopoly/` | JUnit tests. |
 | `frontend/` | Optional Vue/Vite web client. |
-| `docs/` | Final reports and project reference documents. |
+| `docs/` | Final Phase 2 report. |
 
 ## Tech Stack
 
@@ -170,6 +168,4 @@ Expected response includes `STATE_UPDATE`.
 
 ## Documentation
 
-- Project reference notes: [`docs/PROJECT_NOTES.txt`](docs/PROJECT_NOTES.txt)
-- Phase 2 final report: [`docs/phase2-final-report-zh.pdf`](docs/phase2-final-report-zh.pdf)
-- Original project brief: [`docs/Software Engineering Project - Game-26.pdf`](docs/Software%20Engineering%20Project%20-%20Game-26.pdf)
+- Phase 2 final report: [`docs/phase2-final-report-en-no-section7.pdf`](docs/phase2-final-report-en-no-section7.pdf)

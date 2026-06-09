@@ -88,6 +88,7 @@
 .connect-card,
 .setup-panel,
 .lobby-panel,
+.save-load-strip,
 .ai-card,
 .live-card,
 .feature-pill {
@@ -302,6 +303,22 @@
     -fx-font-weight: 800;
 }
 
+.save-load-strip {
+    -fx-padding: 12px 14px;
+    -fx-effect: none;
+}
+
+.save-load-title {
+    -fx-text-fill: #c62828;
+    -fx-font-size: 15px;
+    -fx-font-weight: 900;
+}
+
+.save-load-hint {
+    -fx-text-fill: #3f4d38;
+    -fx-font-weight: 900;
+}
+
 .room-list-view {
     -fx-background-color: rgba(255, 255, 255, 0.56);
     -fx-background-radius: 10px;
@@ -351,6 +368,16 @@
 .btn-quiet {
     -fx-background-color: #f7f0d5;
     -fx-text-fill: #2f2515;
+}
+
+.top-action-buttons {
+    -fx-min-width: 170px;
+    -fx-pref-width: 170px;
+}
+
+.top-action-buttons .button {
+    -fx-min-width: 76px;
+    -fx-pref-width: 76px;
 }
 
 .btn-soft-green {
@@ -447,10 +474,12 @@
 .event-line {
     -fx-text-fill: #4f5949;
     -fx-font-weight: 800;
+    -fx-max-height: 38px;
 }
 
 .stat-strip {
     -fx-padding: 0 4px;
+    -fx-max-width: 460px;
 }
 
 .hud-stat {
@@ -460,6 +489,8 @@
     -fx-font-size: 12px;
     -fx-font-weight: 900;
     -fx-padding: 6px 10px;
+    -fx-min-width: 54px;
+    -fx-alignment: center;
 }
 
 .table-layout {

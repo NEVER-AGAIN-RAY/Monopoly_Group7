@@ -7,7 +7,9 @@ import com.monopoly.fx.presentation.CardDisplayData;
 import com.monopoly.fx.ui.PlayerBoardPanel;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -24,8 +26,13 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -33,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import static com.monopoly.fx.FxJson.jsonBool;
@@ -65,6 +73,8 @@ public class MainController {
     private boolean infoDetailExpanded;
     private int trafficLineCount;
     private boolean infoVisible;
+    private String pendingSaveRequestId;
+    private String pendingLoadRequestId;
 
     @FXML private StackPane root;
     @FXML private BorderPane gamePane;
@@ -73,6 +83,7 @@ public class MainController {
     @FXML private TextField wsUrlField;
     @FXML private ComboBox<String> languageCombo;
     @FXML private Button connectButton;
+    @FXML private Button returnGameButton;
     @FXML private Label statusLabel;
     @FXML private Label connectionLabel;
     @FXML private Button disconnectButton;
@@ -89,12 +100,11 @@ public class MainController {
     @FXML private Label liveCardTitleLabel;
     @FXML private Label liveCardSubtitleLabel;
     @FXML private Button startAiButton;
-    @FXML private Label featureAiTitleLabel;
-    @FXML private Label featureAiTextLabel;
-    @FXML private Label featurePvpTitleLabel;
-    @FXML private Label featurePvpTextLabel;
-    @FXML private Label featureDemoTitleLabel;
-    @FXML private Label featureDemoTextLabel;
+    @FXML private Label saveLoadTitleLabel;
+    @FXML private Label saveLoadHintLabel;
+    @FXML private Label saveLoadStatusLabel;
+    @FXML private Button saveGameButton;
+    @FXML private Button loadGameButton;
     @FXML private Label gameModeLabel;
     @FXML private Label playerCountLabel;
     @FXML private Label aiDifficultyLabel;
@@ -400,6 +410,66 @@ public class MainController {
     }
 
     @FXML
+    private void onSaveGame() {
+        if (!hasActiveGame()) {
+            showError(i18n("saveLoad.needGame"));
+            return;
+        }
+        runWhenConnected(() -> {
+            pendingSaveRequestId = "fx-save-" + System.currentTimeMillis();
+            Map<String, Object> payload = scopedPayload();
+            payload.put("requestId", pendingSaveRequestId);
+            payload.put("playerId", playerId());
+            payload.put("path", defaultSaveFilename());
+            saveLoadStatusLabel.setText(i18n("saveLoad.saving"));
+            sendEnvelope("SAVE_GAME", payload);
+        });
+    }
+
+    @FXML
+    private void onLoadGame() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(i18n("saveLoad.chooseFile"));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Monopoly Deal Save (*.json)", "*.json"));
+        Path saveDir = defaultSaveDir();
+        if (Files.isDirectory(saveDir)) {
+            chooser.setInitialDirectory(saveDir.toFile());
+        }
+        File selected = chooser.showOpenDialog(root.getScene() == null ? null : root.getScene().getWindow());
+        if (selected == null) {
+            return;
+        }
+        try {
+            String raw = Files.readString(selected.toPath(), StandardCharsets.UTF_8);
+            if (raw.isBlank()) {
+                showError(i18n("saveLoad.emptyFile"));
+                return;
+            }
+            runWhenConnected(() -> {
+                boolean needsBootstrapSession = !hasActiveGame();
+                pendingLoadRequestId = "fx-load-" + System.currentTimeMillis();
+                onAuth();
+                if (needsBootstrapSession) {
+                    Map<String, Object> bootstrap = new LinkedHashMap<>();
+                    bootstrap.put("sessionId", sessionId());
+                    bootstrap.put("playerCount", 2);
+                    bootstrap.put("gameMode", "HVM");
+                    bootstrap.put("randomizeFirstPlayer", false);
+                    sendEnvelope("START_SESSION", bootstrap);
+                }
+                Map<String, Object> payload = scopedPayload();
+                payload.put("requestId", pendingLoadRequestId);
+                payload.put("playerId", playerId());
+                payload.put("mementoJson", raw);
+                saveLoadStatusLabel.setText(i18n("saveLoad.loading"));
+                sendEnvelope("LOAD_GAME", payload);
+            });
+        } catch (Exception ex) {
+            showError(i18n("saveLoad.readFailed", ex.getMessage()));
+        }
+    }
+
+    @FXML
     private void onCreateRoom() {
         runWhenConnected(() -> {
             Map<String, Object> payload = scopedPayload();
@@ -443,6 +513,14 @@ public class MainController {
     @FXML
     private void onBackToSetup() {
         switchToStartView();
+    }
+
+    @FXML
+    private void onReturnToGame() {
+        if (hasActiveGame()) {
+            switchToGameView();
+            rebuildAllFromState();
+        }
     }
 
     @FXML
@@ -676,6 +754,10 @@ public class MainController {
                 case "MY_HAND" -> applyMyHand(raw);
                 case "ROOM_LIST_RESULT" -> applyRoomListResult(raw);
                 case "ROOM_STATE" -> applyRoomState(raw);
+                case "SAVE_GAME_REQUEST" -> applySaveGameRequest(raw);
+                case "SAVE_GAME_RESULT" -> applySaveGameResult(raw);
+                case "LOAD_GAME_REQUEST" -> applyLoadGameRequest(raw);
+                case "LOAD_GAME_RESULT" -> applyLoadGameResult(raw);
                 case "ROOM_ERROR" -> applyRoomError(raw);
                 case "PLAY_OPTIONS_RESULT", "ACTION_OPTIONS_RESULT" -> applyPendingOptionsResult(raw);
                 case "ERROR" -> applyInboundError(raw);
@@ -698,10 +780,15 @@ public class MainController {
     }
 
     private void applyStateUpdate(String raw) {
+        boolean keepSetupOpen = hasActiveGame() && startPane.isVisible();
         state.lastStatePayload = payload(raw);
         state.awaitingInitialState = false;
         updatePlayedEvents(state.lastStatePayload);
-        switchToGameView();
+        if (keepSetupOpen) {
+            updateSetupLockState();
+        } else {
+            switchToGameView();
+        }
         clearError();
         rebuildAllFromState();
         maybeAutoDraw();
@@ -769,6 +856,55 @@ public class MainController {
 
     private void applyPendingOptionsResult(String raw) {
         playActionController.applyPendingOptionsResult(payload(raw));
+    }
+
+    private void applySaveGameRequest(String raw) {
+        JsonObject p = payload(raw);
+        String requestId = jsonString(p, "requestId", "");
+        if (requestId.equals(pendingSaveRequestId)
+                || confirmSaveLoad(i18n("saveLoad.saveVoteTitle"), i18n("saveLoad.saveVoteBody"))) {
+            sendSaveLoadVote("SAVE_GAME_ACK", requestId);
+        } else {
+            sendSaveLoadVote("SAVE_GAME_REJECT", requestId);
+        }
+    }
+
+    private void applyLoadGameRequest(String raw) {
+        JsonObject p = payload(raw);
+        String requestId = jsonString(p, "requestId", "");
+        if (requestId.equals(pendingLoadRequestId)
+                || confirmSaveLoad(i18n("saveLoad.loadVoteTitle"), i18n("saveLoad.loadVoteBody"))) {
+            sendSaveLoadVote("LOAD_GAME_ACK", requestId);
+        } else {
+            sendSaveLoadVote("LOAD_GAME_REJECT", requestId);
+        }
+    }
+
+    private void applySaveGameResult(String raw) {
+        JsonObject p = payload(raw);
+        pendingSaveRequestId = null;
+        if (jsonBool(p, "ok", false)) {
+            String path = jsonString(p, "writtenPath", "");
+            saveLoadStatusLabel.setText(path.isBlank()
+                    ? i18n("saveLoad.saved")
+                    : i18n("saveLoad.savedPath", path));
+            clearError();
+        } else {
+            showError(localizedBackendMessage(jsonString(p, "error", ""), i18n("saveLoad.saveFailed")));
+            saveLoadStatusLabel.setText(i18n("saveLoad.saveFailed"));
+        }
+    }
+
+    private void applyLoadGameResult(String raw) {
+        JsonObject p = payload(raw);
+        pendingLoadRequestId = null;
+        if (jsonBool(p, "ok", false)) {
+            saveLoadStatusLabel.setText(i18n("saveLoad.loaded"));
+            clearError();
+        } else {
+            showError(localizedBackendMessage(jsonString(p, "error", ""), i18n("saveLoad.loadFailed")));
+            saveLoadStatusLabel.setText(i18n("saveLoad.loadFailed"));
+        }
     }
 
     private void applyInboundError(String raw) {
@@ -1242,16 +1378,17 @@ public class MainController {
     private void updateLobbyControls() {
         boolean inRoom = state.currentLobbyRoom != null;
         boolean host = isLobbyHost(state.currentLobbyRoom);
+        boolean activeGame = hasActiveGame();
         lobbyPanel.setVisible(inRoom);
         lobbyPanel.setManaged(inRoom);
-        createRoomButton.setDisable(inRoom);
-        joinRoomButton.setDisable(inRoom);
-        leaveRoomButton.setDisable(!inRoom);
+        createRoomButton.setDisable(activeGame || inRoom);
+        joinRoomButton.setDisable(activeGame || inRoom);
+        leaveRoomButton.setDisable(activeGame || !inRoom);
         JsonArray seats = state.currentLobbyRoom != null && state.currentLobbyRoom.has("seats")
                 && state.currentLobbyRoom.get("seats").isJsonArray()
                 ? state.currentLobbyRoom.getAsJsonArray("seats")
                 : new JsonArray();
-        startRoomButton.setDisable(!host || !canStartLobbyRoom(seats));
+        startRoomButton.setDisable(activeGame || !host || !canStartLobbyRoom(seats));
         if (!inRoom) {
             roomStatusLabel.setText(i18n("lobby.noRoom"));
         }
@@ -1309,12 +1446,14 @@ public class MainController {
         aiDifficultyBox.setManaged(hvm);
         customLineupBox.setVisible(custom);
         customLineupBox.setManaged(custom);
-        if ("PVP".equals(mode) || custom) {
-            playerIdField.setText("pvp-1");
-        } else {
-            playerIdField.setText("human-1");
+        if (!hasActiveGame()) {
+            if ("PVP".equals(mode) || custom) {
+                playerIdField.setText("pvp-1");
+            } else {
+                playerIdField.setText("human-1");
+            }
         }
-        if (custom) {
+        if (custom && !hasActiveGame()) {
             syncCustomLineupCount();
         }
         modeHintLabel.setText(switch (mode) {
@@ -1339,6 +1478,37 @@ public class MainController {
             capacity = Math.max(2, seats.size());
         }
         liveCardSubtitleLabel.setText(i18n("start.liveSubtitle", joined, capacity));
+    }
+
+    private void sendSaveLoadVote(String type, String requestId) {
+        Map<String, Object> payload = scopedPayload();
+        payload.put("playerId", playerId());
+        if (requestId != null && !requestId.isBlank()) {
+            payload.put("requestId", requestId);
+        }
+        sendEnvelope(type, payload);
+    }
+
+    private boolean confirmSaveLoad(String title, String body) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        if (root.getScene() != null) {
+            alert.initOwner(root.getScene().getWindow());
+        }
+        alert.setTitle(title);
+        alert.setHeaderText(title);
+        alert.setContentText(body);
+        Optional<ButtonType> result = alert.showAndWait();
+        return result.isPresent() && result.get() == ButtonType.OK;
+    }
+
+    private Path defaultSaveDir() {
+        return Path.of(System.getProperty("user.home"), ".monopoly-deal", "saves");
+    }
+
+    private String defaultSaveFilename() {
+        String sid = sessionId().isBlank() ? "session" : sessionId();
+        String safe = sid.replaceAll("[^A-Za-z0-9._-]", "_");
+        return safe + "-" + System.currentTimeMillis() + ".json";
     }
 
     private void updateAiCardSubtitle() {
@@ -1433,12 +1603,11 @@ public class MainController {
         liveCardTitleLabel.setText(i18n("start.liveTitle"));
         updateLiveCardSubtitle();
         startAiButton.setText(i18n("start.aiButton"));
-        featureAiTitleLabel.setText(i18n("feature.aiTitle"));
-        featureAiTextLabel.setText(i18n("feature.aiText"));
-        featurePvpTitleLabel.setText(i18n("feature.pvpTitle"));
-        featurePvpTextLabel.setText(i18n("feature.pvpText"));
-        featureDemoTitleLabel.setText(i18n("feature.demoTitle"));
-        featureDemoTextLabel.setText(i18n("feature.demoText"));
+        saveLoadTitleLabel.setText(i18n("saveLoad.title"));
+        saveLoadHintLabel.setText(i18n("saveLoad.hint"));
+        saveGameButton.setText(i18n("saveLoad.save"));
+        loadGameButton.setText(i18n("saveLoad.load"));
+        saveLoadStatusLabel.setText(hasActiveGame() ? i18n("saveLoad.ready") : i18n("saveLoad.noGame"));
         connectButton.setText(i18n("btn.connect"));
         refreshRoomsButton.setText(i18n("btn.refreshRooms"));
         topRefreshRoomsButton.setText(i18n("btn.refreshRooms"));
@@ -1461,6 +1630,7 @@ public class MainController {
         infoGuideButton.setText(i18n("infoGuide"));
         updateInfoPanel();
 
+        returnGameButton.setText(i18n("returnGame"));
         roomListLabel.setText(i18n("lobby.roomList"));
         nicknameLabel.setText(i18n("label.nickname"));
         createRoomButton.setText(i18n("btn.createRoom"));
@@ -1496,6 +1666,7 @@ public class MainController {
             selectedCardLabel.setText(i18n("label.selectCardHint"));
         }
         syncModeUi();
+        updateSetupLockState();
         updateStatusTexts();
     }
 
@@ -1540,6 +1711,7 @@ public class MainController {
         startPane.setManaged(false);
         gamePane.setVisible(true);
         gamePane.setManaged(true);
+        updateSetupLockState();
         clearError();
     }
 
@@ -1548,11 +1720,48 @@ public class MainController {
         gamePane.setManaged(false);
         startPane.setVisible(true);
         startPane.setManaged(true);
+        updateSetupLockState();
         clearError();
     }
 
     private void refreshButtons() {
         connectionController.refreshButtons();
+        updateSetupLockState();
+    }
+
+    private boolean hasActiveGame() {
+        return state.lastStatePayload != null;
+    }
+
+    private void updateSetupLockState() {
+        boolean activeGame = hasActiveGame();
+        boolean connected = ws.isConnected();
+        returnGameButton.setVisible(activeGame);
+        returnGameButton.setManaged(activeGame);
+
+        wsUrlField.setDisable(activeGame);
+        playerCountSpinner.setDisable(activeGame);
+        aiDifficultyCombo.setDisable(activeGame);
+        randomizeFirstCheck.setDisable(activeGame);
+        startAiButton.setDisable(activeGame);
+        startGameButton.setDisable(activeGame);
+        gameModeCombo.setDisable(activeGame);
+        customLineupCombo.setDisable(activeGame);
+        playerIdField.setDisable(activeGame);
+
+        nicknameField.setDisable(activeGame);
+        sessionIdField.setDisable(activeGame);
+        refreshRoomsButton.setDisable(activeGame || !connected);
+        topRefreshRoomsButton.setDisable(activeGame || !connected);
+        saveGameButton.setDisable(!activeGame);
+        loadGameButton.setDisable(false);
+        if (!activeGame) {
+            saveLoadStatusLabel.setText(i18n("saveLoad.noGame"));
+        } else if (saveLoadStatusLabel.getText() == null
+                || saveLoadStatusLabel.getText().isBlank()
+                || saveLoadStatusLabel.getText().equals(i18n("saveLoad.noGame"))) {
+            saveLoadStatusLabel.setText(i18n("saveLoad.ready"));
+        }
     }
 
     private void runWhenConnected(Runnable action) {

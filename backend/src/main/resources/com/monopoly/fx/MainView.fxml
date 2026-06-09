@@ -43,10 +43,12 @@
                         <Label fx:id="drawPileLabel" text="抽牌 0" styleClass="hud-stat"/>
                         <Label fx:id="discardPileLabel" text="弃牌 0" styleClass="hud-stat"/>
                     </HBox>
-                    <Button fx:id="backSetupButton" text="回设置" onAction="#onBackToSetup" mnemonicParsing="false"
-                            styleClass="btn-secondary"/>
-                    <Button fx:id="disconnectButton" text="断开" onAction="#onDisconnect" mnemonicParsing="false"
-                            styleClass="btn-disconnect"/>
+                    <HBox spacing="8.0" alignment="CENTER_RIGHT" styleClass="top-action-buttons">
+                        <Button fx:id="backSetupButton" text="回设置" onAction="#onBackToSetup" mnemonicParsing="false"
+                                styleClass="btn-secondary"/>
+                        <Button fx:id="disconnectButton" text="断开" onAction="#onDisconnect" mnemonicParsing="false"
+                                styleClass="btn-disconnect"/>
+                    </HBox>
                 </HBox>
                 <Label fx:id="gameErrorLabel" visible="false" managed="false" wrapText="true" styleClass="inline-error"/>
             </VBox>
@@ -189,6 +191,9 @@
                                    styleClass="setup-label"/>
                             <HBox spacing="8.0" alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="1">
                                 <ComboBox fx:id="languageCombo" prefWidth="124.0"/>
+                                <Button fx:id="returnGameButton" text="返回牌桌" onAction="#onReturnToGame"
+                                        mnemonicParsing="false" visible="false" managed="false"
+                                        styleClass="btn-start-room"/>
                                 <Button fx:id="connectButton" text="连接" onAction="#onConnect" mnemonicParsing="false"
                                         styleClass="btn-secondary"/>
                                 <Button fx:id="topRefreshRoomsButton" text="刷新匹配" onAction="#onRefreshRooms" mnemonicParsing="false"
@@ -316,22 +321,17 @@
                 </VBox>
             </GridPane>
 
-            <HBox spacing="12.0" alignment="CENTER" styleClass="feature-strip">
-                <VBox spacing="3.0" HBox.hgrow="ALWAYS" styleClass="feature-pill">
-                    <Label fx:id="featureAiTitleLabel" text="AI" styleClass="feature-title"/>
-                    <Label fx:id="featureAiTextLabel" text="先选 AI 类型，再直接进入牌桌。" wrapText="true"
-                           styleClass="feature-text"/>
+            <HBox spacing="12.0" alignment="CENTER_LEFT" styleClass="save-load-strip">
+                <VBox spacing="2.0" HBox.hgrow="ALWAYS">
+                    <Label fx:id="saveLoadTitleLabel" text="存档 / 读档" styleClass="save-load-title"/>
+                    <Label fx:id="saveLoadHintLabel" text="当前对局可手动保存；读档会载入本机存档文件。"
+                           wrapText="true" styleClass="save-load-hint"/>
                 </VBox>
-                <VBox spacing="3.0" HBox.hgrow="ALWAYS" styleClass="feature-pill">
-                    <Label fx:id="featurePvpTitleLabel" text="PVP" styleClass="feature-title"/>
-                    <Label fx:id="featurePvpTextLabel" text="真人匹配不需要房间号，队列满 5 人自动开局。" wrapText="true"
-                           styleClass="feature-text"/>
-                </VBox>
-                <VBox spacing="3.0" HBox.hgrow="ALWAYS" styleClass="feature-pill">
-                    <Label fx:id="featureDemoTitleLabel" text="DEMO" styleClass="feature-title"/>
-                    <Label fx:id="featureDemoTextLabel" text="2 到 5 人都可以配置，适合课堂展示。" wrapText="true"
-                           styleClass="feature-text"/>
-                </VBox>
+                <Label fx:id="saveLoadStatusLabel" text="未开始对局" styleClass="connection-status"/>
+                <Button fx:id="saveGameButton" text="存档" onAction="#onSaveGame"
+                        mnemonicParsing="false" styleClass="btn-secondary"/>
+                <Button fx:id="loadGameButton" text="读档" onAction="#onLoadGame"
+                        mnemonicParsing="false" styleClass="btn-start-room"/>
             </HBox>
 
             <GridPane hgap="14.0" vgap="12.0" visible="false" managed="false" styleClass="setup-panel">

@@ -34,57 +34,142 @@ Phase-1 due Week 8 (2026-04-22). Phase-2 due Week 15 (2026-06-09). Demo on 2026-
 
 The contribution percentages differ because core code development (architecture, gameplay logic, GUI, design patterns) carries higher complexity and effort, while documentation and black-box testing require comparatively less specialized implementation work.
 
-## 项目简介与运行说明
+## Project Overview
 
-Monopoly Deal: Java WebSocket server plus a **JavaFX + FXML** desktop client (`mvn javafx:run`).
+This project implements **Monopoly Deal** as a Java-based multiplayer card game.
+The system includes a WebSocket game server, a JavaFX/FXML desktop client, and an
+optional Vue/Vite web client for browser-based interaction.
 
-### 环境要求
+The implementation focuses on complete turn flow, card effects, rent settlement,
+AI players, save/load support, and real-time state synchronization between clients.
 
-- JDK: 17 (aligned with `pom.xml` compiler target)
-- Maven: 3.9+
-- Optional integration tool: `wscat`
+## Key Features
 
-### 快速开始
+- Multiplayer game sessions over WebSocket.
+- JavaFX desktop client with card images and interactive action dialogs.
+- Full Monopoly Deal card model: properties, wildcards, money, rent, and action cards.
+- Turn lifecycle covering draw, play, response window, discard, and end turn.
+- Action effects including Rent, Double Rent, Just Say No, Deal Breaker, Sly Deal,
+  Forced Deal, House, Hotel, Birthday, Debt Collector, and Pass Go.
+- AI players with multiple strategy profiles.
+- Save/load support with optional AES-GCM encryption.
+- JUnit coverage for rules, controller flow, persistence, network protocol, and AI behavior.
 
-- Run backend tests: `mvn -q test`
-- Start WebSocket server: `mvn -q exec:java`
-- Start desktop client (after server is up): `mvn javafx:run`
-- Build web client: `npm run build --prefix frontend`
-- Default endpoint: `ws://localhost:8025/ws`
-- DeepSeek mode reads the key from `DEEPSEEK_API_KEY`, `MONOPOLY_DEEPSEEK_API_KEY`, `-Dmonopoly.deepseek.apiKey=...`, or a local `.env` copied from `.env.example`.
-- Custom mixed games are free-for-all by default, for example `human,human,llm,llm` or `hard,hard,llm,llm`; only set `-Dmonopoly.deepseek.teamAware=true` for explicit team evaluation.
-- Quick connectivity check:
-  - `wscat -c ws://localhost:8025/ws`
-  - Send: `{"type":"PING","payload":{}}`
-  - Send: `{"type":"START_SESSION","payload":{"sessionId":"demo","playerCount":2,"gameMode":"PVP","randomizeFirstPlayer":false}}`
-  - Expect: `STATE_UPDATE`
+## System Architecture
 
-### 目录约定
+```mermaid
+flowchart LR
+    Client["JavaFX / Web Client"] --> WS["WebSocket Endpoint"]
+    WS --> Dispatcher["Message Dispatcher"]
+    Dispatcher --> Controller["GameController Facade"]
 
-- `backend/src/`: Java backend, simulation tools, JavaFX desktop client.
-- `backend/models/`: runtime local ranker checkpoints used by the backend.
-- `frontend/`: Vite/Vue web client.
-- `backend/models/distillation/`: distilled local-ranker model checkpoints loaded at runtime by the `student` AI role.
+    Controller --> Turn["TurnFlowService"]
+    Controller --> Stack["EffectStackOrchestrator"]
+    Controller --> Rent["RentSettlementService"]
+    Controller --> AI["AiTurnService"]
+    Controller --> Save["SaveLoadService"]
 
-### JVM 参数
+    Turn --> Model["Domain Model"]
+    Stack --> Effects["Action Effects"]
+    Rent --> Settlement["Rent Calculator / Payment Settlement"]
+    AI --> Strategy["AI Strategies"]
 
-| 参数 | 默认值 | 说明 |
+    Model --> Engine["GameEngineSingleton"]
+    Controller --> Snapshot["GameStateSnapshot"]
+    Snapshot --> Client
+```
+
+## Repository Structure
+
+| Path | Purpose |
+| --- | --- |
+| `backend/src/main/java/com/monopoly/controller/` | Game facade and turn-flow services. |
+| `backend/src/main/java/com/monopoly/model/` | Core domain model: cards, players, effects, rules, and settlement. |
+| `backend/src/main/java/com/monopoly/network/` | WebSocket server, session registry, and protocol routing. |
+| `backend/src/main/java/com/monopoly/fx/` | JavaFX desktop client. |
+| `backend/src/main/java/com/monopoly/pattern/` | Factory, Observer, Singleton, and Strategy pattern implementations. |
+| `backend/src/main/java/com/monopoly/persistence/` | Save/load memento and encryption support. |
+| `backend/src/test/java/com/monopoly/` | JUnit tests. |
+| `frontend/` | Optional Vue/Vite web client. |
+| `docs/` | Final reports and project reference documents. |
+
+## Tech Stack
+
+- Java 17
+- Maven
+- JavaFX + FXML
+- Jakarta WebSocket / Tyrus
+- Gson
+- JUnit 5
+- Vue 3 + Vite
+
+## Quick Start
+
+### Run Tests
+
+```bash
+mvn -q test
+```
+
+### Start WebSocket Server
+
+```bash
+mvn -q exec:java
+```
+
+Default endpoint:
+
+```text
+ws://localhost:8025/ws
+```
+
+### Start JavaFX Client
+
+Run this after the server has started:
+
+```bash
+mvn javafx:run
+```
+
+### Build Web Client
+
+```bash
+npm run build --prefix frontend
+```
+
+## WebSocket Smoke Test
+
+```bash
+wscat -c ws://localhost:8025/ws
+```
+
+Send:
+
+```json
+{"type":"PING","payload":{}}
+```
+
+Start a demo session:
+
+```json
+{"type":"START_SESSION","payload":{"sessionId":"demo","playerCount":2,"gameMode":"PVP","randomizeFirstPlayer":false}}
+```
+
+Expected response includes `STATE_UPDATE`.
+
+## Runtime Options
+
+| JVM Flag | Default | Purpose |
 | --- | --- | --- |
-| `-Dmonopoly.verifyDeck=true/false` | `false` | 开启后在关键流程校验全场可游戏牌数守恒（106），用于开发期排查。 |
-| `-Dmonopoly.autosave=true/false` | `false` | 开启后每 3 个整轮自动写入 `~/.monopoly-deal/autosave.json`。 |
-| `-Dmonopoly.saveKey=...` | 未设置 | 设置后存档使用 AES-GCM 加密；未设置时按明文 JSON 存储。 |
-| `-Dmonopoly.sessionLimitMs=...` | `GameConstants.DEFAULT_SESSION_LIMIT_MS` | 覆盖单局超时上限（毫秒）。 |
-| `-Dmonopoly.deck.seed=...` | 未设置 | 固定初始牌堆洗牌顺序；同时固定弃牌堆回洗随机源，供可复现实验使用。 |
-| `-Dmonopoly.firstPlayer.seed=...` | 未设置 | 在 `randomizeFirstPlayer=true` 时固定随机先手。 |
+| `-Dmonopoly.verifyDeck=true` | `false` | Verifies deck/card-count consistency during development. |
+| `-Dmonopoly.autosave=true` | `false` | Writes autosaves every 3 full rounds. |
+| `-Dmonopoly.saveKey=...` | unset | Enables AES-GCM encrypted save files. |
+| `-Dmonopoly.sessionLimitMs=...` | default constant | Overrides session timeout. |
+| `-Dmonopoly.deck.seed=...` | unset | Makes deck shuffling deterministic. |
+| `-Dmonopoly.firstPlayer.seed=...` | unset | Makes randomized first-player selection deterministic. |
 
-## Documentation 导航
+## Documentation
 
-项目文档已统一浓缩到一份参考文件（规则、需求、架构、UML 源码、WebSocket 协议、局域网指南、
-AI 蒸馏研究、Phase 2 交付要点）：
-
-- 统一参考: [`PROJECT_NOTES.txt`](PROJECT_NOTES.txt)
-- Phase 2 交付报告（PDF）: [`docs/phase2-final-report-zh.pdf`](docs/phase2-final-report-zh.pdf)
-
-## Notes
-
-- 性能测试说明：`PerformanceSmokeTest` 属于本地抽检（smoke），用于快速发现明显退化；阈值偏宽以降低 CI 抖动误报，不作为严格压测结论。
+- Project reference notes: [`docs/PROJECT_NOTES.txt`](docs/PROJECT_NOTES.txt)
+- Phase 2 final report: [`docs/phase2-final-report-zh.pdf`](docs/phase2-final-report-zh.pdf)
+- Original project brief: [`docs/Software Engineering Project - Game-26.pdf`](docs/Software%20Engineering%20Project%20-%20Game-26.pdf)

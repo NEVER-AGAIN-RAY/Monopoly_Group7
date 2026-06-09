@@ -279,7 +279,14 @@ public class GameController implements AiGameBridge {
             return;
         }
         quitPlayerIds.add(playerId);
-        if (quitPlayerIds.size() >= sessionPlayers.size()) {
+        long humanTotal = sessionPlayers.stream()
+                .filter(p -> p instanceof com.monopoly.model.player.HumanPlayer)
+                .count();
+        long humanQuit = sessionPlayers.stream()
+                .filter(p -> p instanceof com.monopoly.model.player.HumanPlayer)
+                .filter(p -> quitPlayerIds.contains(p.getPlayerId()))
+                .count();
+        if (humanTotal > 0 && humanQuit >= humanTotal) {
             sessionForceEnded = true;
             forceEndReason = "ALL_QUIT";
             pushSnapshot(currentSessionId, "GAME_FORCE_END");
@@ -430,6 +437,7 @@ public class GameController implements AiGameBridge {
 
     public synchronized void resume() {
         pauseVoteService.resume();
+        resumeAiTurnIfNeeded();
     }
 
     // ═══════════════════════════════════════════════════════

@@ -8,6 +8,7 @@ import com.monopoly.model.card.Card;
 import com.monopoly.model.card.PropertyCard;
 import com.monopoly.model.effects.EffectStackEntry;
 import com.monopoly.model.effects.StackResponseState;
+import com.monopoly.model.player.HumanPlayer;
 import com.monopoly.model.player.Player;
 import com.monopoly.model.settlement.PropertyZoneSummary;
 import com.monopoly.presentation.HandCardJson;
@@ -123,6 +124,14 @@ final class SnapshotBuilder {
                 || controller.isSessionEndedNaturally()
                 || "GAME_OVER".equals(originalPhase));
         snap.setForceEndReason(controller.isSessionForceEnded() ? controller.forceEndReason() : null);
+        snap.setPaused(controller.isPaused());
+        snap.setPausePending(controller.isPausePending());
+        snap.setPauseAckCount(controller.getPauseAcksView().size());
+        int humans = 0;
+        for (Player pl : controller.getSessionPlayersView()) {
+            if (pl instanceof com.monopoly.model.player.HumanPlayer) humans++;
+        }
+        snap.setPauseHumanCount(humans);
         if (playedCard != null) {
             long seq = ++playEventSequence;
             String actorId = playedBy != null ? playedBy.getPlayerId() : turnFlow.currentTurnPlayerId();

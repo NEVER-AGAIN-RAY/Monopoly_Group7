@@ -6,6 +6,8 @@
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.MenuButton?>
+<?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Spinner?>
 <?import javafx.scene.control.TextArea?>
@@ -19,6 +21,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.SVGPath?>
 
 <StackPane fx:id="root" styleClass="app-root"
            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
@@ -43,12 +46,21 @@
                         <Label fx:id="drawPileLabel" text="抽牌 0" styleClass="hud-stat"/>
                         <Label fx:id="discardPileLabel" text="弃牌 0" styleClass="hud-stat"/>
                     </HBox>
-                    <HBox spacing="8.0" alignment="CENTER_RIGHT" styleClass="top-action-buttons">
-                        <Button fx:id="backSetupButton" text="回设置" onAction="#onBackToSetup" mnemonicParsing="false"
-                                styleClass="btn-secondary"/>
-                        <Button fx:id="disconnectButton" text="断开" onAction="#onDisconnect" mnemonicParsing="false"
-                                styleClass="btn-disconnect"/>
-                    </HBox>
+                    <MenuButton fx:id="topMenuButton" mnemonicParsing="false"
+                                contentDisplay="GRAPHIC_ONLY" styleClass="top-menu-button">
+                        <graphic>
+                            <SVGPath styleClass="settings-gear-icon"
+                                     content="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.37-.31-.6-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98L14.5 2.42C14.47 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.5.42L9.12 5.07c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.08-.48 0-.6.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.08.65-.08.98s.03.66.08.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.37.31.6.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65c.61-.25 1.17-.58 1.69-.98l2.49 1c.23.08.48 0 .6-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/>
+                        </graphic>
+                        <items>
+                            <MenuItem fx:id="pauseToggleMenuItem" text="暂停" onAction="#onPauseToggle"
+                                      visible="false"/>
+                            <MenuItem fx:id="quitGameMenuItem" text="退出对局" onAction="#onQuitGame"
+                                      visible="false"/>
+                            <MenuItem fx:id="backSetupMenuItem" text="回设置" onAction="#onBackToSetup"/>
+                            <MenuItem fx:id="disconnectMenuItem" text="断开" onAction="#onDisconnect"/>
+                        </items>
+                    </MenuButton>
                 </HBox>
                 <Label fx:id="gameErrorLabel" visible="false" managed="false" wrapText="true" styleClass="inline-error"/>
             </VBox>
@@ -159,6 +171,9 @@
                                 mnemonicParsing="false" styleClass="btn-action"/>
                         <Button fx:id="discardButton" text="弃牌" maxWidth="Infinity" onAction="#onDiscard"
                                 mnemonicParsing="false" styleClass="btn-discard"/>
+                        <Button fx:id="reassignWildButton" text="百搭改色" maxWidth="Infinity"
+                                onAction="#onReassignWild" mnemonicParsing="false"
+                                styleClass="btn-recolor" visible="false" managed="false"/>
                     </VBox>
                 </HBox>
             </VBox>

@@ -370,14 +370,51 @@
     -fx-text-fill: #2f2515;
 }
 
-.top-action-buttons {
-    -fx-min-width: 170px;
-    -fx-pref-width: 170px;
+.top-menu-button {
+    -fx-min-width: 42px;
+    -fx-pref-width: 42px;
+    -fx-max-width: 42px;
+    -fx-min-height: 42px;
+    -fx-pref-height: 42px;
+    -fx-background-color: linear-gradient(to bottom, #fff9df, #e7dcc0);
+    -fx-background-radius: 12px;
+    -fx-border-color: rgba(47, 37, 21, 0.28);
+    -fx-border-width: 1px;
+    -fx-border-radius: 12px;
+    -fx-padding: 0;
+    -fx-effect: dropshadow(gaussian, rgba(47, 37, 21, 0.16), 8, 0, 0, 2);
 }
 
-.top-action-buttons .button {
-    -fx-min-width: 76px;
-    -fx-pref-width: 76px;
+.top-menu-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #fffdf0, #f0e2bd);
+    -fx-border-color: rgba(47, 37, 21, 0.42);
+}
+
+.top-menu-button:showing {
+    -fx-background-color: #d9c99f;
+}
+
+.settings-gear-icon {
+    -fx-fill: #2f2515;
+    -fx-scale-x: 0.9;
+    -fx-scale-y: 0.9;
+}
+
+.top-menu-button .arrow {
+    -fx-padding: 0;
+    -fx-shape: "";
+}
+
+.top-menu-button .context-menu {
+    -fx-background-color: #fbf4d8;
+    -fx-background-radius: 8px;
+    -fx-border-color: rgba(47, 37, 21, 0.18);
+    -fx-border-radius: 8px;
+    -fx-padding: 6px;
+}
+
+.top-menu-button .menu-item {
+    -fx-padding: 7px 18px 7px 12px;
 }
 
 .btn-soft-green {
@@ -1077,3 +1114,22 @@
 .color-WILD_BAR {
     -fx-background-color: linear-gradient(to right, #c62828, #f9a825, #2e7d32, #1565c0, #6a1b9a);
 }
+
+.btn-recolor {
+    -fx-background-color: linear-gradient(to right, #6d5dfc, #c84bd8);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+.btn-recolor:hover  { -fx-opacity: 0.92; }
+.btn-recolor:disabled { -fx-opacity: 0.45; }
+
+.center-notice.paused {
+    -fx-background-color: rgba(20, 24, 38, 0.78);
+    -fx-border-color: #6d5dfc;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+}
+.center-notice.paused .center-title { -fx-text-fill: #d7d2ff; }

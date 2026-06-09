@@ -4,6 +4,7 @@ import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
 import javafx.util.Duration;
 
@@ -17,7 +18,7 @@ final class ConnectionController {
             Label statusLabel,
             Label connectionLabel,
             Button connectButton,
-            Button disconnectButton) {
+            MenuItem disconnectMenuItem) {
     }
 
     private static final int MAX_RECONNECT_ATTEMPTS = 3;
@@ -225,7 +226,7 @@ final class ConnectionController {
     void refreshButtons() {
         boolean connected = ws.isConnected();
         refs.connectButton().setDisable(connected);
-        refs.disconnectButton().setDisable(!connected);
+        refs.disconnectMenuItem().setDisable(!connected);
     }
 
     private void cancelConnectionTimeout() {

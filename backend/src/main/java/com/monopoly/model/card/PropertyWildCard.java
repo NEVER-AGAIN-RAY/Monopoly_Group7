@@ -75,6 +75,15 @@ public class PropertyWildCard extends PropertyCard {
         this.assignedColorKey = ck;
     }
 
+    public void reassignColorKey(String colorKey) {
+        if (colorKey == null || colorKey.isBlank()) {
+            throw new IllegalArgumentException("Reassign color must not be blank.");
+        }
+        String ck = colorKey.trim().toUpperCase(Locale.ROOT);
+        validateAssignableColorKey(ck);
+        this.assignedColorKey = ck;
+    }
+
     /**
      * Validates color for wild kind before deploy.
      */

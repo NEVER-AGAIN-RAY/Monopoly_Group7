@@ -56,6 +56,14 @@ public class GameStateSnapshot {
     private boolean gameOver;
     /** Reason for a forced end, such as TIMEOUT; null for normal play or a normal win. */
     private String forceEndReason;
+    /** True when the game is paused (HVM immediate / PVP after full vote). */
+    private boolean paused;
+    /** True when a PVP pause vote is in progress but not yet unanimous. */
+    private boolean pausePending;
+    /** Number of players who have acknowledged the pause request so far. */
+    private int pauseAckCount;
+    /** Total number of human players who must acknowledge a pause. */
+    private int pauseHumanCount;
     /** Short summary of the latest visible action for clients and JSON logs. */
     private String lastActionSummary;
     /** Sequence number for the latest played-card event; 0 before any card has been played. */
@@ -279,6 +287,38 @@ public class GameStateSnapshot {
 
     public void setForceEndReason(String forceEndReason) {
         this.forceEndReason = forceEndReason;
+    }
+
+    public boolean isPaused() {
+        return paused;
+    }
+
+    public void setPaused(boolean paused) {
+        this.paused = paused;
+    }
+
+    public boolean isPausePending() {
+        return pausePending;
+    }
+
+    public void setPausePending(boolean pausePending) {
+        this.pausePending = pausePending;
+    }
+
+    public int getPauseAckCount() {
+        return pauseAckCount;
+    }
+
+    public void setPauseAckCount(int pauseAckCount) {
+        this.pauseAckCount = pauseAckCount;
+    }
+
+    public int getPauseHumanCount() {
+        return pauseHumanCount;
+    }
+
+    public void setPauseHumanCount(int pauseHumanCount) {
+        this.pauseHumanCount = pauseHumanCount;
     }
 
     public String getLastActionSummary() {

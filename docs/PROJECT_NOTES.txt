@@ -384,7 +384,7 @@ Run commands:
 Latest verification already observed in this workspace:
   - mvn -q test passed.
   - npm run build --prefix frontend passed.
-  - Surefire reports: 60 test classes, 262 tests, 0 failures, 0 errors, 0 skipped.
+  - Surefire reports: 63 test classes, 339 tests, 0 failures, 0 errors, 0 skipped.
 
 Demo sequence:
   1. Start backend server: mvn -q exec:java
@@ -449,6 +449,28 @@ Do not waste time on:
 ================================================================================
 10. Recent engineering changelog
 ================================================================================
+
+2026-06-09:
+  - feat(A): Pause/Resume — added paused/pausePending/pauseAckCount/pauseHumanCount to
+    GameStateSnapshot; SnapshotBuilder populates them; GameController.resume() now calls
+    resumeAiTurnIfNeeded(); frontend pauseToggleButton + quitGameButton in top-hud;
+    syncActionButtons disables all play buttons when paused; updateStatusTexts renders
+    central pause notice; PVP pause-vote flow via PAUSE_REQUEST/PAUSE_ACK/RESUME.
+  - feat(B): Quit/Forfeit — fixed handleQuitCommand to end game when all humans quit
+    (not all players including AI); frontend quitGameButton with confirmation dialog;
+    sends QUIT message.
+  - feat(C): Wild card recolor — PropertyWildCard.reassignColorKey() bypasses the
+    "already assigned" guard for in-turn color changes; TurnFlowService.reassignWildProperty()
+    implemented (was throw UnsupportedOperationException); frontend reassignWildButton in
+    action-pad, only visible during own PLAY phase with wild property; uses TargetPickerDialog
+    for card and color selection; sends REASSIGN_WILD message.
+  - feat(D): Save/Load verification — confirmed GPT implementation complete: onSaveGame,
+    onLoadGame, handleInbound SAVE/LOAD cases, vote flow, FXML strip, i18n keys all
+    present and aligned between zh/en; resetStateAfterLoad calls pauseVoteService.reset().
+  - i18n: Added pause.*, quit.*, recolor.* keys to both zh and en properties files.
+  - CSS: Added .btn-recolor and .center-notice.paused styles.
+  - Tests: +9 new tests (PropertyWildCardReassignTest, HvmQuitEndsGameTest,
+    SnapshotPauseFieldsTest); total 339 tests, all green.
 
 2026-06-06:
   - refactor: split GameServer into SessionHub / MessageRouter / LobbyService /

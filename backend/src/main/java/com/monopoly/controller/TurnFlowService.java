@@ -3,6 +3,7 @@ package com.monopoly.controller;
 import com.monopoly.model.card.ActionCard;
 import com.monopoly.model.card.Card;
 import com.monopoly.model.card.PropertyCard;
+import com.monopoly.model.card.PropertyWildCard;
 import com.monopoly.model.player.AIPlayer;
 import com.monopoly.model.player.Player;
 import com.monopoly.pattern.singleton.GameEngineSingleton;
@@ -187,7 +188,33 @@ final class TurnFlowService {
     // --- rejected legacy wild property recolor command ---
 
     void reassignWildProperty(Player player, String wildPropertyCardId, String newColorKey) {
-        throw new UnsupportedOperationException("Wild property color cannot be changed once assigned.");
+        controller.ensureNotPaused();
+        controller.ensureSessionActive();
+        turnState.ensureTurnContext(player);
+        if (turnState.phase() == TurnPhase.WAITING_FOR_RESPONSE) {
+            throw new IllegalStateException("Awaiting response; cannot reassign wild now.");
+        }
+        if (turnState.phase() == TurnPhase.DRAW) {
+            throw new IllegalStateException("Must draw before reassigning a wild card.");
+        }
+        if (wildPropertyCardId == null || wildPropertyCardId.isBlank()) {
+            throw new IllegalArgumentException("wildPropertyCardId must not be blank.");
+        }
+        String color = normalizeWildReassignColorKey(newColorKey);
+        PropertyWildCard target = null;
+        for (PropertyCard pc : player.getPropertyCardsView()) {
+            if (pc instanceof PropertyWildCard w && wildPropertyCardId.equals(w.getId())) {
+                target = w;
+                break;
+            }
+        }
+        if (target == null) {
+            throw new IllegalArgumentException(
+                    "No wild property with id " + wildPropertyCardId + " in your property zone.");
+        }
+        target.reassignColorKey(color);
+        controller.pushSnapshot(controller.getCurrentSessionId(), "WILD_REASSIGNED",
+                player.getDisplayName() + " moved a wild property to " + color + ".");
     }
 
     // --- end turn ---

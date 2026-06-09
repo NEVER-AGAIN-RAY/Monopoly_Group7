@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.monopoly.fx.presentation.CardDisplayData;
 import com.monopoly.fx.ui.PlayerBoardPanel;
+import com.monopoly.fx.ui.TargetPickerDialog;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
@@ -14,6 +15,8 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -27,6 +30,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import javafx.stage.Window;
 import javafx.util.StringConverter;
 
 import java.io.File;
@@ -86,7 +90,11 @@ public class MainController {
     @FXML private Button returnGameButton;
     @FXML private Label statusLabel;
     @FXML private Label connectionLabel;
-    @FXML private Button disconnectButton;
+    @FXML private MenuButton topMenuButton;
+    @FXML private MenuItem disconnectMenuItem;
+    @FXML private MenuItem pauseToggleMenuItem;
+    @FXML private MenuItem quitGameMenuItem;
+    @FXML private MenuItem backSetupMenuItem;
 
     @FXML private Label brandKickerLabel;
     @FXML private Label appTitleLabel;
@@ -195,6 +203,7 @@ public class MainController {
     @FXML private Button deployButton;
     @FXML private Button actionButton;
     @FXML private Button discardButton;
+    @FXML private Button reassignWildButton;
     @FXML private Label handTitleLabel;
     @FXML private Label handHintLabel;
     @FXML private ScrollPane handScroll;
@@ -208,7 +217,7 @@ public class MainController {
         connectionController = new ConnectionController(
                 ws,
                 state,
-                new ConnectionController.Refs(wsUrlField, statusLabel, connectionLabel, connectButton, disconnectButton),
+                new ConnectionController.Refs(wsUrlField, statusLabel, connectionLabel, connectButton, disconnectMenuItem),
                 this::i18n,
                 this::appendTraffic,
                 this::handleInbound,
@@ -467,6 +476,79 @@ public class MainController {
         } catch (Exception ex) {
             showError(i18n("saveLoad.readFailed", ex.getMessage()));
         }
+    }
+
+    @FXML
+    private void onPauseToggle() {
+        if (!hasActiveGame()) return;
+        JsonObject p = state.lastStatePayload;
+        boolean pausePending = p != null && jsonBool(p, "pausePending", false);
+        if (pausePending) {
+            runWhenConnected(() -> {
+                Map<String, Object> payload = scopedPayload();
+                payload.put("playerId", playerId());
+                sendEnvelope("PAUSE_ACK", payload);
+            });
+            return;
+        }
+        boolean paused = p != null && jsonBool(p, "paused", false);
+        runWhenConnected(() -> {
+            Map<String, Object> payload = scopedPayload();
+            payload.put("playerId", playerId());
+            if (paused) {
+                sendEnvelope("RESUME", payload);
+            } else {
+                sendEnvelope("PAUSE_REQUEST", payload);
+            }
+        });
+    }
+
+    @FXML
+    private void onQuitGame() {
+        if (!hasActiveGame()) return;
+        boolean ok = confirmSaveLoad(i18n("quit.confirmTitle"), i18n("quit.confirmBody"));
+        if (!ok) return;
+        runWhenConnected(() -> {
+            Map<String, Object> payload = scopedPayload();
+            payload.put("playerId", playerId());
+            sendEnvelope("QUIT", payload);
+        });
+    }
+
+    @FXML
+    private void onReassignWild() {
+        if (!hasActiveGame()) return;
+        List<JsonObject> wilds = myWildPropertyCards();
+        if (wilds.isEmpty()) { showError(i18n("recolor.noWild")); return; }
+        Window owner = root.getScene() == null ? null : root.getScene().getWindow();
+        JsonObject chosen;
+        if (wilds.size() == 1) {
+            chosen = wilds.get(0);
+        } else {
+            List<String> labels = new ArrayList<>();
+            Map<String, JsonObject> byLabel = new LinkedHashMap<>();
+            for (JsonObject w : wilds) {
+                String cur = jsonString(w, "assignedColorKey", "");
+                String label = cardDisplayName(w) + "（" +
+                               (cur.isBlank() ? i18n("color.WILD_UNASSIGNED") : colorName(cur)) + "）";
+                labels.add(label);
+                byLabel.put(label, w);
+            }
+            Optional<String> pick = TargetPickerDialog.pickFromList(owner,
+                    i18n("recolor.pickCardTitle"), i18n("recolor.pickCardHint"), labels);
+            if (pick.isEmpty()) return;
+            chosen = byLabel.get(pick.get());
+        }
+        final String cardId = jsonString(chosen, "id", "");
+        List<String> colorKeys = allowedColorsForWild(chosen);
+        Optional<String> color = TargetPickerDialog.pickColor(owner, colorKeys);
+        if (color.isEmpty()) return;
+        runWhenConnected(() -> {
+            Map<String, Object> payload = scopedPayload();
+            payload.put("wildPropertyCardId", cardId);
+            payload.put("newColorKey", color.get());
+            sendEnvelope("REASSIGN_WILD", payload);
+        });
     }
 
     @FXML
@@ -947,7 +1029,24 @@ public class MainController {
         String current = jsonString(p, "currentPlayerId", "");
         String decision = jsonString(p, "decisionPlayerId", current);
         boolean over = jsonBool(p, "gameOver", false);
-        if (over) {
+        boolean isPaused = jsonBool(p, "paused", false);
+        boolean pausePending = jsonBool(p, "pausePending", false);
+        if (isPaused) {
+            tableStatusLabel.setText(i18n("pause.paused"));
+            updateCenterNotice(true, i18n("pause.paused"), i18n("pause.pausedHint"), "paused");
+            eventLineLabel.setText(i18n("pause.paused"));
+            connectionLabel.setText(ws.isConnected() ? i18n("status.connected") : i18n("status.disconnected"));
+            return;
+        }
+        if (pausePending) {
+            int ack = jsonInt(p, "pauseAckCount", 0);
+            int tot = jsonInt(p, "pauseHumanCount", 0);
+            tableStatusLabel.setText(i18n("pause.pending"));
+            updateCenterNotice(true, i18n("pause.pending"), i18n("pause.pendingHint", ack, tot), "paused");
+            eventLineLabel.setText(i18n("pause.pending"));
+            connectionLabel.setText(ws.isConnected() ? i18n("status.connected") : i18n("status.disconnected"));
+            return;
+        } else if (over) {
             tableStatusLabel.setText(i18n("gameOver"));
             updateCenterNotice(true, i18n("gameOver"), gameOverSummary(p), "game-over");
         } else if (playerId().equals(decision)) {
@@ -1008,7 +1107,7 @@ public class MainController {
         }
         centerNoticeBox.setVisible(show);
         centerNoticeBox.setManaged(show);
-        centerNoticeBox.getStyleClass().removeAll("game-over", "decision", "waiting", "recent");
+        centerNoticeBox.getStyleClass().removeAll("game-over", "decision", "waiting", "recent", "paused");
         if (styleClass != null && !styleClass.isBlank()) {
             centerNoticeBox.getStyleClass().add(styleClass);
         }
@@ -1398,6 +1497,8 @@ public class MainController {
         boolean connected = ws.isConnected();
         boolean responsePending = state.lastStatePayload != null
                 && "WAITING_FOR_RESPONSE".equals(jsonString(state.lastStatePayload, "turnPhase", ""));
+        boolean paused = state.lastStatePayload != null
+                && jsonBool(state.lastStatePayload, "paused", false);
         boolean myTurn = state.lastStatePayload != null
                 && playerId().equals(jsonString(state.lastStatePayload, "currentPlayerId", ""))
                 && playerId().equals(jsonString(state.lastStatePayload, "decisionPlayerId", jsonString(state.lastStatePayload, "currentPlayerId", "")));
@@ -1406,15 +1507,22 @@ public class MainController {
         boolean money = hasCard && "MONEY".equals(state.selectedCard.getKind());
         boolean action = hasCard && "ACTION".equals(state.selectedCard.getKind());
         boolean property = hasCard && ("PROPERTY".equals(state.selectedCard.getKind()) || "WILD".equals(state.selectedCard.getKind()));
-        boolean showDraw = connected && !responsePending && myTurn && "DRAW".equals(turnPhase);
+        boolean showDraw = connected && !responsePending && myTurn && "DRAW".equals(turnPhase) && !paused;
         drawButton.setVisible(showDraw);
         drawButton.setManaged(showDraw);
         drawButton.setDisable(!showDraw);
-        endTurnButton.setDisable(!connected || responsePending || !myTurn);
-        depositButton.setDisable(!connected || responsePending || !myTurn || (!money && !action));
-        deployButton.setDisable(!connected || responsePending || !myTurn || !property);
-        actionButton.setDisable(!connected || responsePending || !myTurn || !action);
-        discardButton.setDisable(!connected || responsePending || !myTurn || !hasCard);
+        endTurnButton.setDisable(!connected || responsePending || !myTurn || paused);
+        depositButton.setDisable(!connected || responsePending || !myTurn || (!money && !action) || paused);
+        deployButton.setDisable(!connected || responsePending || !myTurn || !property || paused);
+        actionButton.setDisable(!connected || responsePending || !myTurn || !action || paused);
+        discardButton.setDisable(!connected || responsePending || !myTurn || !hasCard || paused);
+        boolean playPhase = "PLAY".equals(turnPhase);
+        boolean hasWild = !myWildPropertyCards().isEmpty();
+        boolean showRecolor = connected && !responsePending && myTurn && playPhase && hasWild && !paused;
+        reassignWildButton.setVisible(showRecolor);
+        reassignWildButton.setManaged(showRecolor);
+        reassignWildButton.setDisable(!showRecolor);
+        updatePauseQuitButtons();
     }
 
     private void maybeAutoDraw() {
@@ -1643,8 +1751,10 @@ public class MainController {
             rebuildRoomState(state.currentLobbyRoom);
         }
 
-        disconnectButton.setText(i18n("btn.disconnect"));
-        backSetupButton().setText(i18n("backSetup"));
+        topMenuButton.setAccessibleText(i18n("menu.settings"));
+        disconnectMenuItem.setText(i18n("btn.disconnect"));
+        backSetupMenuItem.setText(i18n("backSetup"));
+        quitGameMenuItem.setText(i18n("quit.button"));
         myBoardTitleLabel.setText(i18n("propertyZone"));
         drawPileNameLabel.setText(i18n("drawPileName"));
         discardPileNameLabel.setText(i18n("discardPileName"));
@@ -1668,12 +1778,6 @@ public class MainController {
         syncModeUi();
         updateSetupLockState();
         updateStatusTexts();
-    }
-
-    @FXML private Button backSetupButton;
-
-    private Button backSetupButton() {
-        return backSetupButton;
     }
 
     private void updateInfoPanel() {
@@ -2076,5 +2180,67 @@ public class MainController {
 
     private String i18n(String key, Object... args) {
         return I18n.get(key, args);
+    }
+
+    private static final List<String> ALL_TRACK_COLORS = List.of(
+            "BROWN", "LIGHT_BLUE", "PINK", "ORANGE", "RED", "YELLOW", "GREEN", "DARK_BLUE", "RAILROAD", "UTILITY");
+
+    private List<JsonObject> myWildPropertyCards() {
+        List<JsonObject> out = new ArrayList<>();
+        JsonObject p = state.lastStatePayload;
+        if (p == null || !p.has("players") || !p.get("players").isJsonArray()) return out;
+        for (JsonElement el : p.getAsJsonArray("players")) {
+            if (!el.isJsonObject()) continue;
+            JsonObject pl = el.getAsJsonObject();
+            if (!playerId().equals(jsonString(pl, "playerId", ""))) continue;
+            JsonArray zone = pl.has("propertyZoneCards") && pl.get("propertyZoneCards").isJsonArray()
+                    ? pl.getAsJsonArray("propertyZoneCards") : new JsonArray();
+            for (JsonElement c : zone) {
+                if (!c.isJsonObject()) continue;
+                JsonObject card = c.getAsJsonObject();
+                String kind = jsonString(card, "kind", "");
+                String wildKind = jsonString(card, "wildKind", "");
+                if ("WILD".equalsIgnoreCase(kind) || !wildKind.isBlank()) out.add(card);
+            }
+        }
+        return out;
+    }
+
+    private List<String> allowedColorsForWild(JsonObject card) {
+        String wildKind = jsonString(card, "wildKind", "");
+        if ("DUAL_COLOR".equalsIgnoreCase(wildKind)) {
+            JsonArray pair = card.has("printedColors") && card.get("printedColors").isJsonArray()
+                    ? card.getAsJsonArray("printedColors") : null;
+            if (pair != null && pair.size() == 2) {
+                List<String> two = new ArrayList<>();
+                for (JsonElement e : pair) two.add(e.getAsString().toUpperCase());
+                return two;
+            }
+        }
+        return ALL_TRACK_COLORS;
+    }
+
+    private String cardDisplayName(JsonObject card) {
+        String name = jsonString(card, "name", "");
+        if (!name.isBlank()) return name;
+        return i18n("color.WILD");
+    }
+
+    private void updatePauseQuitButtons() {
+        boolean active = hasActiveGame();
+        boolean over = active && state.lastStatePayload != null
+                && jsonBool(state.lastStatePayload, "gameOver", false);
+        boolean paused = active && state.lastStatePayload != null
+                && jsonBool(state.lastStatePayload, "paused", false);
+        boolean pausePending = active && state.lastStatePayload != null
+                && jsonBool(state.lastStatePayload, "pausePending", false);
+        pauseToggleMenuItem.setVisible(active && !over);
+        quitGameMenuItem.setVisible(active && !over);
+        if (pausePending && !paused) {
+            pauseToggleMenuItem.setText(i18n("pause.approve"));
+        } else {
+            pauseToggleMenuItem.setText(paused ? i18n("pause.resume") : i18n("pause.pause"));
+        }
+        pauseToggleMenuItem.setDisable(!ws.isConnected());
     }
 }

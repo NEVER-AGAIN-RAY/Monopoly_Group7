@@ -8,6 +8,7 @@ import com.monopoly.fx.ui.PlayerBoardPanel;
 import com.monopoly.fx.ui.TargetPickerDialog;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -947,7 +948,48 @@ public class MainController {
     }
 
     private void applyRoomError(String raw) {
-        showError(localizedBackendMessage(jsonString(payload(raw), "error", ""), i18n("lobby.roomError")));
+        String message = localizeRoomError(jsonString(payload(raw), "error", ""));
+        showError(message);
+        showRoomWarning(message);
+    }
+
+    /** 把后端返回的英文房间错误映射为本地化文案，未命中时回退到原始消息。 */
+    private String localizeRoomError(String backendMessage) {
+        String key = backendMessage == null ? null : switch (backendMessage) {
+            case "Nickname cannot be empty" -> "lobby.err.nicknameEmpty";
+            case "Room ID already exists" -> "lobby.err.roomExists";
+            case "Room does not exist" -> "lobby.err.roomMissing";
+            case "The room has already started" -> "lobby.err.roomStarted";
+            case "Nickname is already taken" -> "lobby.err.nicknameTaken";
+            case "Only the host can adjust seats" -> "lobby.err.notHostSeat";
+            case "The room has already started; seats cannot be adjusted" -> "lobby.err.seatStarted";
+            case "Invalid seat index" -> "lobby.err.seatIndex";
+            case "A human seat must select the nickname of a player who has joined" -> "lobby.err.seatNeedJoined";
+            case "That nickname has not joined the room" -> "lobby.err.nicknameNotJoined";
+            case "Only the host can start the game" -> "lobby.err.notHostStart";
+            case "At least 2 valid seats are required" -> "lobby.err.needTwoSeats";
+            case "At least 1 human player is required" -> "lobby.err.needHuman";
+            default -> null;
+        };
+        if (key != null) {
+            String localized = i18n(key);
+            if (!localized.startsWith("!")) {
+                return localized;
+            }
+        }
+        return localizedBackendMessage(backendMessage, i18n("lobby.roomError"));
+    }
+
+    /** 弹出模态警告框，确保房间操作失败（如昵称重名）有醒目提示，不受滚动位置影响。 */
+    private void showRoomWarning(String message) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        if (root.getScene() != null) {
+            alert.initOwner(root.getScene().getWindow());
+        }
+        alert.setTitle(i18n("lobby.roomError"));
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     private void applyPendingOptionsResult(String raw) {
@@ -1395,6 +1437,10 @@ public class MainController {
     }
 
     private void rebuildRoomState(JsonObject room) {
+        // 重建席位/成员会替换 startPane 里的内容，导致 ScrollPane 回滚到顶部。
+        // 先记下当前滚动位置，在下一帧布局完成后再还原，避免每次改席位都跳到最上面。
+        double savedVvalue = startPane.getVvalue();
+        Platform.runLater(() -> startPane.setVvalue(savedVvalue));
         roomMembersPane.getChildren().clear();
         roomSeatsGrid.getChildren().clear();
         state.currentLobbyRoom = room;

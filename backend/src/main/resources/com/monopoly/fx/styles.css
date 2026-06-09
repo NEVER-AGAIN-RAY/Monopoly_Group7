@@ -555,6 +555,64 @@
     -fx-background-color: transparent;
 }
 
+.game-screen .scroll-bar {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.game-screen .scroll-bar:vertical {
+    -fx-pref-width: 8px;
+    -fx-min-width: 8px;
+    -fx-max-width: 8px;
+}
+
+.game-screen .scroll-bar:horizontal {
+    -fx-pref-height: 8px;
+    -fx-min-height: 8px;
+    -fx-max-height: 8px;
+}
+
+.game-screen .scroll-bar .track {
+    -fx-background-color: rgba(255, 248, 216, 0.07);
+    -fx-background-radius: 999px;
+    -fx-background-insets: 1px;
+}
+
+.game-screen .scroll-bar .thumb {
+    -fx-background-color: rgba(255, 209, 102, 0.34);
+    -fx-background-radius: 999px;
+    -fx-background-insets: 1px;
+}
+
+.game-screen .scroll-bar .thumb:hover {
+    -fx-background-color: rgba(255, 209, 102, 0.58);
+}
+
+.game-screen .scroll-bar .thumb:pressed {
+    -fx-background-color: rgba(255, 209, 102, 0.76);
+}
+
+.game-screen .scroll-bar .increment-button,
+.game-screen .scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-pref-width: 0;
+    -fx-pref-height: 0;
+}
+
+.game-screen .scroll-bar .increment-arrow,
+.game-screen .scroll-bar .decrement-arrow {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-shape: "";
+}
+
+.game-screen .scroll-pane > .corner {
+    -fx-background-color: transparent;
+}
+
 .opponents-row {
     -fx-min-height: 214px;
     -fx-fill-height: true;

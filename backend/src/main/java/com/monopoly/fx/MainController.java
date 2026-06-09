@@ -29,6 +29,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.input.MouseButton;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
@@ -160,6 +161,7 @@ public class MainController {
     @FXML private Button leaveRoomButton;
     @FXML private FlowPane roomMembersPane;
     @FXML private GridPane roomSeatsGrid;
+    @FXML private VBox waitingHallBox;
 
     @FXML private Label tableStatusLabel;
     @FXML private Label eventLineLabel;
@@ -337,6 +339,15 @@ public class MainController {
             }
             updateLobbyControls();
         });
+        roomListView.setOnMouseClicked(event -> {
+            if (event.getButton() == MouseButton.PRIMARY
+                    && event.getClickCount() == 2
+                    && state.currentLobbyRoom == null
+                    && !hasActiveGame()
+                    && roomListView.getSelectionModel().getSelectedItem() != null) {
+                onJoinRoom();
+            }
+        });
         handPanelController.installSelectionHandling(handToggleGroup, this::quickPlay, this::syncActionButtons);
 
         trafficArea.setEditable(false);
@@ -391,7 +402,10 @@ public class MainController {
 
     @FXML
     private void onConnect() {
-        connectionController.connect(this::onRefreshRooms);
+        connectionController.connect(() -> {
+            updateLobbyControls();
+            onRefreshRooms();
+        });
     }
 
     @FXML
@@ -1478,8 +1492,12 @@ public class MainController {
         boolean inRoom = state.currentLobbyRoom != null;
         boolean host = isLobbyHost(state.currentLobbyRoom);
         boolean activeGame = hasActiveGame();
-        lobbyPanel.setVisible(inRoom);
-        lobbyPanel.setManaged(inRoom);
+        boolean connected = ws.isConnected();
+        boolean showLobby = (connected && !activeGame) || inRoom;
+        lobbyPanel.setVisible(showLobby);
+        lobbyPanel.setManaged(showLobby);
+        waitingHallBox.setVisible(inRoom);
+        waitingHallBox.setManaged(inRoom);
         createRoomButton.setDisable(activeGame || inRoom);
         joinRoomButton.setDisable(activeGame || inRoom);
         leaveRoomButton.setDisable(activeGame || !inRoom);

@@ -18,7 +18,7 @@
 }
 
 .button:disabled {
-    -fx-opacity: 0.42;
+    -fx-opacity: 0.4;
     -fx-cursor: default;
 }
 
@@ -418,7 +418,7 @@
 }
 
 .btn-soft-green {
-    -fx-background-color: #a9c39a;
+    -fx-background-color: linear-gradient(to bottom, #4caf50, #2f7d35);
     -fx-text-fill: white;
 }
 

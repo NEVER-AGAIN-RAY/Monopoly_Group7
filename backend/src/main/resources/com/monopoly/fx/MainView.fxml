@@ -296,7 +296,7 @@
                     </GridPane>
                     <Label fx:id="roomStatusLabel" text="等待玩家进入匹配" styleClass="connection-status"/>
                     <HBox spacing="10.0" alignment="CENTER_LEFT">
-                        <Button fx:id="joinRoomButton" text="进入匹配" onAction="#onJoinRoom" mnemonicParsing="false"
+                        <Button fx:id="joinRoomButton" text="加入房间" onAction="#onJoinRoom" mnemonicParsing="false"
                                 maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="btn-start-room"/>
                         <Button fx:id="createRoomButton" text="创建房间" onAction="#onCreateRoom" mnemonicParsing="false"
                                 maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="btn-soft-green"/>
@@ -326,7 +326,7 @@
                     <ListView fx:id="roomListView" prefHeight="128.0" styleClass="room-list-view"/>
                 </VBox>
 
-                <VBox spacing="8.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                <VBox fx:id="waitingHallBox" spacing="8.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
                     <HBox spacing="8.0" alignment="CENTER_LEFT">
                         <Label fx:id="waitingRoomLabel" text="等待厅" styleClass="lobby-section-title"/>
                         <Region HBox.hgrow="ALWAYS"/>

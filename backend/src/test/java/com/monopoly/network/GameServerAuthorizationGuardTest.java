@@ -1,6 +1,5 @@
 package com.monopoly.network;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.monopoly.controller.GameController;
@@ -70,36 +69,6 @@ class GameServerAuthorizationGuardTest {
         assertFalse(ownerOut.stream().anyMatch(s -> s.contains("\"mementoJson\"")));
     }
 
-    @Test
-    void disconnectAfterRoomStarted_shouldKeepLobbyMembershipForReconnect() {
-        List<String> hostOut = new ArrayList<>();
-        List<String> observerOut = new ArrayList<>();
-        ClientConnection host = recordingClient(hostOut);
-        ClientConnection observer = recordingClient(observerOut);
-        GameServer server = new GameServer();
-        server.onClientConnected(host);
-        server.onClientConnected(observer);
-
-        server.onMessage(host,
-                "{\"type\":\"CREATE_ROOM\",\"payload\":{\"sessionId\":\"started-room\",\"nickname\":\"Host\"}}");
-        server.onMessage(host,
-                "{\"type\":\"ROOM_SET_SEAT\",\"payload\":{\"sessionId\":\"started-room\","
-                        + "\"seatIndex\":1,\"role\":\"strong\"}}");
-        server.onMessage(host,
-                "{\"type\":\"START_ROOM\",\"payload\":{\"sessionId\":\"started-room\",\"randomizeFirstPlayer\":false}}");
-        hostOut.clear();
-        observerOut.clear();
-
-        server.onClientDisconnected(host);
-        server.onMessage(observer, "{\"type\":\"ROOM_LIST\",\"payload\":{}}");
-
-        JsonObject list = findMessage(observerOut, "ROOM_LIST_RESULT");
-        JsonObject room = findRoom(list.getAsJsonObject("payload").getAsJsonArray("rooms"), "started-room");
-        assertEquals(1, room.get("connectedPlayers").getAsInt());
-        assertEquals(0, room.get("connections").getAsInt());
-        assertTrue(room.get("started").getAsBoolean());
-    }
-
     private static GameServer startedHvmServer(ClientConnection client, List<String> out, String sessionId) {
         DefaultGameUpdateSubject subject = new DefaultGameUpdateSubject();
         GameController controller = new GameController(subject);
@@ -110,18 +79,6 @@ class GameServerAuthorizationGuardTest {
         server.onClientConnected(client);
         out.clear();
         return server;
-    }
-
-    private static JsonObject findRoom(JsonArray rooms, String sessionId) {
-        for (var el : rooms) {
-            if (el.isJsonObject()) {
-                JsonObject room = el.getAsJsonObject();
-                if (sessionId.equals(room.get("sessionId").getAsString())) {
-                    return room;
-                }
-            }
-        }
-        throw new AssertionError("Missing room " + sessionId + " in " + rooms);
     }
 
     private static void assertError(JsonObject root, String code, String requestId) {

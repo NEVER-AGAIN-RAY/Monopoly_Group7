@@ -72,6 +72,10 @@ final class SeatAssembler {
             for (int i = 1; i <= count; i++) {
                 players.add(new HumanPlayer("pvp-" + i, "Player-" + i));
             }
+        } else if ("DEMO_PVP".equals(mode)) {
+            for (int i = 1; i <= count; i++) {
+                players.add(new HumanPlayer("human-" + i, "Player-" + i));
+            }
         } else if ("LLM".equals(mode)) {
             players.add(new HumanPlayer("human-1", "Human"));
             String llmLabel = llmProviderLabel();

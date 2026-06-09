@@ -48,11 +48,11 @@ final class SessionFactory {
         if ("CUSTOM".equals(mode) && customRoles.isEmpty()) {
             customRoles = SeatAssembler.defaultCustomRoles(count);
         }
-        if (!"HVM".equals(mode) && !"PVP".equals(mode)
+        if (!"HVM".equals(mode) && !"PVP".equals(mode) && !"DEMO_PVP".equals(mode)
                 && !"LLM".equals(mode) && !"AI_VS_AI".equals(mode)
                 && !"CUSTOM".equals(mode)) {
             throw new IllegalArgumentException(
-                    "gameMode must be HVM, PVP, LLM, AI_VS_AI, or CUSTOM; got " + req.getGameMode() + ".");
+                    "gameMode must be HVM, PVP, DEMO_PVP, LLM, AI_VS_AI, or CUSTOM; got " + req.getGameMode() + ".");
         }
 
         controller.resetRuntimeForNewSession(req.getSessionId(), mode);

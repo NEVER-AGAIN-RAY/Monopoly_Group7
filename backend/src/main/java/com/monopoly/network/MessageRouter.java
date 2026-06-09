@@ -18,17 +18,17 @@ final class MessageRouter {
 
     private final SessionHub hub;
     private final MessageDispatcher dispatcher;
-    private final LobbyService lobby;
+    private final DemoRoomService demoRoom;
     private final SaveLoadVoteCoordinator saveLoad;
 
     MessageRouter(
             SessionHub hub,
             MessageDispatcher dispatcher,
-            LobbyService lobby,
+            DemoRoomService demoRoom,
             SaveLoadVoteCoordinator saveLoad) {
         this.hub = hub;
         this.dispatcher = dispatcher;
-        this.lobby = lobby;
+        this.demoRoom = demoRoom;
         this.saveLoad = saveLoad;
     }
 
@@ -101,28 +101,16 @@ final class MessageRouter {
             }
             return;
         }
-        if ("ROOM_LIST".equals(type) || "LIST_ROOMS".equals(type)) {
-            lobby.sendRoomList(from);
+        if ("JOIN_DEMO_ROOM".equals(type)) {
+            demoRoom.handleJoinDemoRoom(from, payload);
             return;
         }
-        if ("CREATE_ROOM".equals(type)) {
-            lobby.handleCreateRoom(from, payload);
+        if ("START_DEMO_ROOM".equals(type)) {
+            demoRoom.handleStartDemoRoom(from, payload);
             return;
         }
-        if ("JOIN_ROOM".equals(type)) {
-            lobby.handleJoinRoom(from, payload);
-            return;
-        }
-        if ("ROOM_SET_SEAT".equals(type)) {
-            lobby.handleSetRoomSeat(from, payload);
-            return;
-        }
-        if ("LEAVE_ROOM".equals(type)) {
-            lobby.handleLeaveRoom(from, payload);
-            return;
-        }
-        if ("START_ROOM".equals(type)) {
-            lobby.handleStartRoom(from, payload);
+        if ("LEAVE_DEMO_ROOM".equals(type)) {
+            demoRoom.handleLeaveDemoRoom(from);
             return;
         }
         if ("AUTH".equals(type) || "JOIN_SESSION".equals(type)) {
@@ -284,7 +272,7 @@ final class MessageRouter {
         }
         try {
             from.sendText(dispatcher.toJsonEnvelope("AUTH_RESULT", dispatcher.operationResult(true, null)));
-            lobby.sendRoomList(from);
+            demoRoom.sendDemoRoomStateTo(from);
         } catch (IOException ignored) {
         }
         GameController controller = sessionId == null || sessionId.isBlank() ? null : hub.controllerForSession(sessionId);

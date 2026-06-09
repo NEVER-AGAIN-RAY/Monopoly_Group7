@@ -77,6 +77,21 @@ class GameControllerPlayerNamingTest {
     }
 
     @Test
+    void demoPvpUsesHumanIdsForClassroomClients() {
+        GameController controller = new GameController(new DefaultGameUpdateSubject());
+        StartSessionRequest req = new StartSessionRequest();
+        req.setSessionId("demo-pvp");
+        req.setPlayerCount(5);
+        req.setGameMode("DEMO_PVP");
+        req.setRandomizeFirstPlayer(false);
+
+        controller.startNewSession(req);
+
+        assertEquals(List.of("human-1", "human-2", "human-3", "human-4", "human-5"),
+                controller.getSessionPlayersView().stream().map(p -> p.getPlayerId()).toList());
+    }
+
+    @Test
     void customLineupCreatesHumanAndMixedAiSeats() {
         GameController controller = new GameController(new DefaultGameUpdateSubject());
         StartSessionRequest req = new StartSessionRequest();

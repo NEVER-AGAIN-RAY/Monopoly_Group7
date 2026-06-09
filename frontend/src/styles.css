@@ -2095,7 +2095,7 @@ select:focus {
   margin-top: 22px;
 }
 
-.lobby-screen {
+.demo-screen {
   min-height: 100vh;
   place-items: start center;
   align-content: start;
@@ -2103,13 +2103,13 @@ select:focus {
   padding: 26px;
 }
 
-.lobby-shell {
+.demo-shell {
   width: min(1180px, 96vw);
   display: grid;
   gap: 16px;
 }
 
-.lobby-hero {
+.demo-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   align-items: end;
@@ -2122,7 +2122,7 @@ select:focus {
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
 }
 
-.lobby-hero h1 {
+.demo-hero h1 {
   margin: 2px 0 6px;
   color: #c62828;
   font-size: 54px;
@@ -2130,7 +2130,7 @@ select:focus {
   font-weight: 900;
 }
 
-.lobby-hero p {
+.demo-hero p {
   margin: 0;
   color: #46533e;
   font-weight: 800;
@@ -2142,8 +2142,7 @@ select:focus {
 }
 
 .server-card label,
-.room-toolbar label,
-.join-panel label {
+.room-toolbar label {
   display: grid;
   gap: 6px;
   color: #4b3d25;
@@ -2152,8 +2151,7 @@ select:focus {
 }
 
 .server-actions,
-.room-list-head,
-.lobby-actions {
+.demo-actions {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2179,30 +2177,7 @@ select:focus {
   white-space: nowrap;
 }
 
-.lobby-tabs {
-  display: inline-flex;
-  width: fit-content;
-  gap: 6px;
-  border-radius: 8px;
-  padding: 5px;
-  background: rgba(249, 244, 220, 0.96);
-}
-
-.lobby-tabs button {
-  min-width: 104px;
-  padding: 10px 14px;
-  color: #315d42;
-  background: transparent;
-}
-
-.lobby-tabs button.active {
-  color: #fff8d8;
-  background: #c62828;
-}
-
-.room-builder,
-.join-panel,
-.room-list-panel {
+.room-builder {
   display: grid;
   gap: 14px;
   border-radius: 14px;
@@ -2225,77 +2200,7 @@ select:focus {
   font-size: 13px;
 }
 
-.seat-config-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.seat-card {
-  min-height: 190px;
-  display: grid;
-  grid-template-rows: auto auto auto 1fr;
-  gap: 10px;
-  border: 1px solid rgba(49, 93, 66, 0.18);
-  border-radius: 8px;
-  padding: 12px;
-  background: #fff9df;
-}
-
-.seat-card header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: #5d5a4f;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.seat-card header b {
-  color: #315d42;
-}
-
-.seat-card h2 {
-  margin: 0;
-  color: #1b2228;
-  font-size: 19px;
-  line-height: 1.1;
-}
-
-.seat-card p {
-  margin: 0;
-  color: #5d5a4f;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.4;
-}
-
-.seat-human {
-  border-top: 5px solid #2e7d32;
-}
-
-.seat-hard {
-  border-top: 5px solid #607d8b;
-}
-
-.seat-strong {
-  border-top: 5px solid #c62828;
-}
-
-.seat-llm {
-  border-top: 5px solid #1565c0;
-}
-
-.seat-student {
-  border-top: 5px solid #d4a11d;
-}
-
-.seat-empty {
-  opacity: 0.72;
-}
-
-.lobby-actions span {
+.demo-actions span {
   min-width: 0;
   overflow: hidden;
   color: #5d5a4f;
@@ -2303,51 +2208,6 @@ select:focus {
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.join-panel {
-  grid-template-columns: minmax(220px, 1fr) minmax(180px, 260px) auto;
-  align-items: end;
-}
-
-.room-list-head {
-  justify-content: space-between;
-}
-
-.room-list-head h2 {
-  margin: 0;
-  color: #1b2228;
-  font-size: 22px;
-}
-
-.room-list {
-  display: grid;
-  gap: 10px;
-}
-
-.room-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid rgba(49, 93, 66, 0.16);
-  border-radius: 8px;
-  padding: 12px;
-  background: #fff9df;
-}
-
-.room-row h3 {
-  margin: 0 0 4px;
-  color: #1b2228;
-  font-size: 17px;
-}
-
-.room-row p,
-.empty-list {
-  margin: 0;
-  color: #5d5a4f;
-  font-size: 12px;
-  font-weight: 800;
 }
 
 .decision-timer {
@@ -2395,7 +2255,7 @@ select:focus {
   background: #c62828;
 }
 
-.room-lobby-head {
+.demo-room-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -2407,14 +2267,14 @@ select:focus {
   background: #f9f4dc;
 }
 
-.room-lobby-head h1 {
+.demo-room-head h1 {
   margin: 2px 0 4px;
   color: #c62828;
   font-size: 42px;
   line-height: 1;
 }
 
-.room-lobby-head p {
+.demo-room-head p {
   margin: 0;
   color: #315d42;
   font-weight: 900;
@@ -2487,30 +2347,19 @@ select:focus {
   font-weight: 900;
 }
 
-.room-seat-grid {
-  padding: 14px;
-  border-radius: 14px;
-  background: rgba(249, 244, 220, 0.96);
-}
-
 @media (max-width: 980px) {
   body {
     min-width: 0;
     overflow: auto;
   }
 
-  .lobby-hero,
-  .room-toolbar,
-  .join-panel {
+  .demo-hero,
+  .room-toolbar {
     grid-template-columns: 1fr;
   }
 
-  .seat-config-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .waiting-room-grid,
-  .room-lobby-head {
+  .demo-room-head {
     grid-template-columns: 1fr;
   }
 

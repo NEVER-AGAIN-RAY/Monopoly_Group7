@@ -26,14 +26,14 @@ public class GameServer implements GameUpdateObserver {
     private final AtomicLong requestCounter = new AtomicLong(1);
     private final SessionHub hub;
     private final SaveLoadVoteCoordinator saveLoad;
-    private final LobbyService lobby;
+    private final DemoRoomService demoRoom;
     private final MessageRouter router;
 
     public GameServer() {
         this.hub = new SessionHub(dispatcher, this);
         this.saveLoad = new SaveLoadVoteCoordinator(hub, dispatcher, requestCounter);
-        this.lobby = new LobbyService(hub, dispatcher, this::pushPrivateHands);
-        this.router = new MessageRouter(hub, dispatcher, lobby, saveLoad);
+        this.demoRoom = new DemoRoomService(hub, dispatcher, this::pushPrivateHands);
+        this.router = new MessageRouter(hub, dispatcher, demoRoom, saveLoad);
     }
 
     /**
@@ -55,10 +55,9 @@ public class GameServer implements GameUpdateObserver {
     }
 
     public void onClientDisconnected(ClientConnection client) {
+        demoRoom.onClientDisconnected(client);
         hub.unregister(client);
         hub.removeClient(client);
-        lobby.onClientDisconnected(client);
-        lobby.broadcastRoomList();
     }
 
     /** Inbound JSON dispatcher */

@@ -32,7 +32,7 @@ final class ConnectionController {
     private final Consumer<String> showError;
     private final Runnable clearError;
     private final Runnable switchToStartView;
-    private final Runnable updateLobbyControls;
+    private final Runnable updateDemoRoomControls;
     private final Runnable clearPlayedEvents;
     private final Runnable afterReconnect;
 
@@ -51,7 +51,7 @@ final class ConnectionController {
             Consumer<String> showError,
             Runnable clearError,
             Runnable switchToStartView,
-            Runnable updateLobbyControls,
+            Runnable updateDemoRoomControls,
             Runnable clearPlayedEvents,
             Runnable afterReconnect) {
         this.ws = ws;
@@ -63,7 +63,7 @@ final class ConnectionController {
         this.showError = showError;
         this.clearError = clearError;
         this.switchToStartView = switchToStartView;
-        this.updateLobbyControls = updateLobbyControls;
+        this.updateDemoRoomControls = updateDemoRoomControls;
         this.clearPlayedEvents = clearPlayedEvents;
         this.afterReconnect = afterReconnect;
     }
@@ -129,10 +129,10 @@ final class ConnectionController {
                         state.pendingOptionsResultHandler = null;
                         state.postConnectAction = null;
                         state.awaitingInitialState = false;
-                        state.currentLobbyRoom = null;
+                        state.clearDemoRoomState();
                         switchToStartView.run();
                         refreshButtons();
-                        updateLobbyControls.run();
+                        updateDemoRoomControls.run();
                         return;
                     }
                     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && hadPreviousConnection()) {
@@ -149,10 +149,10 @@ final class ConnectionController {
                         state.pendingOptionsResultHandler = null;
                         state.postConnectAction = null;
                         state.awaitingInitialState = false;
-                        state.currentLobbyRoom = null;
+                        state.clearDemoRoomState();
                         switchToStartView.run();
                         refreshButtons();
-                        updateLobbyControls.run();
+                        updateDemoRoomControls.run();
                     }
                 });
             }
@@ -171,7 +171,7 @@ final class ConnectionController {
     }
 
     private boolean hadPreviousConnection() {
-        return state.lastStatePayload != null || state.currentLobbyRoom != null;
+        return state.lastStatePayload != null || state.demoRoomState != null;
     }
 
     private void scheduleReconnect() {
@@ -202,17 +202,17 @@ final class ConnectionController {
         }
     }
 
-    void disconnect(Runnable switchToStartView, Runnable updateLobbyControls) {
+    void disconnect(Runnable switchToStartView, Runnable updateDemoRoomControls) {
         intentionalDisconnect = true;
         cancelReconnectTimer();
         ws.closeQuietly();
         refs.statusLabel().setText(i18n.get("status.disconnected"));
         refs.connectionLabel().setText(i18n.get("status.disconnected"));
         state.clearGameState();
-        state.clearLobbyState();
+        state.clearDemoRoomState();
         switchToStartView.run();
         refreshButtons();
-        updateLobbyControls.run();
+        updateDemoRoomControls.run();
     }
 
     void shutdown() {

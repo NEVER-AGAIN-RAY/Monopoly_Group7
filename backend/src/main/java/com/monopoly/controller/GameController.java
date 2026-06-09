@@ -360,7 +360,7 @@ public class GameController implements AiGameBridge {
     }
 
     public boolean isPvpMode() {
-        return "PVP".equals(sessionGameMode);
+        return "PVP".equals(sessionGameMode) || "DEMO_PVP".equals(sessionGameMode);
     }
 
     public boolean isAiBattleMode() {

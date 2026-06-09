@@ -6,7 +6,7 @@ const initialWsUrl = typeof window === 'undefined'
   : (new URLSearchParams(window.location.search).get('ws') || 'ws://localhost:8025/ws')
 const wsUrl = ref(initialWsUrl)
 const playerId = ref('human-1')
-const sessionId = ref('web-demo')
+const sessionId = ref('demo-pvp')
 const playerCount = ref(2)
 const gameMode = ref('HVM')
 const aiDifficulty = ref('NORMAL')
@@ -35,29 +35,12 @@ const tablePlayedCards = ref([])
 const stagedPlayedCardIds = ref({})
 const pendingTurnFlush = ref(false)
 const nowMs = ref(Date.now())
-const lobbyTab = ref('create')
-const roomList = ref([])
-const lobbyRoom = ref(null)
-const nickname = ref('玩家')
+const demoRoom = ref(null)
+const demoRoomJoined = ref(false)
 const roomScreen = ref('home')
-const pendingJoinSessionId = ref('')
 const decisionStartedAtMs = ref(Date.now())
 const decisionTimerKey = ref('')
 const decisionSeconds = ref(45)
-const roomSeats = ref([
-  { role: 'human', nickname: '' },
-  { role: 'strong' },
-  { role: 'empty' },
-  { role: 'empty' }
-])
-const seatRoleOptions = [
-  { value: 'human', label: '玩家' },
-  { value: 'hard', label: 'Hard' },
-  { value: 'strong', label: 'Strong' },
-  { value: 'llm', label: 'LLM' },
-  { value: 'student', label: 'LLM Student' },
-  { value: 'empty', label: '空位' }
-]
 const AI_PLAY_REVEAL_MS = 1000
 let socket = null
 let revealTimer = null
@@ -593,40 +576,14 @@ const responseOriginalMeta = computed(() => {
   return tags
 })
 const hasActiveGame = computed(() => Boolean(state.value?.sessionId && !state.value?.gameOver))
-const activeRoomSeats = computed(() => roomSeats.value
-  .map((seat, index) => ({ ...seat, index }))
-  .filter((seat) => seat.role !== 'empty'))
-const roomHumanSeats = computed(() => activeRoomSeats.value.filter((seat) => seat.role === 'human'))
-const roomAiSeats = computed(() => activeRoomSeats.value.filter((seat) => seat.role !== 'human'))
-const roomSeatSummary = computed(() => {
-  const humanCount = roomHumanSeats.value.length
-  const aiCount = roomAiSeats.value.length
-  return `${activeRoomSeats.value.length} 席 · ${humanCount} 真人 · ${aiCount} 机器`
-})
-const canStartConfiguredRoom = computed(() => activeRoomSeats.value.length >= 2 && roomHumanSeats.value.length >= 1)
-const roomListRows = computed(() => roomList.value.map((room) => ({
-  ...room,
-  title: room.sessionId || '未命名房间',
-  seatText: `${Number(room.connectedPlayers || 0)}/${Number(room.humanSeats || room.seatCount || 0)} 真人在线`,
-  totalText: `${Number(room.seatCount || 0)} 总席位`
-})))
-const lobbyMembers = computed(() => lobbyRoom.value?.members || [])
-const lobbySeats = computed(() => lobbyRoom.value?.seats || [])
-const lobbySeatSummary = computed(() => {
-  const active = lobbySeats.value.filter((seat) => seat.role !== 'empty')
-  const humans = active.filter((seat) => seat.role === 'human')
-  return `${active.length} 席 · ${humans.length} 真人 · ${active.length - humans.length} 机器`
-})
-const isLobbyHost = computed(() => {
-  const host = lobbyMembers.value.find((member) => member.host)
-  return host?.nickname === nickname.value
-})
-const lobbyCanStart = computed(() => {
-  const active = lobbySeats.value.filter((seat) => seat.role !== 'empty')
-  return isLobbyHost.value && active.length >= 2 && active.some((seat) => seat.role === 'human')
-})
+const demoPlayers = computed(() => demoRoom.value?.players || [])
+const demoJoined = computed(() => Number(demoRoom.value?.joinedPlayers || demoPlayers.value.length || 0))
+const demoMaxPlayers = computed(() => Number(demoRoom.value?.maxPlayers || 5))
+const demoCanStart = computed(() => Boolean(demoRoom.value?.canStart) && demoRoomJoined.value)
+const demoRoomSummary = computed(() => `demo-pvp · ${demoJoined.value}/${demoMaxPlayers.value} 已加入`)
 const humanSeatCount = computed(() => {
-  return (state.value?.players || []).filter((player) => String(player.playerId || '').startsWith('pvp-')).length
+  return (state.value?.players || []).filter((player) => String(player.playerId || '').startsWith('human-')
+    || String(player.playerId || '').startsWith('pvp-')).length
 })
 const shouldShowDecisionCountdown = computed(() => {
   return responsePending.value || humanSeatCount.value > 1
@@ -790,161 +747,47 @@ function playedGroupPriority(id) {
   return 3
 }
 
-function normalizeSessionName(value) {
-  const text = String(value || '').trim()
-  return text || `room-${Date.now().toString(36)}`
-}
-
-function seatPlayerId(seat) {
-  if (!seat) return ''
-  return seat.role === 'human' ? `pvp-${seat.index + 1}` : `ai-${seat.index + 1}`
-}
-
-function seatTitle(seat) {
-  if (!seat) return ''
-  if (seat.role === 'empty') return `席位 ${seat.index + 1}`
-  if (seat.role === 'human') return seat.index === 0 ? '房主' : `玩家 ${seat.index + 1}`
-  return `${seatRoleLabel(seat.role)} ${seat.index + 1}`
-}
-
-function seatRoleLabel(role) {
-  return seatRoleOptions.find((option) => option.value === role)?.label || role
-}
-
-function seatRoleHelp(role) {
-  return ({
-    human: '真人从浏览器加入，按 pvp 席位 ID 操作。',
-    hard: '本地启发式 Hard，响应快。',
-    strong: '本地搜索增强机器人，当前最强可用对手。',
-    llm: 'DeepSeek 在线策略，需要配置 API Key。',
-    student: '本地蒸馏学生模型，不调用远程 LLM。',
-    empty: '不占席位。'
-  })[role] || ''
-}
-
-function seatRoleClass(role) {
-  return `seat-${role || 'empty'}`
-}
-
-function backendRole(role) {
-  return ({
-    human: 'human',
-    hard: 'hard',
-    strong: 'lookahead',
-    llm: 'llm',
-    student: 'student'
-  })[role] || ''
-}
-
-function roomRolesForStart() {
-  return activeRoomSeats.value
-    .map((seat) => backendRole(seat.role))
-    .filter(Boolean)
-}
-
-function applyRoomConfig() {
-  const roles = roomRolesForStart()
-  if (roles.length < 2) {
-    notice.value = '至少需要 2 个有效席位'
-    return false
-  }
-  if (!roomHumanSeats.value.length) {
-    notice.value = '至少保留 1 个真人席位用于前端操作'
-    return false
-  }
-  sessionId.value = normalizeSessionName(sessionId.value)
-  gameMode.value = 'CUSTOM'
-  playerCount.value = roles.length
-  customLineup.value = roles.join(',')
-  const firstHuman = roomHumanSeats.value[0]
-  playerId.value = seatPlayerId(firstHuman)
-  return true
-}
-
-function startConfiguredRoom() {
-  createRoom()
-}
-
-function requestRoomList() {
-  if (!send('ROOM_LIST', {})) return
-  notice.value = '正在刷新房间列表...'
-}
-
-function joinRoom(room) {
-  const roomId = room?.sessionId || pendingJoinSessionId.value
-  if (!roomId) {
-    notice.value = '先输入或选择房间号'
-    return
-  }
-  sessionId.value = normalizeSessionName(roomId)
-  pendingJoinSessionId.value = sessionId.value
+function joinDemoRoom() {
+  sessionId.value = 'demo-pvp'
+  demoRoomJoined.value = false
   if (connected.value) {
-    send('JOIN_ROOM', { nickname: nickname.value })
+    send('JOIN_DEMO_ROOM', {})
     roomScreen.value = 'room'
     return
   }
-  connect(false)
+  connect(false, joinDemoRoom)
 }
 
-function createRoom() {
-  sessionId.value = normalizeSessionName(sessionId.value)
-  if (!nickname.value.trim()) {
-    notice.value = '先填昵称'
+function startDemoRoom() {
+  if (!demoCanStart.value) {
+    notice.value = '至少 2 名玩家加入 demo-pvp 后即可开始'
     return
   }
-  if (connected.value) {
-    send('CREATE_ROOM', { nickname: nickname.value })
-    roomScreen.value = 'room'
-    return
-  }
-  pendingJoinSessionId.value = `create:${sessionId.value}`
-  connect(false)
+  send('START_DEMO_ROOM', { randomizeFirstPlayer: randomFirst.value })
 }
 
-function startLobbyRoom() {
-  if (!lobbyCanStart.value) {
-    notice.value = '房主需要配置至少 2 个席位，并保留真人席位'
-    return
-  }
-  send('START_ROOM', { randomizeFirstPlayer: randomFirst.value })
-}
-
-function leaveLobbyRoom() {
-  send('LEAVE_ROOM', {})
-  lobbyRoom.value = null
+function leaveDemoRoom() {
+  send('LEAVE_DEMO_ROOM', {})
+  demoRoom.value = null
+  demoRoomJoined.value = false
   roomScreen.value = 'home'
 }
 
-function setLobbySeat(index, role, nicknameValue = '') {
-  if (!isLobbyHost.value) return
-  send('ROOM_SET_SEAT', { seatIndex: index, role, nickname: nicknameValue })
-}
-
-function setLobbySeatRole(seat, role) {
-  const nicknameValue = role === 'human'
-    ? (seat.nickname || lobbyMembers.value[0]?.nickname || '')
-    : ''
-  setLobbySeat(seat.index, role, nicknameValue)
-}
-
-function setLobbySeatNickname(seat, nicknameValue) {
-  setLobbySeat(seat.index, 'human', nicknameValue)
-}
-
-function updateLobbyRoom(payload) {
-  lobbyRoom.value = payload
-  const mySeat = (payload.seats || []).find((seat) => {
-    return seat.role === 'human' && seat.nickname === nickname.value && seat.playerId
-  })
-  if (mySeat?.playerId) {
-    playerId.value = mySeat.playerId
+function updateDemoRoom(payload) {
+  demoRoom.value = payload
+  sessionId.value = payload.sessionId || 'demo-pvp'
+  if (payload.assignedPlayerId) {
+    playerId.value = payload.assignedPlayerId
+    demoRoomJoined.value = true
   }
-  roomScreen.value = payload.started ? 'game' : 'room'
+  if (payload.started && demoRoomJoined.value) {
+    roomScreen.value = 'game'
+  } else if (demoRoomJoined.value || roomScreen.value === 'room') {
+    roomScreen.value = 'room'
+  } else {
+    roomScreen.value = 'home'
+  }
   maybeAutoDraw()
-}
-
-function updateRoomList(payload) {
-  roomList.value = Array.isArray(payload.rooms) ? payload.rooms : []
 }
 
 function syncDecisionTimer(payload = state.value) {
@@ -990,7 +833,7 @@ function backToSetupAfterGameOver() {
   screen.value = 'start'
 }
 
-function connect(autoStart = false) {
+function connect(autoStart = false, afterOpen = null) {
   if (connected.value && autoStart) {
     authAndStart()
     return
@@ -1005,28 +848,20 @@ function connect(autoStart = false) {
     notice.value = t('connected')
     log('system', 'WebSocket connected')
     if (autoStart) authAndStart()
-    else if (pendingJoinSessionId.value) {
-      const pending = pendingJoinSessionId.value
-      pendingJoinSessionId.value = ''
-      if (pending.startsWith('create:')) {
-        sessionId.value = pending.slice('create:'.length)
-        send('CREATE_ROOM', { nickname: nickname.value })
-      } else {
-        sessionId.value = pending
-        send('JOIN_ROOM', { nickname: nickname.value })
-      }
-      roomScreen.value = 'room'
-    } else requestRoomList()
+    else if (afterOpen) afterOpen()
+    else send('AUTH', { playerId: playerId.value, sessionId: sessionId.value })
   })
   socket.addEventListener('message', (event) => handleMessage(event.data))
   socket.addEventListener('close', () => {
     connected.value = false
     connecting.value = false
+    demoRoomJoined.value = false
     notice.value = t('disconnected')
     log('system', 'WebSocket closed')
   })
   socket.addEventListener('error', () => {
     connecting.value = false
+    demoRoomJoined.value = false
     notice.value = t('connectFailed')
   })
 }
@@ -1052,9 +887,6 @@ function send(type, payload = {}) {
 }
 
 function authAndStart() {
-  if (gameMode.value === 'CUSTOM' && activeRoomSeats.value.length) {
-    applyRoomConfig()
-  }
   const customRoles = customLineup.value
     .split(/[,;\s]+/)
     .map((role) => role.trim())
@@ -1108,16 +940,12 @@ function handleMessage(raw) {
       }
       clearBusy()
       break
-    case 'ROOM_LIST_RESULT':
-      updateRoomList(payload)
-      notice.value = roomList.value.length ? '房间列表已刷新' : '当前没有已开启房间'
+    case 'DEMO_ROOM_STATE':
+      updateDemoRoom(payload)
+      notice.value = payload.started ? '联机演示已开始' : 'demo-pvp 状态已更新'
       break
-    case 'ROOM_STATE':
-      updateLobbyRoom(payload)
-      notice.value = '房间状态已更新'
-      break
-    case 'ROOM_ERROR':
-      notice.value = payload.error || '房间操作失败'
+    case 'DEMO_ROOM_ERROR':
+      notice.value = payload.error || '联机演示操作失败'
       break
     case 'MY_HAND':
       hand.value = payload.cards || []
@@ -2025,13 +1853,13 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="app-shell">
-    <section v-if="screen === 'start' && roomScreen !== 'room'" class="start-screen lobby-screen">
-      <div class="lobby-shell">
-        <header class="lobby-hero">
+    <section v-if="screen === 'start' && roomScreen !== 'room'" class="start-screen demo-screen">
+      <div class="demo-shell">
+        <header class="demo-hero">
           <div>
             <div class="brand-kicker">{{ t('brandKicker') }}</div>
             <h1>Monopoly Deal</h1>
-            <p>{{ connected ? '后端已连接，可以开房或加入现有房间。' : t('brandIntro') }}</p>
+            <p>{{ connected ? '后端已连接，可以加入 demo-pvp。' : t('brandIntro') }}</p>
           </div>
           <div class="server-card">
             <div v-if="hasActiveGame" class="active-game-return">
@@ -2053,7 +1881,6 @@ onBeforeUnmount(() => {
               <button class="secondary compact" @click="connect(false)" :disabled="connected || connecting">
                 {{ connecting ? t('connecting') : connected ? t('connected') : t('connectOnly') }}
               </button>
-              <button class="secondary compact" @click="requestRoomList" :disabled="!connected">刷新</button>
             </div>
           </div>
         </header>
@@ -2072,21 +1899,11 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <nav class="lobby-tabs" aria-label="房间入口">
-          <button :class="{ active: lobbyTab === 'create' }" @click="lobbyTab = 'create'">开房间</button>
-          <button :class="{ active: lobbyTab === 'join' }" @click="lobbyTab = 'join'">加入房间</button>
-          <button :class="{ active: lobbyTab === 'rooms' }" @click="lobbyTab = 'rooms'; if (connected) requestRoomList()">房间列表</button>
-        </nav>
-
-        <section v-if="lobbyTab === 'create'" class="room-builder">
+        <section class="room-builder">
           <div class="room-toolbar">
             <label>
-              房间号
-              <input v-model="sessionId" placeholder="web-demo" />
-            </label>
-            <label>
-              昵称
-              <input v-model="nickname" placeholder="输入昵称" />
+              固定房间
+              <input v-model="sessionId" readonly />
             </label>
             <label>
               决策倒计时
@@ -2096,46 +1913,15 @@ onBeforeUnmount(() => {
               <input type="checkbox" v-model="randomFirst" />
               随机先手
             </label>
-            <strong>创建后进入等待厅</strong>
+            <strong>{{ demoRoomSummary }}</strong>
           </div>
 
-          <div class="start-actions lobby-actions">
-            <button class="primary" @click="createRoom" :disabled="connecting || !nickname.trim()">
-              {{ connecting ? '连接中...' : '创建房间' }}
+          <div class="start-actions demo-actions">
+            <button class="primary" @click="joinDemoRoom" :disabled="connecting || demoRoomJoined">
+              {{ connecting ? '连接中...' : '加入联机演示' }}
             </button>
-            <button class="secondary" @click="requestRoomList" :disabled="!connected">刷新房间</button>
-            <span>真人席位会在等待厅从已加入昵称里选择</span>
-          </div>
-        </section>
-
-        <section v-else-if="lobbyTab === 'join'" class="join-panel">
-          <label>
-            房间号
-            <input v-model="sessionId" placeholder="输入房间 sessionId" />
-          </label>
-          <label>
-            昵称
-            <input v-model="nickname" placeholder="输入昵称" />
-          </label>
-          <button class="primary" @click="joinRoom({ sessionId })" :disabled="connecting || !nickname.trim()">
-            {{ connecting ? '连接中...' : '加入房间' }}
-          </button>
-        </section>
-
-        <section v-else class="room-list-panel">
-          <div class="room-list-head">
-            <h2>房间列表</h2>
-            <button class="secondary compact" @click="requestRoomList" :disabled="!connected">刷新</button>
-          </div>
-          <div class="room-list">
-            <article v-for="room in roomListRows" :key="room.sessionId" class="room-row">
-              <div>
-                <h3>{{ room.title }}</h3>
-                <p>{{ room.seatText }} · {{ room.totalText }} · 房主 {{ room.hostNickname || '-' }}</p>
-              </div>
-              <button class="secondary compact" @click="joinRoom(room)">加入</button>
-            </article>
-            <p v-if="!roomListRows.length" class="empty-list">暂无房间</p>
+            <button class="secondary" @click="startDemoRoom" :disabled="!demoCanStart">开始联机</button>
+            <span>2 人起可开局，最多 5 人。后端自动分配 human-1 到 human-5。</span>
           </div>
         </section>
 
@@ -2143,68 +1929,29 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <section v-else-if="roomScreen === 'room'" class="start-screen lobby-screen">
-      <div class="lobby-shell">
-        <header class="room-lobby-head">
+    <section v-else-if="roomScreen === 'room'" class="start-screen demo-screen">
+      <div class="demo-shell">
+        <header class="demo-room-head">
           <div>
-            <div class="brand-kicker">ROOM</div>
+            <div class="brand-kicker">DEMO PVP</div>
             <h1>{{ sessionId }}</h1>
-            <p>{{ lobbySeatSummary }}</p>
+            <p>{{ demoRoomSummary }}</p>
           </div>
           <div class="room-head-actions">
-            <button class="primary" @click="startLobbyRoom" :disabled="!lobbyCanStart">开始游戏</button>
-            <button class="secondary" @click="leaveLobbyRoom">离开</button>
+            <button class="primary" @click="startDemoRoom" :disabled="!demoCanStart">开始联机</button>
+            <button class="secondary" @click="leaveDemoRoom">离开</button>
           </div>
         </header>
 
         <section class="waiting-room-grid">
           <aside class="member-list">
             <h2>已加入</h2>
-            <div class="member-chip" v-for="member in lobbyMembers" :key="member.playerKey">
-              <span>{{ member.nickname.slice(0, 2).toUpperCase() }}</span>
-              <b>{{ member.nickname }}</b>
-              <em v-if="member.host">房主</em>
+            <div class="member-chip" v-for="member in demoPlayers" :key="member.playerId">
+              <span>{{ member.playerId.slice(-1) }}</span>
+              <b>{{ member.playerId }}</b>
+              <em v-if="member.playerId === playerId">你</em>
             </div>
           </aside>
-
-          <section class="seat-config-grid room-seat-grid">
-            <article
-              v-for="seat in lobbySeats"
-              :key="seat.index"
-              class="seat-card"
-              :class="seatRoleClass(seat.role)"
-            >
-              <header>
-                <span>席位 {{ seat.index + 1 }}</span>
-                <b>{{ seat.role === 'empty' ? '空' : seat.nickname }}</b>
-              </header>
-              <select
-                :value="seat.role"
-                :disabled="!isLobbyHost"
-                @change="setLobbySeatRole(seat, $event.target.value)"
-              >
-                <option value="empty">空位</option>
-                <option value="human">真人</option>
-                <option value="hard">Hard</option>
-                <option value="strong">Strong</option>
-                <option value="llm">LLM</option>
-                <option value="student">LLM Student</option>
-              </select>
-              <select
-                v-if="seat.role === 'human'"
-                :value="seat.nickname"
-                :disabled="!isLobbyHost"
-                @change="setLobbySeatNickname(seat, $event.target.value)"
-              >
-                <option value="">选择昵称</option>
-                <option v-for="member in lobbyMembers" :key="member.playerKey" :value="member.nickname">
-                  {{ member.nickname }}
-                </option>
-              </select>
-              <h2>{{ seat.nickname || seatRoleLabel(seat.role) }}</h2>
-              <p>{{ seat.role === 'human' ? '真人席位只能选择已加入房间的昵称。' : seatRoleHelp(seat.role) }}</p>
-            </article>
-          </section>
         </section>
 
         <div class="notice" v-if="notice">{{ notice }}</div>

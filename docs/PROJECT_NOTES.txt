@@ -213,7 +213,7 @@ Nice to improve if time allows:
   - Add a small "Latest verification" block:
       mvn -q test
       npm run build --prefix frontend
-  - Add one sentence that the latest UI update improved JavaFX lobby/gameplay flow and
+  - Add one sentence that the latest UI update improved JavaFX demo/gameplay flow and
     rent option display.
   - Add explicit note that the backup branch befor_fix exists as a safety snapshot.
 
@@ -451,7 +451,7 @@ Do not waste time on:
 ================================================================================
 
 2026-06-06:
-  - refactor: split GameServer into SessionHub / MessageRouter / LobbyService /
+  - refactor: split GameServer into SessionHub / MessageRouter / DemoRoomService /
     SaveLoadVoteCoordinator（行为零变更，协议不变）.
   - Refactored backend controller structure for cleaner design evidence.
   - Extracted SnapshotBuilder from GameController for state broadcasts, pending response

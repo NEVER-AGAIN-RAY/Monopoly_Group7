@@ -18,7 +18,7 @@ public class StartSessionRequest {
     private String customLineup;
     /** CUSTOM: preferred structured form; same role names as customLineup. */
     private List<String> playerRoles;
-    /** Optional display names by seat, mainly for room-lobby CUSTOM games. */
+    /** Optional display names by seat, mainly for CUSTOM games. */
     private List<String> displayNames;
     private boolean randomizeFirstPlayer;
 

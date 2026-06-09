@@ -6,16 +6,13 @@ import com.monopoly.fx.presentation.CardDisplayData;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
 /** Mutable JavaFX client state kept outside the FXML controller shell. */
 final class FxClientState {
 
-    final Map<String, JsonObject> roomRowsByLabel = new LinkedHashMap<>();
     final Set<String> selectedPaymentIds = new HashSet<>();
     final List<PlayedEvent> playedEvents = new ArrayList<>();
 
@@ -25,7 +22,8 @@ final class FxClientState {
     CardDisplayData selectedCard;
     Consumer<JsonObject> pendingOptionsResultHandler;
     Runnable postConnectAction;
-    JsonObject currentLobbyRoom;
+    JsonObject demoRoomState;
+    boolean joinedDemoRoom;
     int pendingRentPaymentM;
     String lastAutoDrawKey = "";
     String playedSessionKey = "";
@@ -43,9 +41,9 @@ final class FxClientState {
         clearPlayedEvents();
     }
 
-    void clearLobbyState() {
-        currentLobbyRoom = null;
-        roomRowsByLabel.clear();
+    void clearDemoRoomState() {
+        demoRoomState = null;
+        joinedDemoRoom = false;
     }
 
     void clearPlayedEvents() {
